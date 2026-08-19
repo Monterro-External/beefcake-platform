@@ -341,11 +341,16 @@ describe('money is always paired with a currency', () => {
     expect(row<{ n: number }>('select count(*) n from charges where amount_minor <= 0').n).toBe(0);
   });
 
-  it('never charges more than the most expensive plan for a single period', () => {
+  it('never charges more than the two most expensive plans together', () => {
+    // A period containing a plan change bills both plans for their own stretch,
+    // so the ceiling is the two dearest plans rather than the single dearest.
     expect(
       row<{ n: number }>(
         `select count(*) n from charges c
-          where c.amount_minor > (select max(price_minor) from plans p where p.tenant_id = c.tenant_id)`,
+          where c.amount_minor > (
+            select coalesce(sum(price_minor), 0) from (
+              select price_minor from plans p where p.tenant_id = c.tenant_id
+               order by price_minor desc limit 2))`,
       ).n,
     ).toBe(0);
   });

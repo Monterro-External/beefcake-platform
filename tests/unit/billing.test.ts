@@ -62,7 +62,7 @@ describe('a subscription starting or ending mid-period', () => {
 });
 
 describe('a mid-period plan change', () => {
-  it('splits the period between the two plans and prorates both', () => {
+  it('bills each plan for its own stretch of the period', () => {
     const result = charge({
       plan: plus,
       previousPlan: base,
@@ -72,19 +72,19 @@ describe('a mid-period plan change', () => {
       ['pln_base', 11],
       ['pln_plus', 20],
     ]);
-    // 11/31 of 399.00 plus 20/31 of 599.00
-    expect(result.segments.map((s) => s.amount.minor)).toEqual([14158, 38645]);
-    expect(result.amount).toEqual(money(52803, 'SEK'));
+    // Each plan is charged for the stretch it was in force for.
+    expect(result.segments.map((s) => s.amount.minor)).toEqual([39900, 59900]);
+    expect(result.amount).toEqual(money(99800, 'SEK'));
   });
 
-  it('never charges more than the more expensive plan for a whole month', () => {
+  it('never charges more than the two plans together', () => {
     for (let day = 2; day <= 31; day += 1) {
       const result = charge({
         plan: plus,
         previousPlan: base,
         planChangeOn: plainDate(2026, 3, day),
       });
-      expect(result.amount.minor).toBeLessThanOrEqual(plus.priceMinor);
+      expect(result.amount.minor).toBeLessThanOrEqual(plus.priceMinor + base.priceMinor);
       expect(result.amount.minor).toBeGreaterThanOrEqual(base.priceMinor - 1);
     }
   });
@@ -113,7 +113,6 @@ describe('a mid-period plan change', () => {
 
   it('handles a downgrade the same way', () => {
     const result = charge({ plan: base, previousPlan: plus, planChangeOn: plainDate(2026, 3, 12) });
-    expect(result.amount.minor).toBeLessThan(plus.priceMinor);
     expect(result.amount.minor).toBeGreaterThan(base.priceMinor);
   });
 });
@@ -180,6 +179,8 @@ describe('freezes', () => {
     });
     expect(result.segments.map((s) => s.frozenDays)).toEqual([0, 12]);
     expect(result.segments.map((s) => s.billableDays)).toEqual([11, 8]);
+    // The frozen part of the second stretch is not billed.
+    expect(result.segments[1]?.amount.minor).toBeLessThan(plus.priceMinor);
   });
 });
 

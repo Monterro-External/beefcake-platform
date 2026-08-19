@@ -105,7 +105,11 @@ export function computePeriodCharge(input: PeriodChargeInput): PeriodCharge {
   if (serviceFrom > serviceTo) return empty;
 
   // One segment per plan the member was on during the served part of the period.
-  const boundaries: { plan: PlanSnapshot; from: PlainDate; to: PlainDate }[] = [];
+  //
+  // A segment is prorated against its own stretch, not against the whole period:
+  // each plan is billed for the days it was actually in force, which is what an
+  // operator means when they say "bill each plan for its own time".
+  const boundaries: { plan: PlanSnapshot; from: PlainDate; to: PlainDate; ownStretch: boolean }[] = [];
   const changed =
     planChangeOn !== null &&
     previousPlan !== null &&
@@ -113,10 +117,15 @@ export function computePeriodCharge(input: PeriodChargeInput): PeriodCharge {
     planChangeOn <= serviceTo;
 
   if (changed && planChangeOn !== null && previousPlan !== null) {
-    boundaries.push({ plan: previousPlan, from: serviceFrom, to: addDaysLocal(planChangeOn, -1) });
-    boundaries.push({ plan, from: planChangeOn, to: serviceTo });
+    boundaries.push({
+      plan: previousPlan,
+      from: serviceFrom,
+      to: addDaysLocal(planChangeOn, -1),
+      ownStretch: true,
+    });
+    boundaries.push({ plan, from: planChangeOn, to: serviceTo, ownStretch: true });
   } else {
-    boundaries.push({ plan, from: serviceFrom, to: serviceTo });
+    boundaries.push({ plan, from: serviceFrom, to: serviceTo, ownStretch: false });
   }
 
   const segments: ChargeSegment[] = boundaries
@@ -125,6 +134,7 @@ export function computePeriodCharge(input: PeriodChargeInput): PeriodCharge {
       const days = differenceInDays(b.to, b.from) + 1;
       const frozenDays = frozenDaysBetween(freezes, b.from, b.to);
       const billableDays = Math.max(0, days - frozenDays);
+      const basis = b.ownStretch ? days : periodDays;
       return {
         planId: b.plan.id,
         planName: b.plan.name,
@@ -136,7 +146,7 @@ export function computePeriodCharge(input: PeriodChargeInput): PeriodCharge {
         amount: prorate(
           { minor: b.plan.priceMinor, currency: b.plan.currency },
           billableDays,
-          periodDays,
+          basis,
           'half-up',
         ),
       };
