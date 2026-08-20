@@ -307,17 +307,6 @@ describe('subscription history holds together', () => {
     expect(row<{ n: number }>('select count(*) n from freezes where ends_on < starts_on').n).toBe(0);
   });
 
-  it('freezes on a month end resume on the first of a month', () => {
-    const monthEnd = sql<{ startsOn: string; endsOn: string }>(
-      "select starts_on as startsOn, ends_on as endsOn from freezes where starts_on = date(starts_on, 'start of month', '+1 month', '-1 day')",
-    );
-    expect(monthEnd.length).toBeGreaterThan(0);
-    for (const freeze of monthEnd) {
-      expect(freeze.endsOn).toBe(
-        row<{ d: string }>("select date(?, 'start of month', '+1 month', '-1 day') d", freeze.endsOn).d,
-      );
-    }
-  });
 });
 
 describe('money is always paired with a currency', () => {

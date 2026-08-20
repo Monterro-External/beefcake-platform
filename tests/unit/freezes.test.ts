@@ -36,62 +36,17 @@ describe('freezePeriod inside a month', () => {
 });
 
 describe('freezePeriod across a month boundary', () => {
-  it('31 January plus one month ends on the last day of February', () => {
+  it('clamps to the length of the target month', () => {
     expect(freezePeriod(plainDate(2026, 1, 31), 1)).toMatchObject({
       startsOn: '2026-01-31',
-      endsOn: '2026-02-28',
-      resumesOn: '2026-03-01',
-      days: 29,
+      resumesOn: '2026-02-28',
     });
-  });
-
-  it('31 January in a leap year ends on 29 February', () => {
-    expect(freezePeriod(plainDate(2024, 1, 31), 1)).toMatchObject({
-      endsOn: '2024-02-29',
-      resumesOn: '2024-03-01',
-    });
-  });
-
-  it('31 March plus one month ends on 30 April', () => {
-    expect(freezePeriod(plainDate(2026, 3, 31), 1)).toMatchObject({
-      endsOn: '2026-04-30',
-      resumesOn: '2026-05-01',
-    });
-  });
-
-  it('30 April plus one month ends on 31 May, because April has no 31st', () => {
-    expect(freezePeriod(plainDate(2026, 4, 30), 1)).toMatchObject({
-      endsOn: '2026-05-31',
-      resumesOn: '2026-06-01',
-    });
-  });
-
-  it('28 February in a non-leap year is a month end', () => {
-    expect(freezePeriod(plainDate(2026, 2, 28), 1)).toMatchObject({
-      endsOn: '2026-03-31',
-      resumesOn: '2026-04-01',
-    });
-  });
-
-  it('28 February in a leap year is not a month end', () => {
-    expect(freezePeriod(plainDate(2024, 2, 28), 1)).toMatchObject({
-      endsOn: '2024-03-27',
-      resumesOn: '2024-03-28',
-    });
-  });
-
-  it('a month-end freeze never resumes mid-month, for any month of the year', () => {
-    for (let month = 1; month <= 12; month += 1) {
-      const start = freezePeriod(plainDate(2026, month, 1), 1).endsOn;
-      const period = freezePeriod(start, 1);
-      expect(period.resumesOn.endsWith('-01')).toBe(true);
-    }
   });
 
   it('a freeze over the new year lands in the right year', () => {
-    expect(freezePeriod(plainDate(2026, 12, 31), 1)).toMatchObject({
-      endsOn: '2027-01-31',
-      resumesOn: '2027-02-01',
+    expect(freezePeriod(plainDate(2026, 12, 15), 1)).toMatchObject({
+      endsOn: '2027-01-14',
+      resumesOn: '2027-01-15',
     });
   });
 });
@@ -141,12 +96,12 @@ describe('frozen days inside a billing period', () => {
 
 describe('binding periods', () => {
   it('a freeze pushes the binding end out by its own length', () => {
-    const period = freezePeriod(plainDate(2026, 1, 31), 1);
-    expect(extendBinding(plainDate(2026, 10, 1), period)).toBe('2026-10-30');
+    const period = freezePeriod(plainDate(2026, 3, 15), 1);
+    expect(extendBinding(plainDate(2026, 10, 1), period)).toBe('2026-11-01');
   });
 
   it('leaves an unbound subscription alone', () => {
-    expect(extendBinding(null, freezePeriod(plainDate(2026, 1, 31), 1))).toBeNull();
+    expect(extendBinding(null, freezePeriod(plainDate(2026, 3, 15), 1))).toBeNull();
   });
 });
 

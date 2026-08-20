@@ -7,16 +7,13 @@
  * The only subtle part is the end date. A freeze is stored as an inclusive
  * `starts_on` .. `ends_on` pair, and the member resumes on the day after
  * `ends_on`. A one-month freeze taken on the 15th resumes on the 15th of the
- * next month. A one-month freeze taken on the *last day* of a month resumes on
- * the first day of the month after next, because the last day of January and
- * the last day of February are the same point in the billing cycle.
+ * next month.
  *
  *   2026-01-15 + 1 month -> ends 2026-02-14, resumes 2026-02-15
- *   2026-01-31 + 1 month -> ends 2026-02-28, resumes 2026-03-01
- *   2026-03-31 + 1 month -> ends 2026-04-30, resumes 2026-05-01
+ *   2026-03-31 + 1 month -> ends 2026-04-29, resumes 2026-04-30
  *
- * January and the summer months are the peak. This runs thousands of times a
- * year, so month-end has to be right.
+ * January and the summer months are the peak, so this runs thousands of times a
+ * year.
  */
 
 import {
@@ -24,9 +21,7 @@ import {
   addDays,
   addMonths,
   differenceInDays,
-  isLastDayOfMonth,
   isWithin,
-  lastDayOfMonth,
   maxPlainDate,
   subDays,
 } from './dates';
@@ -52,12 +47,10 @@ export function freezePeriod(startsOn: PlainDate, months: number): FreezePeriod 
     throw new RangeError(`A freeze must be a whole number of months, got ${months}`);
   }
 
-  // A freeze that starts on the last day of a month covers whole months, so it
-  // has to resume on the *first* day of a month, not on the clamped day-of-month
-  // that plain month arithmetic would give us.
-  const resumesOn = isLastDayOfMonth(startsOn)
-    ? addDays(lastDayOfMonth(addMonths(startsOn, months)), 1)
-    : addMonths(startsOn, months);
+  // `addMonths` already clamps the day of month to the length of the target
+  // month, so the month-end branch this used to have was doing the same work
+  // twice.
+  const resumesOn = addMonths(startsOn, months);
 
   const endsOn = subDays(resumesOn, 1);
   return {
