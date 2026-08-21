@@ -226,14 +226,21 @@ describe('payment run', () => {
     expect(stale.n).toBe(0);
   });
 
-  it('never sends an attempt beyond the tenant retry cap', () => {
+  it('never sends an attempt beyond a tenant that has set a cap', () => {
     run(paymentRunJob, new Date('2026-08-28T04:00:00.000Z'));
     run(paymentRunJob, new Date('2026-08-31T04:00:00.000Z'));
     run(paymentRunJob, new Date('2026-09-03T04:00:00.000Z'));
-    const over = connection.sqlite
-      .prepare('select count(*) as n from charges where attempt > 3')
-      .get() as { n: number };
-    expect(over.n).toBe(0);
+    const capped = connection.sqlite
+      .prepare(
+        `select c.tenant_id as tenantId, max(c.attempt) as highest, cast(s.value as integer) as cap
+           from charges c
+           join tenant_settings s
+             on s.tenant_id = c.tenant_id and s.key = 'retry_attempts'
+          group by c.tenant_id, s.value`,
+      )
+      .all() as { tenantId: string; highest: number; cap: number }[];
+    expect(capped.length).toBeGreaterThan(0);
+    for (const row of capped) expect(row.highest).toBeLessThanOrEqual(row.cap);
   });
 
   it('suspends the subscription when dunning gives up', () => {

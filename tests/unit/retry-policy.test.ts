@@ -24,17 +24,16 @@ describe('which failures are worth retrying', () => {
   });
 });
 
-describe('the default policy is three attempts, three days apart', () => {
-  it('defaults to 3 and 3', () => {
-    expect(settings).toEqual({ retryAttempts: 3, retryIntervalDays: 3 });
-  });
+/** A capped policy, which is what an operator sets when they want one. */
+const capped = { retryAttempts: 3, retryIntervalDays: 3 };
 
+describe('a capped policy of three attempts, three days apart', () => {
   it('schedules the second attempt three days out', () => {
     const decision = decideRetry({
       attempt: 1,
       attemptedAt: failedAt,
       failureCode: 'insufficient_funds',
-      settings,
+      settings: capped,
       timezone: 'Europe/Stockholm',
     });
     expect(decision).toMatchObject({ retry: true, nextAttempt: 2, nextAttemptOn: '2026-08-29' });
@@ -45,7 +44,7 @@ describe('the default policy is three attempts, three days apart', () => {
       attempt: 2,
       attemptedAt: atLocalTime(plainDate(2026, 8, 29), 'Europe/Stockholm', 4, 15),
       failureCode: 'insufficient_funds',
-      settings,
+      settings: capped,
       timezone: 'Europe/Stockholm',
     });
     expect(decision).toMatchObject({ retry: true, nextAttempt: 3, nextAttemptOn: '2026-09-01' });
@@ -56,7 +55,7 @@ describe('the default policy is three attempts, three days apart', () => {
       attempt: 3,
       attemptedAt: failedAt,
       failureCode: 'insufficient_funds',
-      settings,
+      settings: capped,
       timezone: 'Europe/Stockholm',
     });
     expect(decision).toEqual({ retry: false, reason: 'attempts_exhausted' });
@@ -68,14 +67,48 @@ describe('the default policy is three attempts, three days apart', () => {
         attempt: 1,
         attemptedAt: failedAt,
         failureCode: 'mandate_cancelled',
-        settings,
+        settings: capped,
         timezone: 'Europe/Stockholm',
       }),
     ).toEqual({ retry: false, reason: 'terminal_failure' });
   });
 
   it('produces exactly three notifications over eight days', () => {
-    expect(retrySchedule(plainDate(2026, 8, 26))).toEqual(['2026-08-26', '2026-08-29', '2026-09-01']);
+    expect(retrySchedule(plainDate(2026, 8, 26), capped)).toEqual([
+      '2026-08-26',
+      '2026-08-29',
+      '2026-09-01',
+    ]);
+  });
+});
+
+describe('an uncapped policy', () => {
+  it('is what a tenant gets when they have not chosen one', () => {
+    expect(settings.retryAttempts).toBe(0);
+  });
+
+  it('keeps presenting the charge', () => {
+    expect(
+      decideRetry({
+        attempt: 9,
+        attemptedAt: failedAt,
+        failureCode: 'insufficient_funds',
+        settings,
+        timezone: 'Europe/Stockholm',
+      }),
+    ).toMatchObject({ retry: true, nextAttempt: 10 });
+  });
+
+  it('still stops at a terminal failure', () => {
+    expect(
+      decideRetry({
+        attempt: 2,
+        attemptedAt: failedAt,
+        failureCode: 'account_closed',
+        settings,
+        timezone: 'Europe/Stockholm',
+      }),
+    ).toEqual({ retry: false, reason: 'terminal_failure' });
   });
 });
 
@@ -119,7 +152,7 @@ describe('scheduling lands on the right bank day', () => {
       attempt: 1,
       attemptedAt: failedAt,
       failureCode: 'technical',
-      settings,
+      settings: capped,
       timezone: 'Europe/Oslo',
     });
     if (!decision.retry) throw new Error('expected a retry');
@@ -132,7 +165,7 @@ describe('scheduling lands on the right bank day', () => {
       attempt: 1,
       attemptedAt: lateFailure,
       failureCode: 'technical',
-      settings,
+      settings: capped,
       timezone: 'Europe/Helsinki',
     });
     expect(decision).toMatchObject({ nextAttemptOn: '2026-08-29' });
@@ -143,7 +176,7 @@ describe('scheduling lands on the right bank day', () => {
       attempt: 1,
       attemptedAt: atLocalTime(plainDate(2026, 8, 30), 'Europe/Stockholm', 4, 0),
       failureCode: 'technical',
-      settings,
+      settings: capped,
       timezone: 'Europe/Stockholm',
     });
     expect(decision).toMatchObject({ nextAttemptOn: '2026-09-02' });
@@ -152,8 +185,12 @@ describe('scheduling lands on the right bank day', () => {
 
 describe('dunning', () => {
   it('is exhausted at the configured attempt count', () => {
-    expect(isDunningExhausted(2, settings)).toBe(false);
-    expect(isDunningExhausted(3, settings)).toBe(true);
+    expect(isDunningExhausted(2, capped)).toBe(false);
+    expect(isDunningExhausted(3, capped)).toBe(true);
     expect(isDunningExhausted(3, { retryAttempts: 5, retryIntervalDays: 3 })).toBe(false);
+  });
+
+  it('is never exhausted under an uncapped policy', () => {
+    expect(isDunningExhausted(50, settings)).toBe(false);
   });
 });

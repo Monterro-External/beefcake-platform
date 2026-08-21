@@ -225,11 +225,12 @@ describe('writes are scoped', () => {
   });
 
   it('settings are written and read per tenant', () => {
+    const platformDefault = tenantsRepo.getSettings(scopeB()).retryAttempts;
     tenantsRepo.setSetting(scopeA(), 'retry_attempts', '5', NOW);
     expect(tenantsRepo.getSettings(scopeA()).retryAttempts).toBe(5);
-    expect(tenantsRepo.getSettings(scopeB()).retryAttempts).toBe(3);
+    expect(tenantsRepo.getSettings(scopeB()).retryAttempts).toBe(platformDefault);
     tenantsRepo.clearSetting(scopeA(), 'retry_attempts');
-    expect(tenantsRepo.getSettings(scopeA()).retryAttempts).toBe(3);
+    expect(tenantsRepo.getSettings(scopeA()).retryAttempts).toBe(platformDefault);
   });
 });
 

@@ -8,6 +8,13 @@
       "when": 1787741540922,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1813661540922,
+      "tag": "0001_tidy_retry_settings",
+      "breakpoints": true
     }
   ]
 }

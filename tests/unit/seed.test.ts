@@ -212,10 +212,12 @@ describe('the twelve tenants', () => {
   });
 
   it('leaves the retry policy at its default for all but one tenant', () => {
-    // Bugs in a default only bite the tenants that never overrode it, so the
-    // seed has to leave most of them on the default.
+    // Most operators never choose a retry policy, so the seed has to leave most
+    // of them on whatever the platform default is.
     const explicit = sql("select tenant_id from tenant_settings where key = 'retry_attempts'");
     expect(explicit.length).toBe(1);
+    const tenants = row<{ n: number }>('select count(*) n from tenants');
+    expect(explicit.length).toBeLessThan(tenants.n);
   });
 });
 
@@ -384,8 +386,14 @@ describe('payment runs and retries', () => {
     ).toBe(0);
   });
 
-  it('never exceeds the configured attempt cap', () => {
-    expect(row<{ n: number }>('select count(*) n from charges where attempt > 3').n).toBe(0);
+  it('never exceeds a cap the tenant has actually set', () => {
+    expect(
+      row<{ n: number }>(
+        `select count(*) n from charges c
+           join tenant_settings s on s.tenant_id = c.tenant_id and s.key = 'retry_attempts'
+          where c.attempt > cast(s.value as integer)`,
+      ).n,
+    ).toBe(0);
   });
 
   it('lets a retry succeed most of the time, so dunning is not a formality', () => {

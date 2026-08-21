@@ -18,10 +18,10 @@ describe('a tenant with no settings rows', () => {
     expect(retrySettingsOf(readSettings([]))).toEqual(DEFAULT_RETRY_SETTINGS);
   });
 
-  it('defaults the retry policy to three attempts three days apart', () => {
+  it('leaves the retry policy uncapped until an operator chooses one', () => {
     const settings = readSettings([]);
-    expect(settings.retryAttempts).toBe(3);
-    expect(settings.retryIntervalDays).toBe(3);
+    expect(settings.retryAttempts).toBe(0);
+    expect(settings.retryIntervalDays).toBe(1);
   });
 });
 
@@ -47,6 +47,7 @@ describe('reading values', () => {
   it('falls back to the default on an unparseable value rather than NaN', () => {
     const settings = readSettings([{ key: 'retry_attempts', value: 'three' }]);
     expect(settings.retryAttempts).toBe(DEFAULT_SETTINGS.retryAttempts);
+    expect(Number.isFinite(settings.retryAttempts)).toBe(true);
   });
 
   it('ignores keys it does not know', () => {

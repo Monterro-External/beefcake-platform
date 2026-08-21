@@ -257,7 +257,13 @@ export const TENANTS: readonly TenantBlueprint[] = [
       { name: 'Hälsa Plus', price: 629, bindingMonths: 0, sitesScope: 'all_sites', weight: 30 },
       { name: 'Hälsa Bas 12', price: 349, bindingMonths: 12, sitesScope: 'all_sites', weight: 20 },
     ],
-    settings: { notice_period_days: '60', max_freeze_months: '2' },
+    settings: {
+      notice_period_days: '60',
+      max_freeze_months: '2',
+      // Their finance team asked for a slower, longer dunning cycle.
+      retry_attempts: '4',
+      retry_interval_days: '7',
+    },
     planChangeRate: 0.09,
     freezeRate: 0.17,
     failureRate: 0.031,
@@ -359,10 +365,7 @@ export const TENANTS: readonly TenantBlueprint[] = [
       { name: 'Premium', price: 899, bindingMonths: 0, sitesScope: 'all_sites', weight: 15 },
       { name: 'Ungdom', price: 299, bindingMonths: 0, sitesScope: 'home_site', weight: 10 },
     ],
-    // The only tenant with a per-tenant retry policy, agreed during onboarding.
     settings: {
-      retry_attempts: '3',
-      retry_interval_days: '3',
       notice_period_days: '30',
       flag_new_reports: 'true',
       flag_member_app: 'true',

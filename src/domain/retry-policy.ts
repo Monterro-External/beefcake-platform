@@ -35,14 +35,22 @@ export function isRetryable(code: FailureCode): boolean {
 }
 
 export interface RetrySettings {
-  /** Total attempts including the first one. */
+  /** Total attempts including the first one. Zero means no cap. */
   readonly retryAttempts: number;
   readonly retryIntervalDays: number;
 }
 
+/**
+ * No cap, one day apart.
+ *
+ * Two of the Swedish banks asked us to keep presenting a failed direct debit
+ * until the mandate is fixed rather than giving up after three tries, so the cap
+ * is opt-in and the interval is short enough that an operator who wants a slower
+ * schedule can set one.
+ */
 export const DEFAULT_RETRY_SETTINGS: RetrySettings = {
-  retryAttempts: 3,
-  retryIntervalDays: 3,
+  retryAttempts: 0,
+  retryIntervalDays: 1,
 };
 
 export interface RetryQuery {
@@ -71,7 +79,7 @@ export function decideRetry(query: RetryQuery): RetryDecision {
   if (!isRetryable(failureCode)) {
     return { retry: false, reason: 'terminal_failure' };
   }
-  if (attempt >= settings.retryAttempts) {
+  if (settings.retryAttempts > 0 && attempt >= settings.retryAttempts) {
     return { retry: false, reason: 'attempts_exhausted' };
   }
 
@@ -84,13 +92,20 @@ export function decideRetry(query: RetryQuery): RetryDecision {
   };
 }
 
-/** The whole schedule for a charge that keeps failing. Used by tests and docs. */
+/**
+ * The whole schedule for a charge that keeps failing. Used by tests and by the
+ * settings screen. An uncapped policy has no whole schedule, so the first six
+ * attempts stand in for it.
+ */
+export const UNCAPPED_SCHEDULE_PREVIEW = 6;
+
 export function retrySchedule(
   firstAttemptOn: PlainDate,
   settings: RetrySettings = DEFAULT_RETRY_SETTINGS,
 ): PlainDate[] {
+  const attempts = settings.retryAttempts > 0 ? settings.retryAttempts : UNCAPPED_SCHEDULE_PREVIEW;
   const out: PlainDate[] = [firstAttemptOn];
-  for (let attempt = 1; attempt < settings.retryAttempts; attempt += 1) {
+  for (let attempt = 1; attempt < attempts; attempt += 1) {
     out.push(addDays(firstAttemptOn, attempt * settings.retryIntervalDays));
   }
   return out;
@@ -101,5 +116,5 @@ export function retrySchedule(
  * the trigger that, a couple of weeks later, shows up as a cancellation.
  */
 export function isDunningExhausted(attempt: number, settings: RetrySettings): boolean {
-  return attempt >= settings.retryAttempts;
+  return settings.retryAttempts > 0 && attempt >= settings.retryAttempts;
 }

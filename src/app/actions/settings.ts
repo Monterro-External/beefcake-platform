@@ -26,7 +26,7 @@ import type { ActionResult } from './subscriptions';
 
 /** Sensible bounds per key. Support has typed 300 into a days field before. */
 const LIMITS: Partial<Record<SettingKey, { min: number; max: number }>> = {
-  retry_attempts: { min: 1, max: 6 },
+  retry_attempts: { min: 0, max: 6 },
   retry_interval_days: { min: 1, max: 30 },
   notice_period_days: { min: 0, max: 180 },
   access_grace_hours: { min: 0, max: 168 },
