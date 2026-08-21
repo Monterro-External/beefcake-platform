@@ -27,6 +27,7 @@ import { MembershipActions } from './actions-panel';
 import { activeTenant, can, getSession, tenantScopeFor } from '@/lib/session';
 import { clock } from '@/lib/clock';
 import { amount, ago, date as formatDate, humanise, instant, integer } from '@/lib/format';
+import { renderReceipt } from '@/lib/receipt';
 import * as membersRepo from '@/db/repositories/members';
 import * as subscriptionsRepo from '@/db/repositories/subscriptions';
 import * as paymentsRepo from '@/db/repositories/payments';
@@ -94,6 +95,8 @@ export default async function MemberPage({ params }: { params: Promise<{ memberI
       .all()
       .map((run) => [run.id, run.period]),
   );
+
+  const latestReceipt = receipts[0] === undefined ? null : renderReceipt(receipts[0], locale);
 
   const accessEvents = accessRepo.listAccessEvents(scope, { memberId: member.id, limit: 20 });
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
@@ -353,10 +356,9 @@ export default async function MemberPage({ params }: { params: Promise<{ memberI
               </tbody>
             </Table>
           )}
-          {receipts.length > 0 && (
+          {latestReceipt !== null && (
             <p className="mt-3 text-ink-muted">
-              Latest receipt {receipts[0]?.number} for{' '}
-              {amount(receipts[0]?.totalMinor ?? 0, tenant.currency, locale)}.
+              Latest receipt {latestReceipt.number} for {latestReceipt.total}.
             </p>
           )}
         </Card>

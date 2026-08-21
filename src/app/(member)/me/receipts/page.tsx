@@ -10,18 +10,13 @@
 import { Badge, Card, EmptyState, PageHeader, TD, TH, THead, TR, Table } from '@/components/ui';
 import { getSession, tenantScopeFor } from '@/lib/session';
 import { amount, humanise, instant } from '@/lib/format';
+import { renderReceipt } from '@/lib/receipt';
 import * as paymentsRepo from '@/db/repositories/payments';
+import { recordError } from '@/db/repositories/observability';
+import { clock } from '@/lib/clock';
 import { timezoneForCountry } from '@/jobs/runner';
 
 export const dynamic = 'force-dynamic';
-
-interface ReceiptLine {
-  description: string;
-  quantity: number;
-  unit: string;
-  amountMinor: number;
-  currency: string;
-}
 
 export default async function MemberReceipts() {
   const session = await getSession();
@@ -37,11 +32,23 @@ export default async function MemberReceipts() {
   const charges = paymentsRepo.listCharges(scope, { memberId: member.id, limit: 24 });
   const open = charges.filter((charge) => charge.status === 'retrying' || charge.status === 'abandoned');
 
+  const rendered = receipts.map((receipt) => renderReceipt(receipt, locale));
+  const warning = rendered.find((entry) => entry.localeWarning !== null)?.localeWarning ?? null;
+  if (warning !== null) {
+    recordError(scope, {
+      where: 'app/receipts',
+      message: warning,
+      severity: 'warn',
+      context: { locale, receipts: rendered.length },
+      at: clock().now.toISOString(),
+    });
+  }
+
   return (
     <>
       <PageHeader
         title="Receipts"
-        subtitle={`${tenant.name} · amounts in ${tenant.currency}`}
+        subtitle={`${tenant.name} · amounts in ${rendered[0]?.currency ?? tenant.currency}`}
       />
 
       {open.length > 0 && (
@@ -96,22 +103,19 @@ export default async function MemberReceipts() {
               </TR>
             </THead>
             <tbody>
-              {receipts.map((receipt) => {
-                const lines = JSON.parse(receipt.linesJson) as ReceiptLine[];
-                return (
-                  <TR key={receipt.id}>
-                    <TD mono>{receipt.number}</TD>
-                    <TD className="whitespace-nowrap">{instant(receipt.issuedAt, timezone, locale)}</TD>
-                    <TD>{lines.map((line) => line.description).join(' + ')}</TD>
-                    <TD align="right" mono className="text-ink-muted">
-                      {amount(receipt.vatMinor, receipt.currency, locale)}
-                    </TD>
-                    <TD align="right" mono>
-                      {amount(receipt.totalMinor, receipt.currency, locale)}
-                    </TD>
-                  </TR>
-                );
-              })}
+              {rendered.map((receipt) => (
+                <TR key={receipt.number}>
+                  <TD mono>{receipt.number}</TD>
+                  <TD className="whitespace-nowrap">{instant(receipt.issuedAt, timezone, locale)}</TD>
+                  <TD>{receipt.lines.map((line) => line.description).join(' + ')}</TD>
+                  <TD align="right" mono className="text-ink-muted">
+                    {receipt.vat}
+                  </TD>
+                  <TD align="right" mono>
+                    {receipt.total}
+                  </TD>
+                </TR>
+              ))}
             </tbody>
           </Table>
         )}
