@@ -40,6 +40,7 @@ import {
   period as formatPeriod,
 } from '@/lib/format';
 import * as reports from '@/export/reports';
+import { recordError } from '@/db/repositories/observability';
 import { addBillingPeriods } from '@/domain/dates';
 import { periodForRunDay } from '@/jobs/payment-run';
 import { timezoneForCountry } from '@/jobs/runner';
@@ -72,7 +73,24 @@ export default async function ReportsPage({
 
   const membership = reports.membershipSummary(scope, window);
   const churn = reports.churnByWeek(scope, window);
-  const churnDetail = reports.churnWithPaymentLag(scope, window);
+
+  // The detail view is heavier than the weekly roll-up. If it does not finish,
+  // show the roll-up rather than an empty page, and record it so somebody looks.
+  let churnDetail: reports.ChurnDetailRow[] = [];
+  let churnDetailFailed: string | null = null;
+  try {
+    churnDetail = reports.churnWithPaymentLag(scope, window);
+  } catch (error) {
+    if (!(error instanceof reports.ReportTimeoutError)) throw error;
+    churnDetailFailed = error.message;
+    recordError(scope, {
+      where: 'export/reports',
+      message: error.message,
+      severity: 'error',
+      context: { report: 'churn', members: membership.active, days },
+      at: time.now.toISOString(),
+    });
+  }
   const revenue = reports.revenueByPeriod(scope, 18);
   const codes = reports.failedPaymentsByCode(scope, addBillingPeriods(periodForRunDay(today), -5));
   const fill = reports.classFillBySite(scope, window);
@@ -151,6 +169,15 @@ export default async function ReportsPage({
           hint={humanise(health.score.band)}
         />
       </div>
+
+      {churnDetailFailed !== null && (
+        <div className="mb-4">
+          <Callout tone="bad" title="The churn detail did not finish">
+            {churnDetailFailed}. The weekly figures below are still correct. Narrow the window and
+            try again, or take the CSV export instead.
+          </Callout>
+        </div>
+      )}
 
       {paymentDrivenLags.length > 5 && (
         <div className="mb-4">

@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 import { csvCell } from '@/export/signals';
 import * as reports from '@/export/reports';
 import { activeTenant, can, getSession, tenantScopeFor } from '@/lib/session';
-import { recordEvent } from '@/db/repositories/observability';
+import { recordError, recordEvent } from '@/db/repositories/observability';
 import { clock } from '@/lib/clock';
 import { addBillingPeriods } from '@/domain/dates';
 import { periodForRunDay } from '@/jobs/payment-run';
@@ -50,7 +50,23 @@ export async function GET(
   const days = Number.isFinite(requested) ? Math.min(730, Math.max(7, requested)) : 90;
   const window = reports.windowOfDays(today, days);
 
-  const csv = build(report as ReportName, scope, window, today);
+  let csv: Csv;
+  try {
+    csv = build(report as ReportName, scope, window, today);
+  } catch (error) {
+    if (!(error instanceof reports.ReportTimeoutError)) throw error;
+    recordError(scope, {
+      where: 'export/reports',
+      message: error.message,
+      severity: 'error',
+      context: { report, days, elapsed_ms: error.elapsedMs },
+      at: time.now.toISOString(),
+    });
+    return NextResponse.json(
+      { error: error.message, hint: 'Narrow the window with ?days= and try again.' },
+      { status: 504 },
+    );
+  }
 
   recordEvent(scope, {
     action: 'report.exported',

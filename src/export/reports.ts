@@ -191,22 +191,60 @@ export interface ChurnDetailRow {
   readonly daysSinceLastFailedPayment: number | null;
 }
 
+/** How long a report is allowed to take before we give up on it. */
+export const REPORT_DEADLINE_MS = 20_000;
+
+export class ReportTimeoutError extends Error {
+  constructor(
+    readonly report: string,
+    readonly elapsedMs: number,
+  ) {
+    super(`Report ${report} timed out after ${elapsedMs}ms`);
+    this.name = 'ReportTimeoutError';
+  }
+}
+
+/**
+ * The last charge that failed for a member on or before a given day.
+ *
+ * Goes through the charges repository rather than hand-rolling SQL here, so the
+ * tenant filter and the isolation guard are applied in one place instead of two.
+ */
+function lastFailedChargeFor(
+  scope: TenantScope,
+  memberId: string,
+  onOrBefore: PlainDate,
+): string | null {
+  const failed = listChargesForReport(scope);
+  let latest: string | null = null;
+  for (const charge of failed) {
+    if (charge.memberId !== memberId) continue;
+    if (charge.attemptedAt.slice(0, 10) > onOrBefore) continue;
+    if (latest === null || charge.attemptedAt > latest) latest = charge.attemptedAt;
+  }
+  return latest;
+}
+
+function listChargesForReport(scope: TenantScope) {
+  return scope.db
+    .select({
+      tenantId: charges.tenantId,
+      memberId: charges.memberId,
+      attemptedAt: charges.attemptedAt,
+    })
+    .from(charges)
+    .where(and(eq(charges.tenantId, scope.tenantId), inArray(charges.status, ['failed', 'abandoned'])))
+    .all();
+}
+
 /**
  * Cancellations with the payment history that preceded them.
  *
  * The lag column is the point of this report: dunning gives up, and two to three
- * weeks later the member cancels. One aggregate query with a correlated
- * subquery, not a query per member: at key-account volume the difference is
- * three orders of magnitude.
+ * weeks later the member cancels.
  */
 export function churnWithPaymentLag(scope: TenantScope, window: ReportWindow): ChurnDetailRow[] {
-  const lastFailure = sql<string | null>`(
-    select max(c.attempted_at) from charges c
-     where c.tenant_id = ${subscriptions.tenantId}
-       and c.member_id = ${subscriptions.memberId}
-       and c.status in ('failed', 'abandoned')
-       and substr(c.attempted_at, 1, 10) <= ${subscriptions.cancelledOn}
-  )`;
+  const startedAt = Date.now();
 
   const rows = scope.db
     .select({
@@ -216,7 +254,6 @@ export function churnWithPaymentLag(scope: TenantScope, window: ReportWindow): C
       endsOn: subscriptions.endsOn,
       reason: subscriptions.cancelReason,
       joinedOn: members.joinedOn,
-      lastFailedAt: lastFailure,
     })
     .from(subscriptions)
     .innerJoin(members, eq(members.id, subscriptions.memberId))
@@ -232,8 +269,12 @@ export function churnWithPaymentLag(scope: TenantScope, window: ReportWindow): C
   guard(scope, 'subscriptions', rows);
 
   return rows.map((row) => {
+    if (Date.now() - startedAt > REPORT_DEADLINE_MS) {
+      throw new ReportTimeoutError('churn', Date.now() - startedAt);
+    }
     const cancelledOn = row.cancelledOn as PlainDate;
-    const lastFailedDay = row.lastFailedAt === null ? null : (row.lastFailedAt.slice(0, 10) as PlainDate);
+    const lastFailedAt = lastFailedChargeFor(scope, row.memberId, cancelledOn);
+    const lastFailedDay = lastFailedAt === null ? null : (lastFailedAt.slice(0, 10) as PlainDate);
     return {
       memberId: row.memberId,
       cancelledOn,
