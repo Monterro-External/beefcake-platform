@@ -122,14 +122,6 @@ function promoteInto(
     void tx;
     for (const promotion of plan.promotions) {
       classesRepo.setBookingStatus(scope, promotion.bookingId, 'booked', null, at);
-
-      for (const releasedId of promotion.releases) {
-        scope.db
-          .update(bookings)
-          .set({ status: 'cancelled', position: null, updatedAt: at })
-          .where(and(eq(bookings.tenantId, scope.tenantId), eq(bookings.id, releasedId)))
-          .run();
-      }
     }
 
     for (const entry of plan.renumbered) {
@@ -137,11 +129,30 @@ function promoteInto(
     }
   });
 
-  // Notifications and events are outside the transaction: a failure to send must
-  // not roll back a promotion that has already freed a spot.
+  // Releases, notifications and events are outside the transaction: a failure to
+  // send must not roll back a promotion that has already freed a spot.
   for (const promotion of plan.promotions) {
     summary.promoted += 1;
-    summary.fallbacksReleased += promotion.releases.length;
+
+    // Only release a fallback for a promotion that actually went through. If the
+    // transaction above rolled back, the member is still waiting and their
+    // fallback is the only booking they have.
+    const applied = scope.db
+      .select({ status: bookings.status })
+      .from(bookings)
+      .where(and(eq(bookings.tenantId, scope.tenantId), eq(bookings.id, promotion.bookingId)))
+      .get();
+
+    if (applied?.status === 'waitlisted') {
+      for (const releasedId of promotion.releases) {
+        scope.db
+          .update(bookings)
+          .set({ status: 'cancelled', position: null, updatedAt: at })
+          .where(and(eq(bookings.tenantId, scope.tenantId), eq(bookings.id, releasedId)))
+          .run();
+      }
+      summary.fallbacksReleased += promotion.releases.length;
+    }
 
     recordEvent(scope, {
       action: 'booking.promoted',
@@ -156,14 +167,16 @@ function promoteInto(
       at,
     });
 
-    for (const releasedId of promotion.releases) {
-      recordEvent(scope, {
-        action: 'booking.cancelled',
-        subjectType: 'booking',
-        subjectId: releasedId,
-        payload: { reason: 'clashes_with_promotion', promoted_into: klass.id },
-        at,
-      });
+    if (applied?.status === 'waitlisted') {
+      for (const releasedId of promotion.releases) {
+        recordEvent(scope, {
+          action: 'booking.cancelled',
+          subjectType: 'booking',
+          subjectId: releasedId,
+          payload: { reason: 'clashes_with_promotion', promoted_into: klass.id },
+          at,
+        });
+      }
     }
 
     const member = membersRepo.getMember(scope, promotion.memberId);

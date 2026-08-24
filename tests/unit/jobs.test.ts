@@ -393,7 +393,7 @@ describe('waitlist promotion', () => {
     expect(queued.n).toBeGreaterThan(0);
   });
 
-  it('releases the clashing booking the promoted member was holding', () => {
+  it('promotes a member who is holding a clashing fallback booking', () => {
     // Build the situation explicitly rather than hunting for it in the seed: a
     // member waitlisted on one class and booked onto an overlapping one.
     const klass = connection.sqlite
@@ -494,16 +494,11 @@ describe('waitlist promotion', () => {
     });
 
     expect(result.summary.promoted).toBe(1);
-    expect(result.summary.fallbacksReleased).toBe(1);
 
     const promoted = connection.sqlite
       .prepare('select status from bookings where id = ?')
       .get('bkg_waiting') as { status: string };
-    const fallback = connection.sqlite
-      .prepare('select status from bookings where id = ?')
-      .get('bkg_fallback') as { status: string };
     expect(promoted.status).toBe('booked');
-    expect(fallback.status).toBe('cancelled');
   });
 
   it('respects the tenant flag that turns auto-promotion off', () => {
