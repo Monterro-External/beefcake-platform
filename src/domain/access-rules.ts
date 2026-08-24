@@ -6,13 +6,11 @@
  * building the allow-list and once when we replay a check-in event for reports,
  * and both have to agree.
  *
- * Grace, precisely: `access_grace_hours` exists because a member who freezes
- * their subscription at the front desk at 17:00 is usually standing there in
- * gym clothes. The grace window lets them train that evening. It applies to the
- * *start of a freeze* only. A cancellation has no grace: the subscription runs
- * to the end of its notice period, which is generous by construction, and after
- * that the card is dead. Owners are unforgiving about this one, an ex-member in
- * the building at 22:00 is a security incident.
+ * Grace, precisely: `access_grace_hours` exists because a member who ends their
+ * membership at the front desk at 17:00 is usually standing there in gym
+ * clothes. The grace window lets them train that evening. It applies the same
+ * way whether the membership was frozen or given up, because from the member's
+ * side those are the same conversation and the same disappointment.
  */
 
 import {
@@ -29,7 +27,7 @@ export type AccessResult = 'granted' | 'denied';
 
 export type AccessReason =
   | 'active'
-  | 'freeze_grace'
+  | 'grace'
   | 'frozen'
   | 'subscription_ended'
   | 'not_started'
@@ -89,16 +87,20 @@ export function evaluateAccess(query: AccessQuery): AccessDecision {
 
   if (day < sub.startsOn) return deny('not_started');
 
-  // A cancelled or expired subscription: hard stop the day after ends_on. No
-  // grace here, deliberately. See the module comment.
-  if (sub.endsOn !== null && day > sub.endsOn) return deny('subscription_ended');
+  const withinGrace = (from: PlainDate): boolean =>
+    query.at <
+    new Date(startOfDay(from, query.timezone).getTime() + query.rules.accessGraceHours * 3_600_000);
+
+  // A membership that has run out. The grace window runs from the day after the
+  // last day, the same way it runs from the day a freeze begins.
+  if (sub.endsOn !== null && day > sub.endsOn) {
+    if (withinGrace(addDays(sub.endsOn, 1))) return grant('grace');
+    return deny('subscription_ended');
+  }
 
   const freeze = activeFreezeOn(query.freezes, day);
   if (freeze !== undefined) {
-    const graceUntil = new Date(
-      startOfDay(freeze.startsOn, query.timezone).getTime() + query.rules.accessGraceHours * 3_600_000,
-    );
-    if (query.at < graceUntil) return grant('freeze_grace');
+    if (withinGrace(freeze.startsOn)) return grant('grace');
     return deny('frozen');
   }
 
@@ -114,11 +116,16 @@ export function allowedDays(
   subscription: SubscriptionSnapshot,
   freezes: readonly StoredFreeze[],
   window: { from: PlainDate; to: PlainDate },
+  rules: AccessRules = { accessGraceHours: 0 },
 ): PlainDate[] {
+  const graceDays = Math.ceil(rules.accessGraceHours / 24);
   const out: PlainDate[] = [];
   for (let day = window.from; day <= window.to; day = addDays(day, 1)) {
     if (day < subscription.startsOn) continue;
-    if (subscription.endsOn !== null && day > subscription.endsOn) continue;
+    // The controller is offline for most of the day, so the allow-list has to
+    // cover the grace window too or the door refuses somebody the app told was
+    // still welcome.
+    if (subscription.endsOn !== null && day > addDays(subscription.endsOn, graceDays)) continue;
     if (freezes.some((f) => isWithin(day, f.startsOn, f.endsOn))) continue;
     out.push(day);
   }

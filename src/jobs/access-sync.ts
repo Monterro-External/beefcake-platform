@@ -88,6 +88,7 @@ export const accessSyncJob: Job<AccessSyncSummary> = {
           },
           freezes.get(row.subscriptionId) ?? [],
           window,
+          { accessGraceHours: context.settings.accessGraceHours },
         );
         if (days.length === 0) {
           summary.membersExcluded += 1;

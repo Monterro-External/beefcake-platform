@@ -568,7 +568,7 @@ describe('access events', () => {
   it('never denies with a reason the domain does not define', () => {
     const known = new Set([
       'active',
-      'freeze_grace',
+      'grace',
       'frozen',
       'subscription_ended',
       'not_started',

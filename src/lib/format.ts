@@ -139,7 +139,7 @@ const HUMAN: Record<string, string> = {
   no_show: 'No show',
   granted: 'Granted',
   denied: 'Denied',
-  freeze_grace: 'Granted (freeze grace)',
+  grace: 'Granted (grace period)',
   subscription_ended: 'Membership ended',
   not_started: 'Not started yet',
   no_subscription: 'No membership',

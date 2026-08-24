@@ -91,21 +91,31 @@ describe('before it starts and after it ends', () => {
     expect(evaluateAccess(query({ subscription: sub })).result).toBe('granted');
   });
 
-  it('denies the day after a cancelled subscription ends, with no grace at all', () => {
+  it('grants inside the grace window after a membership ends', () => {
     const sub = { ...openEnded, endsOn: plainDate(2026, 8, 25) };
     const justAfterMidnight = atLocalTime(plainDate(2026, 8, 26), STOCKHOLM, 0, 5);
     expect(evaluateAccess(query({ subscription: sub, at: justAfterMidnight }))).toMatchObject({
+      result: 'granted',
+      reason: 'grace',
+    });
+  });
+
+  it('denies once the grace window after a cancellation has passed', () => {
+    const sub = { ...openEnded, endsOn: plainDate(2026, 8, 20) };
+    expect(evaluateAccess(query({ subscription: sub }))).toMatchObject({
       result: 'denied',
       reason: 'subscription_ended',
     });
   });
 
-  it('a generous grace setting does not extend a cancellation', () => {
-    const sub = { ...openEnded, endsOn: plainDate(2026, 8, 24) };
-    const decision = evaluateAccess(
-      query({ subscription: sub, rules: { accessGraceHours: 168 } }),
-    );
-    expect(decision).toMatchObject({ result: 'denied', reason: 'subscription_ended' });
+  it('honours an operator who has turned grace off', () => {
+    const sub = { ...openEnded, endsOn: plainDate(2026, 8, 25) };
+    const justAfterMidnight = atLocalTime(plainDate(2026, 8, 26), STOCKHOLM, 0, 5);
+    expect(
+      evaluateAccess(
+        query({ subscription: sub, at: justAfterMidnight, rules: { accessGraceHours: 0 } }),
+      ),
+    ).toMatchObject({ result: 'denied', reason: 'subscription_ended' });
   });
 });
 
@@ -116,13 +126,13 @@ describe('freezes and the grace window', () => {
     const at = atLocalTime(plainDate(2026, 8, 26), STOCKHOLM, 17, 30);
     expect(evaluateAccess(query({ freezes, at }))).toMatchObject({
       result: 'granted',
-      reason: 'freeze_grace',
+      reason: 'grace',
     });
   });
 
   it('still lets them in inside the grace window the next day', () => {
     const at = atLocalTime(plainDate(2026, 8, 27), STOCKHOLM, 17, 30);
-    expect(evaluateAccess(query({ freezes, at })).reason).toBe('freeze_grace');
+    expect(evaluateAccess(query({ freezes, at })).reason).toBe('grace');
   });
 
   it('locks them out once the grace window has passed', () => {
