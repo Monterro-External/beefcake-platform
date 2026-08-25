@@ -45,6 +45,7 @@ export type EventAction =
   | 'report.exported'
   | 'settings.changed'
   | 'member_app.session'
+  | 'receipt.viewed'
   | 'impersonation.started';
 
 export interface EventInput {

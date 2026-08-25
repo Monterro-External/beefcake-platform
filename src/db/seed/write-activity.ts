@@ -34,6 +34,19 @@ import { BulkInserter } from './writer';
 import type { SeedMember, SeedSite, SeedTenant, SeedWorld, TableCounts } from './model';
 import type { Anchors } from './options';
 import { holdsCard } from './people';
+import { renderReceipt } from '@/lib/receipt';
+
+/**
+ * A stand-in receipt, used only to ask the renderer whether it knows how to
+ * format one for a given market. The numbers are irrelevant.
+ */
+const RECEIPT_PROBE = {
+  number: 'probe',
+  issuedAt: '2026-01-01T00:00:00.000Z',
+  totalMinor: 0,
+  vatMinor: 0,
+  linesJson: '[]',
+} as const;
 import type { ScheduleResult } from './write-schedule';
 
 
@@ -533,6 +546,32 @@ function writeEvents(
             subjectId: member.id,
             payload: { screens: rng.int(1, 7), platform: rng.chance(0.6) ? 'ios' : 'android' },
           });
+
+          // Opening the receipts screen renders them, and the renderer logs if
+          // it cannot work out the operator's billing currency.
+          if (rng.chance(0.22)) {
+            event(tenant.id, at, 'receipt.viewed', {
+              actorId: member.id,
+              actorRole: 'member',
+              subjectType: 'member',
+              subjectId: member.id,
+              payload: { locale: tenant.blueprint.locale },
+            });
+            const rendered = renderReceipt(RECEIPT_PROBE, tenant.blueprint.locale);
+            if (rendered.localeWarning !== null) {
+              errorSeq += 1;
+              errorRows.push({
+                id: sequentialId('error', errorSeq),
+                tenantId: tenant.id,
+                where: 'app/receipts',
+                message: rendered.localeWarning,
+                stack: null,
+                severity: 'warn',
+                contextJson: JSON.stringify({ locale: tenant.blueprint.locale, member_id: member.id }),
+                at,
+              });
+            }
+          }
         }
       }
     }

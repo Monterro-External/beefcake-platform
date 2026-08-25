@@ -23,6 +23,7 @@ import { and, asc, count, eq, gte, sql } from 'drizzle-orm';
 import type { Db } from '@/db/client';
 import { errors, events, paymentRuns, seedMeta, tenants } from '@/db/schema';
 import { type AdminScope, tenantScope } from '@/db/repositories/scope';
+import { recordError } from '@/db/repositories/observability';
 import { type PlainDate, assertPlainDate, billingPeriodOf } from '@/domain/dates';
 import * as reports from './reports';
 
@@ -57,6 +58,7 @@ export const EXPORTED_ACTIONS = [
   'booking.waitlisted',
   'booking.promoted',
   'member_app.session',
+  'receipt.viewed',
   'report.viewed',
   'report.exported',
   'settings.changed',
@@ -265,7 +267,25 @@ function churnRows(scope: AdminScope, options: ExportOptions): CsvTable {
   for (const tenant of scope.db.select().from(tenants).orderBy(asc(tenants.name)).all()) {
     const tenantView = tenantScope(tenant.id, { db: scope.db });
     const window = { from: options.since, to: options.today };
-    const detail = reports.churnWithPaymentLag(tenantView, window);
+
+    // One tenant whose report does not finish must not take the whole export
+    // with it. The failure is recorded and the run carries on, so the CS team
+    // gets eleven tenants' worth of data and a visible gap rather than nothing.
+    let detail: reports.ChurnDetailRow[];
+    try {
+      detail = reports.churnWithPaymentLag(tenantView, window);
+    } catch (error) {
+      if (!(error instanceof reports.ReportTimeoutError)) throw error;
+      recordError(tenantView, {
+        where: 'export/signals',
+        message: error.message,
+        severity: 'error',
+        context: { report: 'churn', tenant: tenant.name, since: options.since },
+        at: new Date().toISOString(),
+      });
+      rows.push([tenant.id, tenant.name, tenant.segment, '', '', '', '', '', '']);
+      continue;
+    }
 
     // Weekly, with the lag distribution, because the interesting question is
     // "how long after a failed payment do they leave", not just "how many left".
