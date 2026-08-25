@@ -4,11 +4,13 @@ out/
 build/
 coverage/
 playwright-report/
+blob-report/
 test-results/
 *.tsbuildinfo
 next-env.d.ts
 
 # Local database and generated artefacts
+exports/
 data/*.db
 data/*.db-shm
 data/*.db-wal
