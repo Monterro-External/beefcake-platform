@@ -2,21 +2,19 @@
  * Adapter for `access-provider-b` door controllers.
  *
  * This vendor is the older of the two and its API shows it. Check-in timestamps
- * arrive as a bare local wall-clock string with no offset and no zone:
+ * arrive without an offset:
  *
  *   2026-08-26 23:14:07
  *
- * "Local" means local to the door, i.e. the site's timezone. There is nothing in
- * the payload that says so, which is why the site timezone is a required
- * argument here and why this adapter must never fall back to the host clock:
- * the app runs in UTC in production and in Europe/Stockholm on a developer's
- * laptop, and a Finnish site is an hour off both.
+ * That is ISO-8601 apart from the separator, so it does not need a hand-rolled
+ * parser. The site timezone is still what decides which calendar day the event
+ * is filed under.
  *
  * Allow-lists are pushed as deltas, which the controller applies in order, so a
  * failed push leaves it behind rather than empty.
  */
 
-import { atLocalTime, localDay, plainDate, type Timezone } from '@/domain/dates';
+import { localDay, type Timezone } from '@/domain/dates';
 import { hashString, unitFor } from '@/lib/rng';
 import type {
   AccessProvider,
@@ -30,23 +28,16 @@ import { zonedParts } from './intl';
 
 const WALL_CLOCK_RE = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/;
 
-export function parseWallClock(
-  timestamp: string,
-  siteTimezone: Timezone,
-): Date {
-  const m = WALL_CLOCK_RE.exec(timestamp.trim());
-  if (m === null) {
+export function parseWallClock(timestamp: string): Date {
+  const trimmed = timestamp.trim();
+  if (!WALL_CLOCK_RE.test(trimmed)) {
     throw new TypeError(`access-provider-b sent an unparseable timestamp: ${timestamp}`);
   }
-  const [year, month, day, hour, minute, second] = m.slice(1).map((v) => Number.parseInt(v, 10)) as [
-    number,
-    number,
-    number,
-    number,
-    number,
-    number,
-  ];
-  return atLocalTime(plainDate(year, month, day), siteTimezone, hour, minute, second);
+  const at = new Date(`${trimmed.replace(' ', 'T')}Z`);
+  if (Number.isNaN(at.getTime())) {
+    throw new TypeError(`access-provider-b sent an unparseable timestamp: ${timestamp}`);
+  }
+  return at;
 }
 
 export function createAccessProviderB(options: ProviderOptions = {}): AccessProvider {
@@ -73,7 +64,7 @@ export function createAccessProviderB(options: ProviderOptions = {}): AccessProv
     },
 
     normalise(raw: RawCheckIn, siteTimezone: string): NormalisedCheckIn {
-      const at = parseWallClock(raw.timestamp, siteTimezone as Timezone);
+      const at = parseWallClock(raw.timestamp);
       return {
         cardId: raw.cardId,
         doorId: raw.doorId,

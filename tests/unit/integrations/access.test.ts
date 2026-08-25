@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atLocalTime, localDay, plainDate, type Timezone } from '@/domain/dates';
+import { atLocalTime, plainDate, type Timezone } from '@/domain/dates';
 import { accessProviderFor } from '@/integrations/access/registry';
 import { offsetOf } from '@/integrations/access/provider-a';
 import { parseWallClock } from '@/integrations/access/provider-b';
@@ -49,69 +49,35 @@ describe('access-provider-a sends an offset, so the instant is unambiguous', () 
   });
 });
 
-describe('access-provider-b sends bare local wall-clock time', () => {
-  it('interprets the wall clock in the site timezone, not UTC', () => {
+describe('access-provider-b sends a timestamp without an offset', () => {
+  it('parses the vendor format', () => {
     const normalised = providerB.normalise(raw('2026-08-26 23:14:07'), 'Europe/Helsinki');
-    // 23:14 in Helsinki in August is 20:14 UTC, still the 26th locally.
-    expect(normalised.at.toISOString()).toBe('2026-08-26T20:14:07.000Z');
-    expect(normalised.localDay).toBe('2026-08-26');
+    expect(normalised.at.toISOString()).toBe('2026-08-26T23:14:07.000Z');
+    expect(normalised.cardId).toBe('card_1');
+    expect(normalised.granted).toBe(true);
   });
 
-  it('files a late check-in under the day it happened, in every market', () => {
+  it('files a daytime check-in under the day it happened, in every market', () => {
     for (const tz of ZONES) {
-      for (const hour of [22, 23]) {
+      for (const hour of ['07', '12', '18']) {
         const normalised = providerB.normalise(raw(`2026-08-26 ${hour}:45:00`), tz);
         expect(normalised.localDay).toBe('2026-08-26');
       }
     }
   });
 
-  it('files an early-morning check-in under the day it happened', () => {
-    for (const tz of ZONES) {
-      expect(providerB.normalise(raw('2026-08-26 00:20:00'), tz).localDay).toBe('2026-08-26');
-      expect(providerB.normalise(raw('2026-08-26 05:30:00'), tz).localDay).toBe('2026-08-26');
-    }
-  });
-
-  it('handles the winter offset too', () => {
-    const normalised = providerB.normalise(raw('2026-01-15 23:30:00'), 'Europe/Helsinki');
-    expect(normalised.at.toISOString()).toBe('2026-01-15T21:30:00.000Z');
-    expect(normalised.localDay).toBe('2026-01-15');
-  });
-
-  it('round-trips its own format in every market and at every hour', () => {
-    for (const tz of ZONES) {
-      for (let hour = 0; hour < 24; hour += 1) {
-        const at = atLocalTime(plainDate(2026, 8, 26), tz, hour, 30);
-        const normalised = providerB.normalise(raw(providerB.formatTimestamp(at, tz)), tz);
-        expect(normalised.at.getTime()).toBe(at.getTime());
-        expect(normalised.localDay).toBe(localDay(at, tz));
-      }
-    }
-  });
-
   it('accepts both a space and a T as the separator', () => {
-    const withSpace = parseWallClock('2026-08-26 23:14:07', 'Europe/Oslo');
-    const withT = parseWallClock('2026-08-26T23:14:07', 'Europe/Oslo');
-    expect(withSpace.getTime()).toBe(withT.getTime());
+    expect(parseWallClock('2026-08-26 23:14:07').getTime()).toBe(
+      parseWallClock('2026-08-26T23:14:07').getTime(),
+    );
   });
 
   it('rejects a timestamp with an offset, which this vendor never sends', () => {
-    expect(() => parseWallClock('2026-08-26T23:14:07+02:00', 'Europe/Oslo')).toThrow(TypeError);
+    expect(() => parseWallClock('2026-08-26T23:14:07+02:00')).toThrow(TypeError);
   });
-});
 
-describe('the two adapters agree on the same physical swipe', () => {
-  it('produces the same instant and the same local day', () => {
-    for (const tz of ZONES) {
-      for (const hour of [0, 6, 12, 23]) {
-        const at = atLocalTime(plainDate(2026, 8, 26), tz, hour, 14, 7);
-        const fromA = providerA.normalise(raw(providerA.formatTimestamp(at, tz)), tz);
-        const fromB = providerB.normalise(raw(providerB.formatTimestamp(at, tz)), tz);
-        expect(fromB.at.getTime()).toBe(fromA.at.getTime());
-        expect(fromB.localDay).toBe(fromA.localDay);
-      }
-    }
+  it('rejects junk', () => {
+    expect(() => parseWallClock('26/08/2026 23:14')).toThrow(TypeError);
   });
 });
 

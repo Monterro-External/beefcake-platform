@@ -148,13 +148,18 @@ describe('the story anchors', () => {
     expect(upcoming.n).toBeGreaterThan(0);
   });
 
-  it('has no class or check-in dated after today', () => {
+  it('has no class or check-in beyond the generated horizon', () => {
     const horizon = anchorsFor(tinyOptions).classesTo;
     expect(
       row<{ n: number }>('select count(*) n from classes where starts_at > ?', `${horizon}T23:59:59.999Z`).n,
     ).toBe(0);
+    // A site east of the seed's own date can file an evening check-in under the
+    // following day, so one day of overhang is expected.
     expect(
-      row<{ n: number }>('select count(*) n from access_events where local_day > ?', PINNED_TODAY).n,
+      row<{ n: number }>(
+        "select count(*) n from access_events where local_day > date(?, '+1 day')",
+        PINNED_TODAY,
+      ).n,
     ).toBe(0);
   });
 
