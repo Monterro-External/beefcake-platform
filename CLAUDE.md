@@ -245,3 +245,17 @@ hash, or successive draws keyed on a counter come out correlated.
   have no override, so a changed default reaches everyone at once.
 - `src/db/migrations/`. Migrations are applied in order and never edited after
   they have run anywhere. Add a new one.
+
+## Agent skills
+
+### Issue tracker
+
+Linear, team Beefcake (`BC`), via the Linear MCP tools. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five canonical roles, default names. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` plus `docs/adr/`. See `docs/agents/domain.md`.
