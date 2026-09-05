@@ -167,8 +167,8 @@ report reads as current.
 
 ## Where to look
 
-- `CLAUDE.md`: domain glossary, architecture, and the rules that have caused
-  incidents. Read it before your first change.
+- `CLAUDE.md`: the rules that have caused incidents, and what not to touch
+  without asking. Read it before your first change.
+- `docs/domain-glossary.md`: the vocabulary, with the edge cases.
 - `docs/adr/`: why the load-bearing decisions were made.
 - `docs/runbooks/`: what to do when a payment run has not finished by 07:00.
-- `docs/domain-glossary.md`: the vocabulary, in more depth than CLAUDE.md.
