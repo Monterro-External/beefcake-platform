@@ -16,14 +16,27 @@
  *    deliberate, logged, read-only narrowing.
  */
 
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { and, asc, eq, isNull } from 'drizzle-orm';
 import { getDb } from '@/db/client';
 import { members, sites, tenants, users } from '@/db/schema';
 import type { Member, Site, Tenant, User } from '@/db/schema';
 import { type Scope, adminScope, impersonate, tenantScope } from '@/db/repositories/scope';
+import { SURFACE_HEADER, type Surface, parseSurface } from '@/lib/surface';
 
-export const SESSION_COOKIE = 'beefcake_dev_user';
+export { SURFACE_PATHS, type Surface } from '@/lib/surface';
+
+/**
+ * The persona is per surface, so three tabs can act as three different people.
+ *
+ * The cookie is path-scoped (`/app`, `/me`, `/admin`) rather than named per
+ * surface: the browser then sends the one that matches the URL and nothing that
+ * reads the session has to know which surface it is on. The name is not the old
+ * `beefcake_dev_user` because a stale browser-wide cookie under that name would
+ * be sent alongside the scoped one and could shadow it.
+ */
+export const SESSION_COOKIE = 'beefcake_dev_persona';
+/** Lives under `/app` only, which is the one place impersonation means anything. */
 export const IMPERSONATION_COOKIE = 'beefcake_dev_impersonating';
 
 export type Role = User['role'];
@@ -98,17 +111,28 @@ export function requirePermission(session: Session, permission: Permission): voi
 // Resolving the session
 // ---------------------------------------------------------------------------
 
-/** The user the persona switcher lands on when no cookie is set. */
-export function defaultUser(): User {
+/** The role a surface is for, and so the one to default to when no persona is set. */
+const DEFAULT_ROLE: Record<Surface, Role> = {
+  tenant: 'owner',
+  member: 'member',
+  admin: 'beefcake_admin',
+};
+
+/**
+ * The user a surface lands on when no cookie is set for it. Chosen to fit the
+ * surface: the member app defaults to a member, admin to Beefcake staff, and
+ * anything else to the first owner alphabetically by tenant.
+ */
+export function defaultUser(surface: Surface | null): User {
   const db = getDb();
-  const owner = db
-    .select()
+  const fitting = db
+    .select({ user: users })
     .from(users)
-    .innerJoin(tenants, eq(tenants.id, users.tenantId))
-    .where(eq(users.role, 'owner'))
-    .orderBy(asc(tenants.name))
+    .leftJoin(tenants, eq(tenants.id, users.tenantId))
+    .where(eq(users.role, DEFAULT_ROLE[surface ?? 'tenant']))
+    .orderBy(asc(tenants.name), asc(users.name))
     .get();
-  if (owner !== undefined) return owner.users;
+  if (fitting !== undefined) return fitting.user;
   const anyUser = db.select().from(users).orderBy(asc(users.email)).get();
   if (anyUser === undefined) {
     throw new Error('No users in the database. Run `npm run db:reset`.');
@@ -118,12 +142,12 @@ export function defaultUser(): User {
 
 export async function getSession(): Promise<Session> {
   const db = getDb();
-  const jar = await cookies();
+  const [jar, requestHeaders] = await Promise.all([cookies(), headers()]);
   const userId = jar.get(SESSION_COOKIE)?.value;
 
   const user =
     (userId === undefined ? undefined : db.select().from(users).where(eq(users.id, userId)).get()) ??
-    defaultUser();
+    defaultUser(parseSurface(requestHeaders.get(SURFACE_HEADER)));
 
   const tenant =
     user.tenantId === null

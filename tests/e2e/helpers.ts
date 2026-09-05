@@ -58,19 +58,31 @@ export function beefcakeStaff(): { userId: string } {
   });
 }
 
-/** Act as this user for the rest of the test. */
-export async function signIn(context: BrowserContext, userId: string): Promise<void> {
-  await context.addCookies([
-    {
-      name: 'beefcake_dev_user',
+/** The surfaces a persona can be set for. Mirrors `SURFACE_PATHS` in `src/lib/surface.ts`. */
+export const SURFACE_PATHS = ['/app', '/me', '/admin'] as const;
+
+/**
+ * Act as this user for the rest of the test, on every surface.
+ *
+ * The persona cookie is scoped per surface path so that tabs do not share a
+ * persona; a test that wants one person everywhere sets all three.
+ */
+export async function signIn(
+  context: BrowserContext,
+  userId: string,
+  paths: readonly string[] = SURFACE_PATHS,
+): Promise<void> {
+  await context.addCookies(
+    paths.map((path) => ({
+      name: 'beefcake_dev_persona',
       value: userId,
       domain: '127.0.0.1',
-      path: '/',
+      path,
       httpOnly: true,
       secure: false,
-      sameSite: 'Lax',
-    },
-  ]);
+      sameSite: 'Lax' as const,
+    })),
+  );
 }
 
 /**

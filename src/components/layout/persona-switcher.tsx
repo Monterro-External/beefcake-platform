@@ -11,15 +11,18 @@
 
 import { useTransition } from 'react';
 import { Select } from '@/components/ui';
-import type { PersonaOption } from '@/lib/session';
+import type { PersonaOption, Surface } from '@/lib/session';
 import { switchPersona } from '@/app/actions/session';
 
 export function PersonaSwitcher({
   options,
   currentUserId,
+  surface,
 }: {
   options: PersonaOption[];
   currentUserId: string;
+  /** The choice applies to this surface only; other tabs keep theirs. */
+  surface: Surface;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -41,7 +44,7 @@ export function PersonaSwitcher({
         onChange={(event) => {
           const userId = event.target.value;
           startTransition(async () => {
-            await switchPersona(userId);
+            await switchPersona(userId, surface);
           });
         }}
       >

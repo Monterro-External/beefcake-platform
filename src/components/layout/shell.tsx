@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui';
 import { MainNav, type NavItem } from './main-nav';
 import { PersonaSwitcher } from './persona-switcher';
 import { StopImpersonating } from './stop-impersonating';
-import { type Session, personaOptions, roleLabel } from '@/lib/session';
+import { type Session, type Surface, personaOptions, roleLabel } from '@/lib/session';
 
 export type { NavItem };
 
@@ -21,7 +21,7 @@ export function Shell({
 }: {
   session: Session;
   nav: readonly NavItem[];
-  surface: 'tenant' | 'member' | 'admin';
+  surface: Surface;
   children: ReactNode;
 }) {
   const contextName =
@@ -52,7 +52,11 @@ export function Shell({
               {roleLabel(session.user.role)}
             </span>
             {session.impersonating !== null && <StopImpersonating />}
-            <PersonaSwitcher options={personaOptions(session.user.id)} currentUserId={session.user.id} />
+            <PersonaSwitcher
+              options={personaOptions(session.user.id)}
+              currentUserId={session.user.id}
+              surface={surface}
+            />
           </div>
         </div>
       </header>

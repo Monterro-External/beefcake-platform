@@ -38,6 +38,12 @@ switcher: choose a tenant, then a role. The seed creates an owner, a site
 manager and two front desk users for every site, plus a few member logins per
 tenant and four Beefcake staff accounts.
 
+The choice is per surface. Keep `/app`, `/me` and `/admin` open in three tabs
+and each remembers its own persona: picking a member in the member app does not
+sign the admin tab out. A surface with no persona yet defaults to someone who
+belongs there: an owner in the tenant app, a member in the member app, Beefcake
+staff in admin.
+
 Start with **Puls Träning** (four sites, ~2,500 members) for anything ordinary,
 and **Nordic Fitness Group** (fifteen sites, ~22,000 members) when you want to
 see how something behaves at key-account volume.
