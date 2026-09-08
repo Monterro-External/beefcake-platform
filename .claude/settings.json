@@ -20,5 +20,8 @@
       "Bash(git log *)",
       "Bash(git show *)"
     ]
+  },
+  "enabledPlugins": {
+    "mattpocock-skills@claude-plugins-official": true
   }
 }
