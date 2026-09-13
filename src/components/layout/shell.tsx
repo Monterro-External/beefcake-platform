@@ -34,7 +34,7 @@ export function Shell({
   return (
     <div className="min-h-screen">
       <header className="border-b border-line bg-surface-raised">
-        <div className="mx-auto flex max-w-[92rem] flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2.5">
+        <div className="mx-auto flex max-w-shell flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2.5">
           <Link href="/" className="font-semibold tracking-tight">
             Beefcake
           </Link>
@@ -61,7 +61,7 @@ export function Shell({
         </div>
       </header>
 
-      <main className="mx-auto max-w-[92rem] px-6 py-6">{children}</main>
+      <main className="mx-auto max-w-shell px-6 py-6">{children}</main>
     </div>
   );
 }

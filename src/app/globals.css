@@ -15,6 +15,38 @@
   --color-good: oklch(0.55 0.13 150);
   --color-warn: oklch(0.68 0.14 75);
   --color-bad: oklch(0.55 0.18 25);
+  --color-on-accent: oklch(1 0 0);
+
+  /*
+   * Tints. These were alpha modifiers on the semantic colours (bg-good/12 and
+   * friends) until they needed Figma variables, which cannot alias a colour with
+   * a new alpha. Each value is the old alpha composited over --color-surface, so
+   * the pixels are unchanged. -soft is a badge background, -subtle a callout
+   * background, -line a border.
+   *
+   * warn-line is 40% where good-line and bad-line are 30%. That asymmetry is
+   * inherited, not intended: folding warn to 30% is a one-line change.
+   */
+  --color-line-soft: oklch(0.945 0.003 250);
+  --color-good-soft: oklch(0.937 0.016 162.5);
+  --color-warn-soft: oklch(0.941 0.025 84.4);
+  --color-bad-soft: oklch(0.932 0.018 12.3);
+  --color-good-subtle: oklch(0.964 0.008 170.1);
+  --color-warn-subtle: oklch(0.964 0.012 85.4);
+  --color-bad-subtle: oklch(0.961 0.008 6.1);
+  --color-good-line: oklch(0.857 0.039 157.5);
+  --color-warn-line: oklch(0.861 0.068 83.4);
+  --color-bad-line: oklch(0.846 0.048 16.3);
+  --color-accent-line: oklch(0.846 0.044 243.1);
+  --color-bad-line-strong: oklch(0.799 0.066 17.3);
+  --color-bad-bar: oklch(0.707 0.105 19.2);
+
+  /* 11px. The other four steps in the scale are Tailwind's own xs, sm, xl, 2xl. */
+  --text-2xs: 0.6875rem;
+
+  /* The shell's max width, was max-w-[92rem] in two places. */
+  --container-shell: 92rem;
+
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
     sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

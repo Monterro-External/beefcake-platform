@@ -94,7 +94,7 @@ export function TR({
   ...rest
 }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLTableRowElement>) {
   return (
-    <tr className={cn('border-b border-line/60 last:border-0', className)} {...rest}>
+    <tr className={cn('border-b border-line-soft last:border-0', className)} {...rest}>
       {children}
     </tr>
   );
@@ -142,7 +142,7 @@ export function TD({
       className={cn(
         'px-4 py-2',
         align === 'right' && 'text-right',
-        mono === true && 'font-mono text-[13px]',
+        mono === true && 'font-mono text-xs',
         className,
       )}
     >
@@ -158,10 +158,10 @@ export function TD({
 export type Tone = 'neutral' | 'good' | 'warn' | 'bad' | 'info';
 
 const TONE_CLASSES: Record<Tone, string> = {
-  neutral: 'bg-line/50 text-ink',
-  good: 'bg-good/12 text-good',
-  warn: 'bg-warn/15 text-warn',
-  bad: 'bg-bad/12 text-bad',
+  neutral: 'bg-line-soft text-ink',
+  good: 'bg-good-soft text-good',
+  warn: 'bg-warn-soft text-warn',
+  bad: 'bg-bad-soft text-bad',
   info: 'bg-accent-soft text-accent',
 };
 
@@ -268,11 +268,11 @@ export function BarSeries({
     <div className="flex items-end gap-1.5 overflow-x-auto pb-1" style={{ minHeight: '9rem' }}>
       {bars.map((bar) => (
         <div key={bar.label} className="flex min-w-9 flex-1 flex-col items-center gap-1">
-          <span className="text-[11px] tabular-nums text-ink-muted">{format(bar.value)}</span>
+          <span className="text-2xs tabular-nums text-ink-muted">{format(bar.value)}</span>
           <div className="flex h-24 w-full flex-col justify-end">
             {bar.secondary !== undefined && bar.secondary > 0 && (
               <div
-                className="w-full rounded-t bg-bad/60"
+                className="w-full rounded-t bg-bad-bar"
                 style={{ height: `${(bar.secondary / max) * 100}%` }}
                 title={`${format(bar.secondary)} failed`}
               />
@@ -282,7 +282,7 @@ export function BarSeries({
               style={{ height: `${(bar.value / max) * 100}%` }}
             />
           </div>
-          <span className="text-[11px] whitespace-nowrap text-ink-muted">{bar.label}</span>
+          <span className="text-2xs whitespace-nowrap text-ink-muted">{bar.label}</span>
         </div>
       ))}
     </div>
@@ -294,9 +294,9 @@ export function BarSeries({
 // ---------------------------------------------------------------------------
 
 const BUTTON_VARIANTS = {
-  primary: 'bg-accent text-white hover:opacity-90',
+  primary: 'bg-accent text-on-accent hover:opacity-90',
   secondary: 'border border-line bg-surface-raised hover:bg-accent-soft',
-  danger: 'border border-bad/40 text-bad hover:bg-bad/8',
+  danger: 'border border-bad-line-strong text-bad hover:bg-bad-subtle',
   ghost: 'hover:bg-accent-soft',
 } as const;
 
@@ -492,10 +492,10 @@ export function Callout({
 }) {
   const border: Record<Tone, string> = {
     neutral: 'border-line bg-surface-raised',
-    good: 'border-good/30 bg-good/6',
-    warn: 'border-warn/40 bg-warn/8',
-    bad: 'border-bad/30 bg-bad/6',
-    info: 'border-accent/30 bg-accent-soft',
+    good: 'border-good-line bg-good-subtle',
+    warn: 'border-warn-line bg-warn-subtle',
+    bad: 'border-bad-line bg-bad-subtle',
+    info: 'border-accent-line bg-accent-soft',
   };
   return (
     <div className={cn('rounded border px-3 py-2', border[tone])}>

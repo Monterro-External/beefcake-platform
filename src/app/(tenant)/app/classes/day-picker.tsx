@@ -46,9 +46,9 @@ export function DayPicker({ day, today, siteId }: { day: string; today: string; 
                 : 'border-line hover:bg-accent-soft',
             )}
           >
-            <span className="block text-[11px] uppercase tracking-wide text-ink-muted">{weekday}</span>
+            <span className="block text-2xs uppercase tracking-wide text-ink-muted">{weekday}</span>
             <span className="block tabular-nums">{candidate.slice(8)}</span>
-            {isToday && <span className="block text-[10px] text-accent">today</span>}
+            {isToday && <span className="block text-2xs text-accent">today</span>}
           </Link>
         );
       })}
