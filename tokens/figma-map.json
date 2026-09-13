@@ -1,0 +1,81 @@
+{
+  "$description": "Figma to code map for beefcake-platform. Hand-maintained stand-in for Figma Code Connect, which requires an Organization plan; this workspace is on Professional. Read this whenever you are given a Figma URL from the Beefcake design system file.",
+  "figmaFile": {
+    "name": "Beefcake design system",
+    "key": "x0pdVJyALuOj9LlnqoXfne",
+    "url": "https://www.figma.com/design/x0pdVJyALuOj9LlnqoXfne"
+  },
+  "decisionBoard": "https://www.figma.com/board/Q5gE0k6BiuC2m1lNRUXtwc",
+  "tokens": {
+    "source": "src/app/globals.css",
+    "machineReadable": "tokens/tokens.json",
+    "rule": "Every Figma variable name maps to the Tailwind class of the same leaf name. Figma 'status/good-soft' is the class 'good-soft', used as bg-good-soft or text-good-soft. Figma 'space/16' is Tailwind step 4 (p-4, gap-4): the Figma name is the pixel value because Figma variable names cannot contain a dot. Figma 'text/sm' is text-sm."
+  },
+  "components": {
+    "Button": {
+      "figmaNodeId": "5:27",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Button, LinkButton } from '@/components/ui'",
+      "props": {
+        "Variant": {
+          "codeProp": "variant",
+          "values": {
+            "primary": "primary",
+            "secondary": "secondary",
+            "danger": "danger",
+            "ghost": "ghost"
+          }
+        },
+        "State": {
+          "codeProp": null,
+          "note": "Presentational only. default and hover are CSS states; disabled is the native disabled attribute. Never emit a state prop."
+        },
+        "Label": {
+          "codeProp": "children"
+        }
+      },
+      "notes": "LinkButton is visually identical and renders a next/link anchor. Use LinkButton with href when the design shows a button that navigates, Button otherwise. The Figma component covers both."
+    },
+    "Badge": {
+      "figmaNodeId": "5:38",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Badge } from '@/components/ui'",
+      "props": {
+        "Tone": {
+          "codeProp": "tone",
+          "values": {
+            "neutral": "neutral",
+            "good": "good",
+            "warn": "warn",
+            "bad": "bad",
+            "info": "info"
+          }
+        },
+        "Label": {
+          "codeProp": "children"
+        }
+      },
+      "notes": "tone is the Tone union exported from the same file and shared with StatTile, Meter and Callout."
+    }
+  },
+  "notYetInFigma": [
+    "Input",
+    "Select",
+    "Field",
+    "Callout",
+    "Card",
+    "StatTile",
+    "Meter",
+    "BarSeries",
+    "Table",
+    "THead",
+    "TR",
+    "TH",
+    "TD",
+    "Tabs",
+    "Pagination",
+    "PageHeader",
+    "EmptyState",
+    "DefinitionList"
+  ]
+}

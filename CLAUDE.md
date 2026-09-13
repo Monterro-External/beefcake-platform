@@ -135,3 +135,5 @@ come out correlated. New seed data gets an invariant in `tests/unit/seed.test.ts
 - Domain docs: `docs/domain-glossary.md` plus `docs/adr/`. There is no root
   `CONTEXT.md` in this repo and none should be created.
   See `docs/agents/domain.md`.
+- Design system: implementing from a Figma URL, and the Figma to code map in
+  `tokens/figma-map.json`. See `docs/agents/design-system.md`.
