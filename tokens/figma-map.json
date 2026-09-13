@@ -56,26 +56,310 @@
         }
       },
       "notes": "tone is the Tone union exported from the same file and shared with StatTile, Meter and Callout."
+    },
+    "Input": {
+      "figmaNodeId": "7:20",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Input } from '@/components/ui'",
+      "props": {
+        "State": {
+          "codeProp": null,
+          "note": "Presentational. focus is the CSS focus ring. Never emit a state prop."
+        },
+        "Value": {
+          "codeProp": "value or placeholder"
+        }
+      },
+      "notes": "w-full in code; the 280px in Figma is for display only."
+    },
+    "Select": {
+      "figmaNodeId": "7:27",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Select } from '@/components/ui'",
+      "props": {
+        "State": {
+          "codeProp": null,
+          "note": "Presentational, as Input."
+        },
+        "Value": {
+          "codeProp": "selected option label"
+        }
+      },
+      "notes": "The chevron in Figma stands in for the native select arrow the browser draws. Do not add an icon in code."
+    },
+    "Field": {
+      "figmaNodeId": "7:44",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Field } from '@/components/ui'",
+      "props": {
+        "Label": {
+          "codeProp": "label"
+        },
+        "Hint": {
+          "codeProp": "hint"
+        },
+        "Show hint": {
+          "codeProp": null,
+          "note": "hint is undefined when false."
+        }
+      },
+      "notes": "The control slot is children: an Input or Select. Label renders uppercase with tracking in code, so type sentence case."
+    },
+    "Callout": {
+      "figmaNodeId": "7:43",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Callout } from '@/components/ui'",
+      "props": {
+        "Tone": {
+          "codeProp": "tone",
+          "values": {
+            "neutral": "neutral",
+            "good": "good",
+            "warn": "warn",
+            "bad": "bad",
+            "info": "info"
+          }
+        },
+        "Title": {
+          "codeProp": "title"
+        },
+        "Body": {
+          "codeProp": "children"
+        },
+        "Show title": {
+          "codeProp": null,
+          "note": "title is undefined when false."
+        }
+      },
+      "notes": "Default tone in code is info."
+    },
+    "Card": {
+      "figmaNodeId": "7:77",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Card } from '@/components/ui'",
+      "props": {
+        "Title": {
+          "codeProp": "title"
+        },
+        "Footer": {
+          "codeProp": "footer"
+        },
+        "Show header": {
+          "codeProp": null,
+          "note": "Code omits the header when both title and actions are undefined."
+        },
+        "Show footer": {
+          "codeProp": null,
+          "note": "footer is undefined when false."
+        }
+      },
+      "notes": "The body slot is children. Actions sit at the right of the header and map to the actions prop."
+    },
+    "StatTile": {
+      "figmaNodeId": "7:65",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { StatTile } from '@/components/ui'",
+      "props": {
+        "Tone": {
+          "codeProp": "tone",
+          "values": {
+            "neutral": "neutral",
+            "good": "good",
+            "warn": "warn",
+            "bad": "bad"
+          }
+        },
+        "Label": {
+          "codeProp": "label"
+        },
+        "Value": {
+          "codeProp": "value"
+        },
+        "Hint": {
+          "codeProp": "hint"
+        },
+        "Show hint": {
+          "codeProp": null,
+          "note": "hint is undefined when false."
+        }
+      },
+      "notes": "tone colours the value only. Code accepts info as well, but it renders identically to neutral, so there is no info variant in Figma."
+    },
+    "Meter": {
+      "figmaNodeId": "7:76",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Meter } from '@/components/ui'",
+      "props": {
+        "Tone": {
+          "codeProp": "tone",
+          "values": {
+            "neutral": "neutral",
+            "good": "good",
+            "warn": "warn",
+            "bad": "bad",
+            "info": "info"
+          }
+        }
+      },
+      "notes": "value is a number 0 to 1 and has no Figma property: the inner fill layer is resized instead. Default tone in code is info."
+    },
+    "BarSeries": {
+      "figmaNodeId": "7:186",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { BarSeries } from '@/components/ui'",
+      "props": {
+        "(per column) Value": {
+          "codeProp": "format(bar.value)"
+        },
+        "(per column) Label": {
+          "codeProp": "bar.label"
+        },
+        "(per column) Show secondary": {
+          "codeProp": "bar.secondary",
+          "note": "Hidden when the month has no failures."
+        }
+      },
+      "notes": "Columns in the Figma example are detached copies of BarColumn (7:180): Figma refuses a height override inside an instance, and equal-height bars are worse than no chart. Heights are illustrative; code computes them from the largest bar plus its secondary."
+    },
+    "Table": {
+      "figmaNodeId": "7:151",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Table, THead, TR, TH, TD } from '@/components/ui'",
+      "props": {
+        "TableHeaderCell.Align": {
+          "codeProp": "TH align",
+          "values": {
+            "left": "left",
+            "right": "right"
+          }
+        },
+        "TableHeaderCell.Label": {
+          "codeProp": "TH children"
+        },
+        "TableCell.Align": {
+          "codeProp": "TD align",
+          "values": {
+            "left": "left",
+            "right": "right"
+          }
+        },
+        "TableCell.Mono": {
+          "codeProp": "TD mono",
+          "values": {
+            "true": true,
+            "false": false
+          }
+        },
+        "TableCell.Value": {
+          "codeProp": "TD children"
+        }
+      },
+      "notes": "Uppercase styling and the bottom border live on THead, not TH. TR has last:border-0 in code, so the final row has no border even though the Figma example shows one. The wrapper is -mx-4 overflow-x-auto."
+    },
+    "Tabs": {
+      "figmaNodeId": "7:117",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Tabs } from '@/components/ui'",
+      "props": {
+        "Tab.State": {
+          "codeProp": null,
+          "note": "Derived in code from tab.href === active. Never emit a state prop."
+        },
+        "Tab.Label": {
+          "codeProp": "tab.label"
+        },
+        "Tab.Count": {
+          "codeProp": "tab.count"
+        },
+        "Tab.Show count": {
+          "codeProp": null,
+          "note": "tab.count is undefined when false."
+        }
+      },
+      "notes": "Tab component set is 7:116. Exactly one tab should be State=active. Has mb-4 below it in code."
+    },
+    "Pagination": {
+      "figmaNodeId": "7:130",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { Pagination } from '@/components/ui'",
+      "props": {
+        "Range": {
+          "codeProp": null,
+          "note": "Computed in code from page, pageSize and total. Display only."
+        }
+      },
+      "notes": "Previous and Next are LinkButton variant=secondary and each is omitted when there is no such page."
+    },
+    "PageHeader": {
+      "figmaNodeId": "7:84",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { PageHeader } from '@/components/ui'",
+      "props": {
+        "Title": {
+          "codeProp": "title"
+        },
+        "Subtitle": {
+          "codeProp": "subtitle"
+        },
+        "Show subtitle": {
+          "codeProp": null,
+          "note": "subtitle is undefined when false."
+        },
+        "Show actions": {
+          "codeProp": null,
+          "note": "actions is undefined when false."
+        }
+      },
+      "notes": "The actions slot holds Button or LinkButton instances. Has mb-6 below it in code."
+    },
+    "EmptyState": {
+      "figmaNodeId": "7:91",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { EmptyState } from '@/components/ui'",
+      "props": {
+        "Title": {
+          "codeProp": "title"
+        },
+        "Hint": {
+          "codeProp": "hint"
+        },
+        "Show hint": {
+          "codeProp": null,
+          "note": "hint is undefined when false."
+        }
+      },
+      "notes": "Usually inside a Card body or a table cell spanning every column."
+    },
+    "DefinitionList": {
+      "figmaNodeId": "7:97",
+      "source": "src/components/ui/index.tsx",
+      "import": "import { DefinitionList } from '@/components/ui'",
+      "props": {
+        "DefinitionRow.Label": {
+          "codeProp": "items[].label"
+        },
+        "DefinitionRow.Value": {
+          "codeProp": "items[].value"
+        }
+      },
+      "notes": "DefinitionRow (7:94) is one entry of the items array, not a separate export. Two-column subgrid in code: labels align, values right aligned and tabular-nums."
     }
   },
-  "notYetInFigma": [
-    "Input",
-    "Select",
-    "Field",
-    "Callout",
-    "Card",
-    "StatTile",
-    "Meter",
-    "BarSeries",
-    "Table",
-    "THead",
-    "TR",
-    "TH",
-    "TD",
-    "Tabs",
-    "Pagination",
-    "PageHeader",
-    "EmptyState",
-    "DefinitionList"
-  ]
+  "notYetInFigma": [],
+  "textStyles": {
+    "note": "Figma text style names are size/weight. Uppercase and 2.5% tracking are baked into the label styles, so never override textCase or letterSpacing on a layer.",
+    "map": {
+      "text/2xs/regular": "text-2xs",
+      "text/xs/regular": "text-xs",
+      "text/xs/medium": "text-xs font-medium",
+      "text/xs/semibold": "text-xs font-semibold",
+      "text/xs/label-medium": "text-xs font-medium uppercase tracking-wide",
+      "text/xs/label-semibold": "text-xs font-semibold uppercase tracking-wide",
+      "text/xs/mono": "font-mono text-xs",
+      "text/sm/regular": "text-sm",
+      "text/sm/medium": "text-sm font-medium",
+      "text/xl/semibold": "text-xl font-semibold",
+      "text/2xl/semibold": "text-2xl font-semibold"
+    }
+  }
 }
