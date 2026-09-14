@@ -2,6 +2,18 @@
 
 How to implement a screen when someone hands you a Figma URL.
 
+## The three Figma files
+
+| File | Holds | Published? |
+|---|---|---|
+| Beefcake token decisions (FigJam) | why each token has the value it has | n/a |
+| Beefcake design system | Foundations and the 21 components | yes, as a team library |
+| Beefcake product | screens, and proposals for gaps | never |
+
+Screens are designed in the product file, which subscribes to the library. The
+library file is not a place to design: anything sitting in it is one click from
+being published to everyone.
+
 ## The short version
 
 `tokens/figma-map.json` translates Figma components and variables into this
@@ -72,8 +84,8 @@ the token board, in the same format as the original eight.
 
 ### The loop, for the cases that need it
 
-1. The designer drafts on a Proposals page, explicitly not in the library file,
-   and names what is new: variant, component, or token.
+1. The designer drafts on the product file's Proposals page, explicitly not in
+   the library file, and names what is new: variant, component, or token.
 2. A new token gets a decision card before anything is built.
 3. Implement in this repo. The lint rule is what stops an arbitrary value
    sneaking in while the shape is still being worked out. Normal PR.

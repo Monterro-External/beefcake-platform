@@ -5,6 +5,14 @@ designers can design new features in and Claude Code can implement from.
 
 Figma folder: https://www.figma.com/files/folder/654165448
 
+Three files, one job each:
+
+| File | Holds | Published? |
+|---|---|---|
+| [Beefcake token decisions](https://www.figma.com/board/Q5gE0k6BiuC2m1lNRUXtwc) (FigJam) | why each token has the value it has | n/a |
+| [Beefcake design system](https://www.figma.com/design/x0pdVJyALuOj9LlnqoXfne) | Foundations and 21 components | yes, as a team library |
+| [Beefcake product](https://www.figma.com/design/48dNdG13T00FjfPV21YLZf) | screens, and proposals for gaps | never |
+
 ## Where the codebase stands (audit, 2026-09-13)
 
 Better than most. The system already lives in code, it just is not mirrored in Figma.
@@ -82,22 +90,61 @@ images, not the TSX. For cards 1 and 4 the expected diff is known in advance
 (see the board); anything else is a bug. The workflow file and route list are
 part of the handoff so the portco owns the check after we leave.
 
-### 4. Generate the Figma library
-Via Figma MCP, skills `figma-generate-library` + `figma-use`:
-- File `Beefcake / Foundations`: variable collections (color, type, spacing, radius) from `tokens.json`. Light mode; dark as a second mode only if approved in step 2.
-- File `Beefcake / Components`: the 21 primitives as components with variants bound to variables. Order: Button, Badge, Input, Select, Field, Card, Table set, Tabs, Callout, StatTile, Meter, then the rest.
-- Publish both as team libraries.
+### 4. Generate the Figma library (done 2026-09-13)
+Via Figma MCP, skills `figma-generate-library` + `figma-use`. One file, pages
+inside it, not two files: Cover, Foundations, then one page per component.
 
-Pace to the MCP rate limit (200 calls/day on Professional). Foundations one day, components over two.
+44 variables across Colour, Type, Spacing and Radius, all scoped with WEB code
+syntax. 11 text styles, named size/weight, with uppercase and tracking baked into
+the label styles. 21 components covering every export in
+`src/components/ui/index.tsx`.
 
-### 5. Code Connect
-`figma-code-connect` skill maps each Figma component to its export in
-`src/components/ui/index.tsx`. Gives Claude Code the component name and props
-when it reads a design, not raw geometry.
+Structure mirrors the code rather than improving on it: no primitive/semantic
+split, because the codebase has none and there would be nothing to sync it
+against.
 
-### 6. Guardrail
+Pace to the MCP rate limit (200 calls/day on Professional).
+
+### 4b. Publish, then create the product file
+Publishing turns the file into a team library so other files can use its
+components and variables, and makes updates versioned: subscribers are notified
+and choose when to accept. Until it is published the components exist only in
+that one file.
+
+Then create a separate **product file** that subscribes to the library. Screens
+are designed there, never in the library file, so that half-finished work is
+never one click from being published to the whole team. Give it three pages:
+
+- **Screens**: real work, built from library components.
+- **Proposals**: anything the library does not have yet (see step 7).
+- **Archive**: explorations worth keeping but no longer current.
+
+For a first-time setup, create this file at the same time as the library, before
+any designer opens Figma. If it does not exist on day one, screens get designed
+in the library file and the separation never happens afterwards.
+
+Two steps here are UI-only and cannot be done through the API: publishing, and
+toggling the library on in the product file (Assets panel, library icon).
+
+### 5. Code Connect, or the map (done 2026-09-13)
+Code Connect needs an Organization plan and this workspace is on Professional,
+so the equivalent is hand-maintained: `tokens/figma-map.json` records, per
+component, the source file, the import line and which Figma property maps to
+which prop. The entries that matter most are the null mappings, the properties
+that map to no prop at all.
+
+`docs/agents/design-system.md` tells an agent when to read it, and covers the
+design-led change loop.
+
+### 6. Guardrail (done 2026-09-13)
 ESLint rule (or Tailwind config) banning arbitrary values (`text-[..]`, `#hex`) in
 `src/components/` and `src/app/`. Prevents drift from day one.
+
+### 7. The loop for gaps
+When a design needs something the library does not have, it is drafted on the
+product file's Proposals page, built in code first, and only then added to the
+library. The proposal is deleted once the real component exists. Full loop in
+`docs/agents/design-system.md`.
 
 ## Using it (after step 5)
 
