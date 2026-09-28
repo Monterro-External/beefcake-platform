@@ -20,6 +20,12 @@ a country, a currency, a locale and a segment. Everything a tenant owns has that
 tenant's id on it. Operators call themselves "the chain", "the club" or just
 their own name; in code and in tickets they are the tenant.
 
+**Operator** is the same party as the tenant, in the commercial register: who we
+sell to, what the market looks like, what a customer is worth. Strategy and sales
+material say operator. Anything a ticket, a spec or the code says about the party
+says tenant, and a ticket written in the commercial register fails the grill's
+vocabulary check.
+
 **Member** is the operator's customer, the person who trains. A member belongs to
 exactly one tenant and has one home site. Members never see the word tenant.
 
@@ -90,6 +96,8 @@ paused subscription for a whole number of months. Not billed, no access, binding
 extended. Stored as an inclusive `starts_on` to `ends_on` pair; the member is
 back on `ends_on` plus one day.
 
+Say *freeze*, never "pause the account".
+
 The month-end rule is the part that gets broken. A freeze covers whole months, so
 one that starts on the last day of a month has to resume on the first day of a
 month:
@@ -150,7 +158,12 @@ the member reads as spam, so the cap and the interval both matter commercially.
 company's data. Two to three weeks after a member is abandoned, they cancel. That
 lag is why a payment reliability problem shows up in the churn report a month
 after it started, and why the churn report and the failed-payments report have to
-be read together.
+be read together. Say *abandoned*, never "given up on".
+
+A **cancellation** is voluntary: the member gave notice. A member lost after
+dunning abandoned is **involuntary churn**, even though a cancellation follows
+it. Keep the two apart: involuntary churn is a payment reliability problem, and
+a cancellation is not.
 
 **Proration** is splitting a period's price by days. A member who upgrades on the
 12th of a 31-day month is charged 11 days of the old plan and 20 days of the new
