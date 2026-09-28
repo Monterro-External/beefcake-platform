@@ -1,32 +1,12 @@
 # Beefcake platform
 
-Gym management software for Nordic operators: one Next.js app, three surfaces,
-one SQLite database, a few scheduled jobs, two door-hardware integrations.
+The rules below have each caused an incident. Everything else, the stack, the
+commands, the code map, the workflows and the docs index, is in `AGENTS.md`.
+Use the words in `docs/domain-glossary.md` in code, commits and support threads.
 
-The rules below are not style preferences, they are the things that have caused
-incidents. Everything else lives elsewhere:
-
-| For | Read |
-|---|---|
-| Setup, commands, the seed, personas | `README.md` |
-| Vocabulary and its edge cases | `docs/domain-glossary.md` |
-| Why a load-bearing decision was made | `docs/adr/` |
-| What to do at 07:00 when a job has not finished | `docs/runbooks/` |
-
-Use the glossary's words in code, commits and support threads. They map onto the
-customer's vocabulary in all four markets.
-
-## The three layers
-
-```
-Beefcake (us)  →  tenant (a gym operator)  →  member (the operator's customer)
-```
-
-A bug hurts a member, the site manager hears about it at the desk, the owner
-calls support, repeated pain churns the tenant. A tenant is worth 30,000 SEK to
-4 MSEK a year, and ten key accounts are ~35% of ARR. Weigh an edge case by which
-layer pays for getting it wrong, and size any report, export or job against
-Nordic Fitness Group (15 sites, ~22,000 members), not a single-site gym.
+Weigh an edge case by which layer pays for it: a bug hurts a member, the site
+manager hears about it at the desk, the owner calls support, repeated pain
+churns the tenant.
 
 ## Rules
 
@@ -67,7 +47,7 @@ here. See ADR-0005.
 - Instant to calendar day goes through `localDay(at, timezone)` with the *site's*
   timezone. Never the host's: CI runs in UTC, a developer runs in Stockholm, a
   Finnish site is an hour off both.
-- Calendar arithmetic uses `src/domain/dates.ts`, not raw `Date`. `addMonths`
+- Calendar arithmetic uses `src/domain/dates.ts`, never raw `Date`. `addMonths`
   clamps: 31 January plus one month is 28 February, never 3 March.
 - Month ends are load-bearing. A freeze from the last day of a month resumes on
   the first day of a month. Test the boundary, in a leap year too.
@@ -106,16 +86,11 @@ Nothing is hardcoded to a date; every date is an offset from `today`. Never use
 `unitFor` rather than dividing a raw hash, or successive draws keyed on a counter
 come out correlated. New seed data gets an invariant in `tests/unit/seed.test.ts`.
 
-## Conventions
+### Pure domain, tested domain
 
-- TypeScript everywhere, `strict` plus `noUncheckedIndexedAccess`.
-- `src/domain/` is pure: no database, no clock, no `new Date()` without an
-  argument. Pass the instant in. Everything there has tests in `tests/unit/`.
-- Ids are prefixed text: `ten_`, `sit_`, `mem_`, `sub_`, `chg_`. Readable in a log
-  line and impossible to join to the wrong table by accident.
-- Comments explain why the obvious thing is wrong here. If a comment restates the
-  code, delete it.
-- Tests are named as sentences about behaviour, not about functions.
+`src/domain/` has no database, no clock, no `new Date()` without an argument.
+Pass the instant in. Everything there has tests in `tests/unit/`, named as
+sentences about behaviour.
 
 ## What not to touch without talking to someone
 
@@ -125,15 +100,3 @@ come out correlated. New seed data gets an invariant in `tests/unit/seed.test.ts
   340 tenants at once.
 - `src/db/migrations/`. Applied in order, never edited after they have run
   anywhere. Add a new one.
-
-## Agent skills
-
-- Issue tracker: Linear, team Beefcake (`BC`), via the Linear MCP tools.
-  See `docs/agents/issue-tracker.md`.
-- Triage labels: the five canonical roles, default names.
-  See `docs/agents/triage-labels.md`.
-- Domain docs: `docs/domain-glossary.md` plus `docs/adr/`. There is no root
-  `CONTEXT.md` in this repo and none should be created.
-  See `docs/agents/domain.md`.
-- Design system: implementing from a Figma URL, and the Figma to code map in
-  `tokens/figma-map.json`. See `docs/agents/design-system.md`.
