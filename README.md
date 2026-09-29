@@ -165,6 +165,20 @@ by hand and no longer trust what you are looking at. Passing today's real date
 means all history, payment runs, churn and access events end today, so every
 report reads as current.
 
+## Hosting for the workshop
+
+`Dockerfile` and `fly.toml` run the platform as one Fly.io machine with the
+database on a volume at `/data/beefcake.db`. The image keeps `tsx` and `src/`
+so the database can be reseeded in place over ssh:
+
+```bash
+fly ssh console -C "npm --prefix /app run --silent db:reset -- --today 2026-11-12 --quiet"
+fly machine restart <id>     # the app holds the deleted file open until it restarts
+```
+
+The workshop repo's `workshop/setup/deploy-platform.sh` does all of it, and is
+the way to deploy the evening before a run.
+
 ## Where to look
 
 - `CLAUDE.md`: the rules that have caused incidents, and what not to touch
