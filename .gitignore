@@ -19,3 +19,6 @@ data/.last-seed.json
 .env
 .env.local
 .DS_Store
+
+# Local Obsidian workspace
+.obsidian/
