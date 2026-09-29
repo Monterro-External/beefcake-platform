@@ -28,7 +28,7 @@ ENV NODE_ENV=production \
     BEEFCAKE_DB=/data/beefcake.db
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/.next ./.next
-COPY package.json package-lock.json next.config.ts tsconfig.json ./
+COPY package.json package-lock.json next.config.mjs tsconfig.json ./
 COPY src ./src
 RUN mkdir -p /data
 EXPOSE 3000
