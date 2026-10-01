@@ -31,6 +31,13 @@ database is in and links to the three surfaces.
 (Xcode command line tools on macOS, `build-essential` on Debian). Everything else
 is JavaScript.
 
+## Contributing
+
+We use Gitflow: `develop` is the default integration branch; `main` holds
+releases. Start feature branches from `develop` and open pull requests back to
+`develop`. See [the Gitflow guide](docs/gitflow.md) for releases, hotfixes and
+the required checks.
+
 ## Picking a persona
 
 There is no real authentication in development. The header has a persona
