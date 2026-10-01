@@ -38,6 +38,10 @@ releases. Start feature branches from `develop` and open pull requests back to
 `develop`. See [the Gitflow guide](docs/gitflow.md) for releases, hotfixes and
 the required checks.
 
+All coding assistants share [AGENTS.md](AGENTS.md) and the
+[engineering rules](docs/agents/rules.md). Copilot's instruction file points
+to these same documents; maintain shared rules in one place.
+
 ## Picking a persona
 
 There is no real authentication in development. The header has a persona
@@ -188,8 +192,9 @@ the way to deploy the evening before a run.
 
 ## Where to look
 
-- `CLAUDE.md`: the rules that have caused incidents, and what not to touch
-  without asking. Read it before your first change.
+- `AGENTS.md`: shared instructions, workflows and the code map.
+- `docs/agents/rules.md`: the rules that have caused incidents, and what not
+  to touch without asking. Read it before your first change.
 - `docs/domain-glossary.md`: the vocabulary, with the edge cases.
 - `docs/adr/`: why the load-bearing decisions were made.
 - `docs/runbooks/`: what to do when a payment run has not finished by 07:00.

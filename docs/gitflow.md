@@ -11,9 +11,14 @@ both `main` and `develop`.
 | `release/<version>` | `develop` | `main`, then `develop` |
 | `hotfix/<version>` | `main` | `main`, then `develop` and any active release |
 
-Codex uses the same flow with `codex/feature/`, `codex/release/` and
-`codex/hotfix/` prefixes. Documentation, refactoring and ordinary bug fixes use
-feature branches too. No Gitflow extension is required; standard Git works.
+This flow applies to every contributor and coding assistant. Documentation,
+refactoring and ordinary bug fixes use feature branches too. No Gitflow
+extension is required; standard Git works.
+
+Use the branch names above by default. If a tool requires a namespace, use one
+path segment before the branch type: `<tool>/feature/<topic>`,
+`<tool>/release/<version>` or `<tool>/hotfix/<version>`. The branch origins,
+PR targets, checks and merge rules stay the same regardless of tool.
 
 ## Daily work
 
@@ -72,7 +77,7 @@ the README. This workflow does not add automatic production deployment.
 ## CI and repository settings
 
 CI runs for every PR and for pushes to `main`, `develop`, release and hotfix
-branches, including their Codex equivalents. Every PR must pass:
+branches, including equivalents with a tool namespace. Every PR must pass:
 
 - **Lint, typecheck, unit tests** (UTC)
 - **Seed at full scale** (database rebuild and production build)
