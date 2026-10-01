@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect as baseExpect, test, type Page } from '@playwright/test';
 import { personaFor, seededToday, signIn, withDb } from './helpers';
+
+// Next's dev server renders routes on demand; CI needs this budget for both
+// navigation and the resulting UI. Assertions still finish as soon as they pass.
+const expect = baseExpect.configure({ timeout: 15_000 });
 
 test.use({
   actionTimeout: 15_000,
@@ -157,7 +161,7 @@ async function fillRegistration(page: Page, name: string, email: string) {
 
 async function submitRegistration(page: Page, name: string): Promise<void> {
   await page.getByRole('button', { name: 'Sign up', exact: true }).click();
-  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
 }
 
 async function searchAndOpen(page: Page, member: Registration): Promise<void> {
@@ -168,8 +172,7 @@ async function searchAndOpen(page: Page, member: Registration): Promise<void> {
   await expect(rows).toHaveCount(1);
   await expect(rows.getByText(member.email, { exact: true })).toBeVisible();
   await rows.getByRole('link', { name: member.name, exact: true }).click();
-  // CI renders routes on demand in Next's dev server; allow the same budget as signup.
-  await expect(page).toHaveURL(new RegExp(`/app/members/${member.id}$`), { timeout: 15_000 });
+  await expect(page).toHaveURL(new RegExp(`/app/members/${member.id}$`));
 }
 
 async function expectProfile(page: Page, member: Registration): Promise<void> {
