@@ -65,6 +65,61 @@ jobs:
       - name: Build
         run: npm run build
 
+  registration:
+    name: Playwright registration scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Seed
+        run: npm run db:reset -- --scale small --quiet
+
+      - name: Run the BDD acceptance scenarios
+        id: bdd-tests
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/bdd-results.json
+        run: npm run test:e2e -- --grep 'AS-[0-9]+:' --project=chromium --reporter=list,html,json
+
+      - name: Build video timelines from recorded test steps
+        if: ${{ !cancelled() }}
+        run: node .github/scripts/bdd-timeline.cjs
+
+      - uses: actions/upload-artifact@v4
+        id: bdd-artifact
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-registration-report
+          path: |
+            playwright-report/
+            test-results/
+            docs/testing/
+          retention-days: 7
+
+      - name: Publish BDD description and recording links
+        if: ${{ !cancelled() }}
+        uses: actions/github-script@v8
+        env:
+          BDD_TEST_OUTCOME: ${{ steps.bdd-tests.outcome }}
+          BDD_ARTIFACT_URL: ${{ steps.bdd-artifact.outputs.artifact-url }}
+        with:
+          script: |
+            const { publish } = require('./.github/scripts/bdd-pr-comment.cjs');
+            await publish({ github, context, core });
+
   e2e:
     name: End-to-end flows
     runs-on: ubuntu-latest

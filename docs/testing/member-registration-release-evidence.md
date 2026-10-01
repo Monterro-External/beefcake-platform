@@ -1,0 +1,29 @@
+# Member registration: release evidence example
+
+The [acceptance scenarios](member-registration-bdd.md) link each claim below to
+an automated test and visible behaviour in its recording. Open the scenario in
+the `playwright-registration-report` CI artifact to watch its video or inspect
+the named steps in Trace Viewer. Videos display the current step and highlight
+interactions; each scenario has its own recording.
+
+| Release note claim | Scenario | Video chapter / named step | Visible evidence |
+|---|---|---|---|
+| Front desk can register a member with a plan, home site and access card. | AS-1 | When the person is registered with a plan and access card | Registration succeeds and the profile displays Active, the selected plan, home site and card number. |
+| A newly registered member can be found by email and reopened with their saved details. | AS-1 | And the member can be found again with the saved details | Member search returns the new member; their profile retains the details after reopening and reloading. |
+| An email already used at the same tenant is rejected with an explanation. | AS-2 | Then the duplicate is explained and nothing is created or changed | The registration form displays the duplicate-email error instead of opening a new profile. |
+| Two tenants can register the same email while access to the member profiles remains tenant-scoped. | AS-3 | And Puls Träning can find and access only its own member; And Nordic Fitness Group can find and access only its own member | Each tenant's search returns its own member; opening the other tenant's member URL shows 404. |
+
+## Additional automated checks
+
+The tests also verify subscription dates and stored identifiers, exactly one
+queued welcome message, no extra records after rejection, and unchanged records
+in the first tenant after the second tenant registers the same email. These are
+database assertions in the test report, not visual evidence from the application.
+
+## Current enforcement
+
+CI fails when a scenario assertion fails or a required scenario, video, trace or
+timeline is missing. It retains evidence for successful and failed scenarios and
+updates a PR comment with the BDD change summary and generated video timestamps.
+This table is reviewed manually; CI does not validate arbitrary release-note
+claims or their visual coverage. See [the PR workflow](bdd-ci.md).
