@@ -1,5 +1,8 @@
 # AGENTS.md
 
+Shared repository instructions for all coding assistants and contributors.
+Keep project rules here and in the linked docs, independent of the tool used.
+
 Be extremely concise.
 End each plan with the open questions.
 
@@ -10,8 +13,8 @@ adapters. A tenant is worth 30k SEK to 4 MSEK a year; ten key accounts are ~35%
 of ARR, so size every report, export and job against Nordic Fitness Group
 (15 sites, ~22,000 members).
 
-`CLAUDE.md` holds the rules that have caused incidents and the files to leave
-alone. Read it before the first change. This file is the map.
+Read `docs/agents/rules.md` before the first change: it holds the rules that
+have caused incidents and the files to leave alone. This file is the map.
 
 ## Stack
 
@@ -64,9 +67,10 @@ Start with tenant Puls Träning for ordinary work, Nordic Fitness Group for volu
 ### Gitflow
 
 - Start ordinary work from `origin/develop`; target PRs at `develop`.
-- Use `feature/<topic>` (`codex/feature/<topic>` for Codex work).
-- Start `release/<version>` from `develop`, `hotfix/<version>` from `main`;
-  Codex uses `codex/release/` and `codex/hotfix/`.
+- Use `feature/<topic>`. Start `release/<version>` from `develop` and
+  `hotfix/<version>` from `main`.
+- If a tool requires a branch namespace, use `<tool>/feature/<topic>`,
+  `<tool>/release/<version>` or `<tool>/hotfix/<version>` with the same flow.
 - Use merge commits. Return releases and hotfixes to `develop`; also return
   hotfixes to an active release branch. Tag releases on `main` as `vX.Y.Z`.
 - Follow `docs/gitflow.md`. Never push ordinary work directly to `main` or
@@ -101,6 +105,7 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 
 ## Docs
 
+- `docs/agents/rules.md`: shared engineering rules and files requiring discussion.
 - `docs/gitflow.md`: branches, pull requests, releases, hotfixes and CI.
 - `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `CONTEXT.md`.
 - `docs/adr/0001-tenant-id-on-every-table.md`: isolation via `tenant_id` everywhere plus a repository layer.

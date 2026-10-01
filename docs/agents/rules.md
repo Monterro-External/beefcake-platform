@@ -1,7 +1,8 @@
-# Beefcake platform
+# Engineering rules
 
-The rules below have each caused an incident. Everything else, the stack, the
-commands, the code map, the workflows and the docs index, is in `AGENTS.md`.
+These rules apply to every contributor and coding assistant. Each rule below
+has caused an incident. The stack, commands, code map, workflows and docs index
+are in `AGENTS.md`. Read this file before the first change.
 Use the words in `docs/domain-glossary.md` in code, commits and support threads.
 
 Weigh an edge case by which layer pays for it: a bug hurts a member, the site

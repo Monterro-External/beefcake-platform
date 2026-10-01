@@ -7,8 +7,8 @@ on:
       - develop
       - 'release/**'
       - 'hotfix/**'
-      - 'codex/release/**'
-      - 'codex/hotfix/**'
+      - '*/release/**'
+      - '*/hotfix/**'
   pull_request:
 
 concurrency:

@@ -38,6 +38,6 @@ Bad:
   and there is a test for that.
 - The blast radius of a wrong default is the whole fleet. Most tenants override
   nothing, so a changed default reaches everyone at once. This is why
-  `DEFAULT_SETTINGS` is on the "talk to someone first" list in CLAUDE.md.
+  `DEFAULT_SETTINGS` is on the "talk to someone first" list in `docs/agents/rules.md`.
 - Reading raw rows and coercing at the call site would reintroduce every problem
   this decision was meant to solve. Do not do it.

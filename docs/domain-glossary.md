@@ -4,7 +4,7 @@ The words we use for things, and what they mean precisely. Support, product and
 engineering all use this list, so if a term here does not match what a customer
 calls it, fix the term rather than translating in your head.
 
-CLAUDE.md has the short version. This is the one with the edge cases.
+`docs/agents/rules.md` has the short version. This is the one with the edge cases.
 
 ## The three layers
 
