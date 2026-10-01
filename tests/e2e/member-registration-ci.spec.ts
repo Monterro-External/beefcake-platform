@@ -168,7 +168,8 @@ async function searchAndOpen(page: Page, member: Registration): Promise<void> {
   await expect(rows).toHaveCount(1);
   await expect(rows.getByText(member.email, { exact: true })).toBeVisible();
   await rows.getByRole('link', { name: member.name, exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/app/members/${member.id}$`));
+  // CI renders routes on demand in Next's dev server; allow the same budget as signup.
+  await expect(page).toHaveURL(new RegExp(`/app/members/${member.id}$`), { timeout: 15_000 });
 }
 
 async function expectProfile(page: Page, member: Registration): Promise<void> {
