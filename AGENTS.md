@@ -61,6 +61,17 @@ Start with tenant Puls Träning for ordinary work, Nordic Fitness Group for volu
 
 ## Workflows
 
+### Gitflow
+
+- Start ordinary work from `origin/develop`; target PRs at `develop`.
+- Use `feature/<topic>` (`codex/feature/<topic>` for Codex work).
+- Start `release/<version>` from `develop`, `hotfix/<version>` from `main`;
+  Codex uses `codex/release/` and `codex/hotfix/`.
+- Use merge commits. Return releases and hotfixes to `develop`; also return
+  hotfixes to an active release branch. Tag releases on `main` as `vX.Y.Z`.
+- Follow `docs/gitflow.md`. Never push ordinary work directly to `main` or
+  `develop`.
+
 ### Change domain behaviour
 
 1. Read the glossary section and the ADR for the area. Use the glossary's words in code, tests and commits.
@@ -90,6 +101,7 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 
 ## Docs
 
+- `docs/gitflow.md`: branches, pull requests, releases, hotfixes and CI.
 - `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `CONTEXT.md`.
 - `docs/adr/0001-tenant-id-on-every-table.md`: isolation via `tenant_id` everywhere plus a repository layer.
 - `docs/adr/0002-money-as-minor-units.md`: integer minor units with explicit currency and rounding.
