@@ -24,3 +24,6 @@ data/.last-seed.json
 
 # Local Obsidian workspace
 .obsidian/
+
+# Aspire local state
+.aspire/
