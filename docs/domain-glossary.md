@@ -177,6 +177,11 @@ currency is the tenant's currency, always, regardless of who is reading it.
 **Class** is one instance of a session at a site: name, instructor, start, end,
 capacity. Not a template; the weekly timetable produces class rows.
 
+**Cancelled class** is a class the tenant has called off. It stays on the
+timetable, and its bookings no longer give a place in a class that runs. Not to
+be confused with a booking's `cancelled` status, which is one member's place
+ending: the member cancelled it, or promotion released it.
+
 **Booking** is a member on a class. Statuses: `booked`, `waitlisted`,
 `cancelled`, `attended`, `no_show`. A member has at most one booking per class.
 
@@ -189,6 +194,16 @@ status change: a member waiting for the 18:00 spin class has usually booked the
 18:15 circuit class as a fallback, and promoting them has to release that
 fallback booking. Otherwise the site manager sees a class that looks full while
 half the room does not turn up, which is the complaint they actually raise.
+
+**Calendar file** is a member's download of their upcoming booked classes, for
+their own calendar app. It is a snapshot at download, not a feed: nothing changes
+in the member's calendar until they download again. Upcoming means booked and
+not yet started. Each booking keeps one identity across downloads. A booking on a
+class that has not started appears as cancelled when the member cancelled it,
+when promotion released it, or when it is on a cancelled class, so a re-import
+removes it rather than leaving the old class behind. A member gets a file as
+long as it holds at least one entry, even if every entry is cancelled; only a
+member with nothing to send gets no file.
 
 **Fill rate** is bookings divided by capacity. **No-show rate** is unattended
 bookings divided by bookings. Both are per site and per period, and both are what
