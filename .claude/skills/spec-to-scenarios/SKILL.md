@@ -64,7 +64,9 @@ This skill covers the first four boxes, in that order, as steps 1 to 4, and hand
 - **Red cards:** no open question would change an expected result.
 - **Environment:** there is a running app to test against and a seed test.
 
-If it is ready, say "This ticket is ready for the planner" and go straight to the handover. Otherwise, work through the steps below, and skip any step that already passes.
+The planner explores the running app, so it can start only once the feature's screens exist there. When they do not, the ticket is still ready, and "ready" means ready for the build: the planner runs after it.
+
+If it is ready, say "This ticket is ready for the planner" (or "ready for the build" when the feature does not run yet) and go straight to the handover. Otherwise, work through the steps below, and skip any step that already passes.
 
 ## 2. Criteria
 
@@ -189,7 +191,7 @@ Mock services the team does not own instead of calling them.
 List any edge case you find that the scenarios do not cover separately, for QA approval.
 ```
 
-Adjust the seed path to what the repo has. If there is no seed test or no running app, say plainly that the planner cannot start until a developer adds them.
+Adjust the seed path to what the repo has. If there is no seed test or no running app, say plainly that the planner cannot start until a developer adds them. If the feature is not built yet, write that in the brief's environment section and give the request for later.
 
 If the repo has no shared tag list, offer to create `docs/test-tags.md` with one line per tag. That stops synonyms like `@smoke`, `@sanity` and `@quick`. Show how the tags will be used:
 
@@ -204,5 +206,5 @@ End with where the tester is in the chain, in four lines:
 
 - **Ticket, criteria, scenarios, environment:** ready or not, and whether the Gherkin is in the ticket
 - **Red cards:** how many remain open
-- **Agents, next:** run the planner and approve its plan before the generator writes any test. The healer may fix the route, never the expectation.
+- **Agents, next:** once the feature runs in the app, run the planner and approve its plan before the generator writes any test. The healer may fix the route, never the expectation.
 - **Pipeline and video receipt:** each scenario gets its own video in the pull request, with chapters named after its Given, When and Then lines in the ticket
