@@ -2,18 +2,17 @@
 
 <!-- Describe the concrete problem and resulting behaviour. -->
 
-## BDD
+## Acceptance spec
 
-<!-- Add or update docs/testing/<feature>-bdd.md in this PR.
-     Include an English "Change summary" and declarative acceptance scenarios
-     for the happy path, error case and the most important regression.
-     Add corresponding AS-1:, AS-2:, ... tests in
-     tests/e2e/<feature>-ci.spec.ts, recording video and trace on every run.
-     CI copies the summary from changed BDD files into its PR comment and
-     links the report and recordings. Do not describe existing behaviour as new.
-     For changes without a behaviour scenario, explain why BDD is not applicable. -->
+<!-- Add or update specs/<feature>.md in this PR (see docs/testing/pr-evidence.md).
+     Include an English "Change summary" and Gherkin acceptance scenarios tagged
+     @happy-path, @error-case and @regression. Add one test per scenario in
+     tests/e2e/<feature>/ with a `// spec:` header, the scenario name as title
+     and the @acceptance tag. (The recorded PR comment is paused for now.)
+     Do not describe existing
+     behaviour as new. For changes without a behaviour scenario, explain why. -->
 
-BDD document:
+Spec:
 
 ## Validation
 

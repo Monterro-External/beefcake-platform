@@ -65,8 +65,12 @@ jobs:
       - name: Build
         run: npm run build
 
-  registration:
-    name: Playwright registration scenarios
+  # Disabled: the PR video evidence will read the Gherkin from the tickets linked
+  # to the PR instead of specs/. Until then the @acceptance tests run in the e2e
+  # job without the recorded PR comment. Re-enable by removing `if: false`.
+  acceptance:
+    name: Playwright acceptance scenarios
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -88,11 +92,11 @@ jobs:
       - name: Seed
         run: npm run db:reset -- --scale small --quiet
 
-      - name: Run the BDD acceptance scenarios
+      - name: Run the acceptance scenarios linked from specs/
         id: bdd-tests
         env:
           PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/bdd-results.json
-        run: npm run test:e2e -- --grep 'AS-[0-9]+:' --project=chromium --reporter=list,html,json
+        run: npm run test:e2e -- --grep @acceptance --project=chromium --reporter=list,html,json
 
       - name: Build video timelines from recorded test steps
         if: ${{ !cancelled() }}
@@ -102,14 +106,14 @@ jobs:
         id: bdd-artifact
         if: ${{ !cancelled() }}
         with:
-          name: playwright-registration-report
+          name: playwright-acceptance-report
           path: |
             playwright-report/
             test-results/
-            docs/testing/
+            specs/
           retention-days: 7
 
-      - name: Publish BDD description and recording links
+      - name: Publish spec summary and recording links
         if: ${{ !cancelled() }}
         uses: actions/github-script@v8
         env:
@@ -123,6 +127,7 @@ jobs:
   e2e:
     name: End-to-end flows
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -142,7 +147,7 @@ jobs:
       - run: npm run test:e2e
 
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: playwright-report/

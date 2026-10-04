@@ -44,6 +44,7 @@ have caused incidents and the files to leave alone. This file is the map.
 | Signal exports and reports | `src/export/` | `exportSignals()`, `tenantHealth()`, `churnWithPaymentLag()` |
 | Surfaces | `src/app/(tenant)`, `(member)`, `(admin)` | `/app`, `/me`, `/admin`; server actions in `src/app/actions/` |
 | Timezones | `src/domain/dates.ts` | `TIMEZONES`; `timezoneForCountry()` in `src/jobs/runner.ts` |
+| Acceptance specs and PR evidence | `specs/`, `tests/e2e/<feature>/`, `.github/scripts/` | `recordEvidence`, `@acceptance`, `// spec:` header, `parseSpec()` |
 
 ## Commands
 
@@ -123,5 +124,6 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 - `docs/agents/issue-tracker.md`: Linear via MCP; team `BCPLA`, product tickets in `BCPRO` read-only.
 - `docs/agents/triage-labels.md`: the five triage roles mapped to label strings.
 - `docs/agents/design-system.md`: implementing from Figma with `tokens/figma-map.json`.
+- `docs/testing/pr-evidence.md`: specs in `specs/`, the Playwright agents, and the PR evidence comment.
 - `docs/figma-design-system-plan.md`: the three Figma files and the plan for the library.
 - `docs/figma-design-system-step3.md`: the token decisions handed into the codebase.

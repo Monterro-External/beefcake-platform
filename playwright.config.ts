@@ -8,14 +8,18 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
+  // One SQLite file and one dev server: tests share the database, so they run
+  // serially. Playwright also recommends one worker on CI for reproducibility.
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI === undefined ? 0 : 1,
+  forbidOnly: process.env.CI !== undefined,
+  retries: process.env.CI === undefined ? 0 : 2,
   reporter: process.env.CI === undefined ? 'list' : [['list'], ['html', { open: 'never' }]],
   timeout: 30_000,
   use: {
     baseURL: 'http://127.0.0.1:3000',
-    trace: 'retain-on-failure',
+    // Acceptance scenarios record every run through `recordEvidence` instead.
+    trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

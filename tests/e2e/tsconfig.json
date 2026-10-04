@@ -1,0 +1,8 @@
+{
+  // The root tsconfig excludes the browser tests; this one type-checks them
+  // (npm run typecheck) and gives ESLint the types for no-floating-promises.
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["**/*.ts", "../../playwright.config.ts"],
+  "exclude": []
+}
