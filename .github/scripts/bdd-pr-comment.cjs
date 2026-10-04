@@ -234,7 +234,10 @@ async function upsertComment({ github, context, body }) {
 
 async function publish({ github, context, core, fetchImpl = fetch }) {
   const pr = context.payload.pull_request;
-  const linkedIds = linkedIssueIds({ headRef: pr?.head.ref, title: pr?.title, body: pr?.body ?? '' });
+  // Read the PR as it is now: editing the description does not start a run, but a
+  // re-run should still see a ticket added since.
+  const live = pr ? (await github.rest.pulls.get({ ...context.repo, pull_number: pr.number })).data : undefined;
+  const linkedIds = linkedIssueIds({ headRef: pr?.head.ref, title: live?.title ?? pr?.title, body: live?.body ?? pr?.body ?? '' });
   const apiKey = process.env.LINEAR_API_KEY;
   const issues = [];
   const notes = [];
