@@ -57,9 +57,10 @@ describe('BDD evidence reporting', () => {
   });
 
   it('rejects a spec without an error case, with duplicate names or without Given/When/Then', () => {
-    expect(() => parseSpec(source.replace('@error-case', '@happy-path'), filename)).toThrow(/all three kinds/);
-    expect(() => parseSpec(source.replace(names[2]!, names[0]!), filename)).toThrow(/unique scenario names/);
-    expect(() => parseSpec(source.replace('@regression', ''), filename)).toThrow(/one of @happy-path/);
+    expect(() => parseSpec(source.replace('@error', '@happy'), filename)).toThrow(/at least @happy, @error and @regression/);
+    expect(() => parseSpec(source.replace(names[2]!, names[0]!), filename)).toThrow(/unique id/);
+    expect(() => parseSpec(source.replace('AS-2 ', ''), filename)).toThrow(/unique id such as AS-1/);
+    expect(() => parseSpec(source.replace('@regression', ''), filename)).toThrow(/one type tag per scenario/);
     expect(() => parseSpec(source.replace(/^    When the person is registered.*$/m, ''), filename)).toThrow(/Given\/When\/Then/);
     expect(() => parseSpec(source.replace('## Change summary', '## Other'), filename)).toThrow(/Change summary/);
   });

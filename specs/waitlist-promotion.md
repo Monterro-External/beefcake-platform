@@ -1,5 +1,6 @@
 # Waitlist promotion
 
+**Spec:** none yet. The Acceptance block below moves to a BCPLA Spec issue once Linear is connected.
 **Seed:** `tests/e2e/seed.spec.ts`
 
 ## Change summary
@@ -14,7 +15,7 @@ Domain rules such as closing up waitlist positions belong in unit tests
 ## Acceptance
 
 ```gherkin
-@wip
+@wip @booking
 Feature: Waitlist promotion releases the fallback booking
   A member waiting for a full class often books an overlapping class as a
   fallback. Promotion must release that fallback, otherwise the site manager
@@ -27,8 +28,8 @@ Feature: Waitlist promotion releases the fallback booking
       | Circuit | 18:15  | 19:00 | 10       |
     And member "Anna" is booked on "Spin"
 
-  @happy-path
-  Scenario: Promotion releases the overlapping fallback
+  @happy
+  Scenario: AS-1 Promotion releases the overlapping fallback
     Given member "Erik" is waitlisted at position 1 on "Spin"
     And member "Erik" is booked on "Circuit"
     When member "Anna" cancels the booking on "Spin"
@@ -37,15 +38,15 @@ Feature: Waitlist promotion releases the fallback booking
     And the booking of "Erik" on "Circuit" is cancelled
     And the outbox holds a promotion message for "Erik"
 
-  @error-case
-  Scenario: A class that has already started cannot be joined
+  @error
+  Scenario: AS-2 A class that has already started cannot be joined
     Given "Spin" started five minutes ago
     When member "Erik" tries to join the waitlist for "Spin"
     Then the booking is refused with "That class has already started."
     And "Erik" has no booking on "Spin"
 
   @regression
-  Scenario: A non-overlapping booking is kept
+  Scenario: AS-3 A non-overlapping booking is kept
     Given member "Erik" is waitlisted at position 1 on "Spin"
     And member "Erik" is booked on "Yoga" at 20:00
     When a spot on "Spin" frees up and the waitlist promotion job runs

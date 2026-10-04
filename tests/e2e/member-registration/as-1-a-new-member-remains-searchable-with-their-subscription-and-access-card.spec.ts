@@ -9,10 +9,10 @@ import { expectProfile, fillRegistration, registrationFor, searchAndOpen, submit
 
 test.use(recordEvidence);
 
-test.describe('Member registration', { tag: '@acceptance' }, () => {
+test.describe('Member registration', { tag: ['@acceptance', '@registration'] }, () => {
   test.setTimeout(90_000);
 
-  test('A new member remains searchable with their subscription and access card', async ({ page, context }) => {
+  test('AS-1 A new member remains searchable with their subscription and access card', { tag: '@happy' }, async ({ page, context }) => {
     const receptionist = personaFor('front_desk', 'Puls Träning');
     const email = `e2e.registration.${randomUUID()}@example.se`;
     await signIn(context, receptionist.userId);

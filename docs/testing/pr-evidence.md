@@ -20,10 +20,26 @@ One bot comment is created or updated with:
 The PR's human-written body is preserved. If no spec changed, the comment says
 so and labels the tested scenarios as existing regression coverage.
 
+## Where things live
+
+- **The Spec issue** (Linear, BCPLA, parent of the implementation tickets; see
+  `docs/agents/issue-tracker.md`) holds the story, the acceptance criteria and the
+  Gherkin scenarios, each named with a stable id (`AS-1 …`). It is the only source
+  of the requirements; prepare it with `/ticket-to-scenarios <spec-id>`.
+- **Implementation tickets** (sub-issues) say which scenarios they make pass:
+  `Covers: AS-1, AS-3`.
+- **`specs/<feature>.md`** holds the Playwright test plan the planner writes, with
+  a `**Spec:**` line. The older specs still carry an Acceptance block until
+  their Spec issue exists in Linear.
+- **Tests** carry the Spec tag (`@BCPLA-<n>`) and a title equal to the scenario
+  name, id included, so scenarios and tests match by id, not by copied text.
+  When the PR evidence job returns, it follows PR → ticket → Spec → covered scenarios.
+- **Tags** are listed in `docs/test-tags.md`.
+
 ## Layout
 
 ```
-specs/<feature>.md                         plan: Change summary, Acceptance (Gherkin), Test plan
+specs/<feature>.md                         Playwright test plan and Ticket line
 tests/e2e/seed.spec.ts                     starting point for the planner and generator
 tests/e2e/<feature>/<scenario-name>.spec.ts one generated test per scenario
 tests/e2e/evidence.ts                      recordEvidence: video and trace on every run
@@ -34,8 +50,9 @@ tests/e2e/evidence.ts                      recordEvidence: video and trace on ev
 1. Write `specs/<feature>.md` in English with a `# Title`, a `## Change summary`
    describing what this PR actually changes, and `## Acceptance` holding one
    ```` ```gherkin ```` block. Write scenarios declaratively.
-2. Tag every scenario with exactly one of `@happy-path`, `@error-case` or
-   `@regression`; each spec needs all three. Tag scenarios, or the whole
+2. Tag scenarios as in `docs/test-tags.md`: exactly one type tag each
+   (`@happy`, `@edge`, `@error`, `@negative`, `@regression`), with at least one
+   `@happy`, `@error` and `@regression` per spec. Tag scenarios, or the whole
    `Feature`, `@wip` while they are not automated: they are listed as planned and
    do not fail the check.
 3. Ask the `playwright-test-planner` agent to add the `## Test plan` section from

@@ -8,10 +8,10 @@ import { fillRegistration, registrationFor, tenantCounts } from './registration'
 
 test.use(recordEvidence);
 
-test.describe('Member registration', { tag: '@acceptance' }, () => {
+test.describe('Member registration', { tag: ['@acceptance', '@registration'] }, () => {
   test.setTimeout(90_000);
 
-  test('A duplicate email is rejected without changing existing records', async ({ page, context }) => {
+  test('AS-2 A duplicate email is rejected without changing existing records', { tag: '@error' }, async ({ page, context }) => {
     const receptionist = personaFor('front_desk', 'Puls Träning');
     await signIn(context, receptionist.userId);
     const existingEmail = withDb((db) => db

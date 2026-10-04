@@ -1,5 +1,6 @@
 # Member registration
 
+**Spec:** none yet. Written before specs carried Gherkin; the Acceptance block below moves to a BCPLA Spec issue once Linear is connected.
 **Seed:** `tests/e2e/seed.spec.ts`
 
 ## Change summary
@@ -13,10 +14,11 @@ is unchanged.
 ## Acceptance
 
 ```gherkin
+@registration
 Feature: Member registration
 
-  @happy-path
-  Scenario: A new member remains searchable with their subscription and access card
+  @happy
+  Scenario: AS-1 A new member remains searchable with their subscription and access card
     Given a front desk user at Puls Träning
     And a person with valid contact details whose email is not registered with that tenant
     When the person is registered with a plan, home site and access card
@@ -25,8 +27,8 @@ Feature: Member registration
     And the member can be found again with the saved details on later visits
     And exactly one welcome message is queued
 
-  @error-case
-  Scenario: A duplicate email is rejected without changing existing records
+  @error
+  Scenario: AS-2 A duplicate email is rejected without changing existing records
     Given an email address already belongs to a member at Puls Träning
     When another registration uses that email address at the same tenant
     Then the registration is rejected with an explanation
@@ -34,7 +36,7 @@ Feature: Member registration
     And no member, subscription, access card or welcome message is created
 
   @regression
-  Scenario: Registrations using the same email remain isolated between tenants
+  Scenario: AS-3 Registrations using the same email remain isolated between tenants
     Given a member registered with Nordic Fitness Group
     When Puls Träning registers a member with the same email address
     Then each tenant has its own member, subscription and access card
@@ -48,7 +50,7 @@ Feature: Member registration
 
 **Seed:** `tests/e2e/seed.spec.ts`
 
-#### 1.1 A new member remains searchable with their subscription and access card
+#### 1.1 AS-1 A new member remains searchable with their subscription and access card
 
 **Steps:**
 1. Sign in as the front desk user at Puls Träning.
@@ -62,7 +64,7 @@ Feature: Member registration
 - The search returns exactly one row for the email, and the details survive a reload.
 - Exactly one welcome message for the email is queued in the outbox.
 
-#### 1.2 A duplicate email is rejected without changing existing records
+#### 1.2 AS-2 A duplicate email is rejected without changing existing records
 
 **Steps:**
 1. Sign in as the front desk user at Puls Träning.
@@ -73,7 +75,7 @@ Feature: Member registration
 - The form stays open with "Somebody at this gym already uses that email address."
 - Member, subscription, access card and welcome-message counts for the tenant are unchanged.
 
-#### 1.3 Registrations using the same email remain isolated between tenants
+#### 1.3 AS-3 Registrations using the same email remain isolated between tenants
 
 **Steps:**
 1. Sign in as the front desk user at Nordic Fitness Group and register a member with a unique email.

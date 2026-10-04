@@ -124,6 +124,7 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 - `docs/agents/issue-tracker.md`: Linear via MCP; team `BCPLA`, product tickets in `BCPRO` read-only.
 - `docs/agents/triage-labels.md`: the five triage roles mapped to label strings.
 - `docs/agents/design-system.md`: implementing from Figma with `tokens/figma-map.json`.
-- `docs/testing/pr-evidence.md`: specs in `specs/`, the Playwright agents, and the PR evidence comment.
+- `docs/testing/pr-evidence.md`: the BCPLA Spec issue holds the Gherkin, `specs/` the Playwright plans; agents and PR evidence.
+- `docs/test-tags.md`: the one list of test tags (ticket, area, type, run).
 - `docs/figma-design-system-plan.md`: the three Figma files and the plan for the library.
 - `docs/figma-design-system-step3.md`: the token decisions handed into the codebase.

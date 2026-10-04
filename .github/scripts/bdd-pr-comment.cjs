@@ -4,10 +4,12 @@ const { collectSpecs, timestamp } = require('./bdd-timeline.cjs');
 
 const MARKER = '<!-- beefcake-bdd-evidence -->';
 
-const KINDS = { 'happy-path': 'happy path', 'error-case': 'error case', regression: 'regression' };
+// Type tags from docs/test-tags.md; each spec needs at least one happy, error and regression scenario.
+const KINDS = { happy: 'happy path', edge: 'edge case', error: 'error case', negative: 'negative case', regression: 'regression' };
+const REQUIRED_KINDS = ['happy path', 'error case', 'regression'];
 
-// A spec follows the Playwright Test Agents layout (specs/<feature>.md) with three
-// sections of our own: a Change summary, and Acceptance scenarios in Gherkin whose
+// Gherkin belongs on the BCPLA Spec issue; sub-issues list the scenario ids they
+// cover. Until the job reads Linear, it reads specs/<feature>.md, which has a Change summary, and Acceptance scenarios in Gherkin whose
 // tags give each scenario's kind. Tests link back with a `// spec:` header and a
 // title equal to the scenario name, as the generator agent writes them.
 function parseSpec(source, filename) {
@@ -41,11 +43,15 @@ function parseSpec(source, filename) {
   if (!title || !summary || scenarios.length === 0) {
     throw new Error(`${filename}: expected a title, Change summary and Acceptance scenarios in a gherkin block`);
   }
+  const ids = scenarios.map((scenario) => scenario.name.match(/^(AS-\d+) /)?.[1]);
+  if (ids.some((id) => !id) || new Set(ids).size !== ids.length) {
+    throw new Error(`${filename}: start every scenario name with a unique id such as AS-1, so tickets can say which scenarios they cover`);
+  }
   if (new Set(scenarios.map((scenario) => scenario.name)).size !== scenarios.length
       || scenarios.some((scenario) => scenario.kindTags !== 1)
-      || Object.values(KINDS).some((kind) => !scenarios.some((s) => s.kind === kind))
+      || REQUIRED_KINDS.some((kind) => !scenarios.some((s) => s.kind === kind))
       || scenarios.some(({ steps }) => !['Given', 'When', 'Then'].every((word) => steps.some((step) => step.startsWith(`${word} `))))) {
-    throw new Error(`${filename}: use unique scenario names, one of @happy-path, @error-case or @regression per scenario, all three kinds, and Given/When/Then steps`);
+    throw new Error(`${filename}: use unique scenario names, one type tag per scenario (docs/test-tags.md), at least @happy, @error and @regression, and Given/When/Then steps`);
   }
   return { filename, title, summary, scenarios: scenarios.map(({ kindTags, ...scenario }) => scenario) };
 }

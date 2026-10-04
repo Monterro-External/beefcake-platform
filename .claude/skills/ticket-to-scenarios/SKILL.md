@@ -10,6 +10,14 @@ The goal is one thing: a ticket that Playwright's planner agent can plan from, a
 
 Start: `/ticket-to-scenarios <ticket id>`, or `/ticket-to-scenarios` followed by the pasted ticket text.
 
+## Which ticket: the Spec, not the implementation tickets
+
+Scenarios describe behaviour, and behaviour lives at the level of the story, not of the technical slices it is built in. So the Gherkin goes on the issue that holds the requirements for one change. Read `docs/agents/issue-tracker.md` to find it. Where the tracker has a Spec (a parent issue with the requirements, and the implementation tickets as its sub-issues), that Spec is "the ticket" everywhere in this skill.
+
+- Given an implementation ticket, open its parent Spec and work there. Say so in one line.
+- Each implementation ticket only says which scenarios it makes pass, in one line: `Covers: AS-1, AS-3`.
+- One scenario often needs several tickets. It is covered when every ticket it needs is done.
+
 ## Where this fits
 
 The team's workflow is one chain:
@@ -101,7 +109,7 @@ Give each scenario a tag line, so groups of tests can be run later. Tags start w
 
 | Kind | Default tags | Why |
 |---|---|---|
-| Ticket | `@<ticket-id>` | find every test for one ticket |
+| Ticket | `@<ticket-id>`, the Spec's id where there is one | find every test for one change |
 | Area | `@<feature>`, from the glossary, such as `@checkout` | run one feature |
 | Type | `@happy`, `@edge`, `@error`, `@negative`, `@regression` | see coverage at a glance |
 | When it runs | `@smoke` on two or three must-never-break journeys, `@wip` if not built yet | fast checks on every change, unfinished work kept out |
@@ -134,6 +142,8 @@ Three kinds of scenario stay out of the ticket and are listed separately:
 **Stop 2.** Show a count per criterion first, for example "AC1: 1 happy, 3 edge, 1 error", then the full Gherkin block exactly as it will look in the ticket. Ask: "Keep, change or remove anything? Any edge case you know from experience that's missing? Which two or three should be `@smoke`?"
 
 On approval, ask: "Shall I add this to <ticket-id>?" On yes, add the block to the ticket description, below the existing text, under the team's heading or `## Scenarios`. If the ticket already has a Gherkin block, update only that block and keep its IDs. If the tracker setup cannot edit a description, say so and give the tester the block to paste. If the tester agrees, post the red cards as a comment on the ticket.
+
+If the ticket is a Spec with sub-issues, propose a `Covers:` line for each sub-issue, as a list: sub-issue, title, scenario IDs. A scenario that no sub-issue covers is a red card. Ask: "Shall I add these Covers lines?" On yes, add each line at the top of the sub-issue's description, or update the existing `Covers:` line.
 
 ## 4. Environment
 

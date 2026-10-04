@@ -22,8 +22,10 @@ application behavior.
     timelines and the PR evidence comment can name it. One `test.step` per plan step, even if it needs
     several actions. Where the spec has Gherkin Acceptance scenarios, use their Given/When/Then wording.
   - Place the file in `tests/e2e/<spec file name without .md>/`, start it with the `// spec:` and `// seed:`
-    header comments, tag the describe `{ tag: '@acceptance' }` and call `test.use(recordEvidence)` from
-    `tests/e2e/evidence.ts`.
+    header comments, tag the describe with `@acceptance` and the area tag, tag the test with the scenario's
+    type tag and Spec tag (`{ tag: ['@happy', '@BCPLA-142'] }`, see `docs/test-tags.md`), and call
+    `test.use(recordEvidence)` from `tests/e2e/evidence.ts`. The Gherkin lives on the BCPLA Spec issue; the
+    test title must equal its scenario name, id included (`AS-1 …`), word for word.
   - Always use best practices from the log when generating tests.
 
    <example-generation>

@@ -26,9 +26,9 @@ jobs:
     name: Lint, typecheck, unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -48,9 +48,9 @@ jobs:
     name: Seed at full scale
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -77,9 +77,9 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -102,7 +102,7 @@ jobs:
         if: ${{ !cancelled() }}
         run: node .github/scripts/bdd-timeline.cjs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         id: bdd-artifact
         if: ${{ !cancelled() }}
         with:
@@ -115,7 +115,7 @@ jobs:
 
       - name: Publish spec summary and recording links
         if: ${{ !cancelled() }}
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           BDD_TEST_OUTCOME: ${{ steps.bdd-tests.outcome }}
           BDD_ARTIFACT_URL: ${{ steps.bdd-artifact.outputs.artifact-url }}
@@ -129,9 +129,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -146,7 +146,7 @@ jobs:
 
       - run: npm run test:e2e
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: playwright-report

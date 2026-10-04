@@ -11,10 +11,10 @@ import {
 
 test.use(recordEvidence);
 
-test.describe('Member registration', { tag: '@acceptance' }, () => {
+test.describe('Member registration', { tag: ['@acceptance', '@registration'] }, () => {
   test.setTimeout(90_000);
 
-  test('Registrations using the same email remain isolated between tenants', async ({ page, context }) => {
+  test('AS-3 Registrations using the same email remain isolated between tenants', { tag: '@regression' }, async ({ page, context }) => {
     const puls = personaFor('front_desk', 'Puls Träning');
     const nordic = personaFor('front_desk', 'Nordic Fitness Group');
     const email = `e2e.isolation.${randomUUID()}@example.se`;
