@@ -102,6 +102,16 @@ Start with tenant Puls Träning for ordinary work, Nordic Fitness Group for volu
 4. Read the matching runbook in `docs/runbooks/` before changing anything.
 5. Fix in `src/domain/` with a unit test at the boundary, then re-run the same command. Identical seed and today give an identical database, so the diff is the fix.
 
+### Product ticket to implementation tickets
+
+1. `/grill-with-docs <BCPRO-id>`: settle the design; the glossary and ADRs are updated as terms land.
+2. `/to-spec`: publish the BCPLA Spec, its first line linking the BCPRO ticket.
+3. `/spec-to-scenarios <spec-id>`: add the criteria and the Gherkin to the Spec.
+4. `/to-tickets <spec-id>`: the implementation tickets, as vertical slices with blocking edges. Never create them by hand. A ticket that makes no acceptance scenario pass says `Covers: none`; one with no `Covers:` line claims every scenario.
+5. The Playwright planner runs once the feature's screens exist, not before.
+
+The skills that start each step are user-invoked: an agent finishing one step names the next and stops.
+
 Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 
 ## Docs
