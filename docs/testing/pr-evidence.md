@@ -21,8 +21,7 @@ their plan. The requirements themselves live in Linear.
   nothing else reads it. The Acceptance blocks in the older specs are leftovers
   that move to their Spec issue once it exists; don't copy them into a new file.
 - **Tests** carry the Spec tag (`@BCPLA-<n>`) and a title equal to the scenario
-  name, id included. The member registration tests predate their Spec and carry
-  no Spec tag yet, so no PR shows them as evidence.
+  name, id included.
 - **Tags** are listed in `docs/test-tags.md`.
 
 ```

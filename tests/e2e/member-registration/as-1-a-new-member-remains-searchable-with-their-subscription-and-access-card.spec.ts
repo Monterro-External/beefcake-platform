@@ -9,7 +9,7 @@ import { expectProfile, fillRegistration, registrationFor, searchAndOpen, submit
 
 test.use(recordEvidence);
 
-test.describe('Member registration', { tag: ['@acceptance', '@registration'] }, () => {
+test.describe('Member registration', { tag: ['@acceptance', '@registration', '@BCPLA-17'] }, () => {
   test.setTimeout(90_000);
 
   test('AS-1 A new member remains searchable with their subscription and access card', { tag: '@happy' }, async ({ page, context }) => {
