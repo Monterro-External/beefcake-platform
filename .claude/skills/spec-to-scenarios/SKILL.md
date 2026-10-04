@@ -1,6 +1,6 @@
 ---
 name: spec-to-scenarios
-description: Use when a tester wants a Spec ready for Playwright's planner agent. Runs the five questions, adds Gherkin with tags to the Spec and Covers lines to its tickets, checks the test environment, and hands over to the planner.
+description: Use when a tester wants a Spec ready for Playwright's planner agent. Grills the criteria in the domain glossary's language, adds Gherkin with tags to the Spec and Covers lines to its tickets, checks the test environment, and hands over to the planner.
 disable-model-invocation: true
 ---
 
@@ -9,6 +9,8 @@ disable-model-invocation: true
 The goal is one thing: a ticket that Playwright's planner agent can plan from, and that the pull request pipeline can turn into a video receipt. If the ticket is already ready, say so and stop. Only fill the gaps that are there.
 
 Start: `/spec-to-scenarios <spec id>`, or `/spec-to-scenarios` followed by the pasted Spec text. Given an implementation ticket instead, the skill works on its parent Spec.
+
+Before step 1, call the Skill tool twice, for "grilling" and "domain-modeling", as `/grill-with-docs` does. Every Stop below is a grilling round, and every word in it comes from the domain glossary.
 
 ## Which ticket: the Spec, not the implementation tickets
 
@@ -28,19 +30,20 @@ This skill covers the first four boxes, in that order, as steps 1 to 4, and hand
 
 ## What you can assume, and what you cannot
 
-- Matt Pocock's skills are installed and his setup has been run. So `docs/agents/issue-tracker.md` says where tickets live, and `docs/agents/domain.md` says where the domain glossary is (`CONTEXT.md`, or `GLOSSARY.md` in newer versions).
+- Matt Pocock's skills are installed and his setup has been run. So `docs/agents/issue-tracker.md` says where tickets live, and `docs/agents/domain.md` says where the domain glossary is. Use that file wherever the domain-modeling skill says `GLOSSARY.md`.
 - Nothing else about the repo is known. Never assume. Look, and if you cannot find out, ask.
 
 ## Rules
 
 - A test can only be as good as the criteria behind it. The acceptance criteria are the requirements. Never invent behaviour.
-- Every gap becomes a red card: an open question for the product owner. A person answers a red card, never you.
+- Every gap becomes a red card: an open question for the product owner. A person answers a red card, never you; you give your recommended answer, they decide.
+- **Ask in grilling rounds.** Each Stop puts its questions as one round in the grilling format: numbered `❓ **Q1** - **<title>**: …` with your `➡️` recommendation, only the frontier (questions whose prerequisites are settled), then wait. A red card that depends on another open one waits for a later round. Facts you can look up in the repo or the tracker are never questions.
+- **Speak the ubiquitous language.** Criteria, red cards and scenarios use the glossary's terms (member, booking, class, site, promotion), not UI words or the ticket's synonyms. A ticket word that conflicts with the glossary, or a concept the glossary lacks, is a red card of its own: name the term and the conflict. When the tester resolves a term, update the glossary right there, as the domain-modeling skill says.
 - Expected results come from the ticket or from the tester's answers, never from what the app does today.
 - The Gherkin lives in the ticket. Every other copy is taken from it word for word.
 - Never change or remove what the ticket already says. Add to it, and only after the tester says yes.
-- Use the words from the domain glossary and the ticket.
 - Write no test code. That is the agents' job.
-- Talk in the tester's language. Explain any technical word in one plain sentence the first time. Gherkin is the Given, When, Then format for scenarios. Keep messages short.
+- Explain any test-tooling word in one plain sentence the first time. Gherkin is the Given, When, Then format for scenarios. Keep messages short.
 
 ## 1. Ticket: look around and run the ready check
 
@@ -77,9 +80,9 @@ Score every criterion on the five questions:
 
 - the story in one sentence
 - each criterion as AC1, AC2 and so on, marked OK or with the failed question in a few words
-- the red cards: Q1, Q2 and so on
+- the red cards on the frontier, as a grilling round
 
-Ask: "Can you answer any of these now? The rest stay as red cards, and no scenario will depend on them."
+Run rounds until no open red card would change an expected result, or the tester parks it. A parked red card stays open, and no scenario depends on it.
 
 ## 3. Scenarios
 
@@ -139,7 +142,7 @@ Three kinds of scenario stay out of the ticket and are listed separately:
 - **Extras the ticket does not ask for:** "Extras, need product owner approval".
 - **Better as a unit test:** a single rule with no screen involved. Click tests work in the browser, so these go to the developers or to `/tdd`.
 
-**Stop 2.** Show a count per criterion first, for example "AC1: 1 happy, 3 edge, 1 error", then the full Gherkin block exactly as it will look in the ticket. Ask: "Keep, change or remove anything? Any edge case you know from experience that's missing? Which two or three should be `@smoke`?"
+**Stop 2.** Show a count per criterion first, for example "AC1: 1 happy, 3 edge, 1 error", then the full Gherkin block exactly as it will look in the ticket. Then a grilling round: one question per scenario you would change or drop, one for an edge case the tester may know from experience, and one for the two or three `@smoke` scenarios, each with your recommendation.
 
 On approval, ask: "Shall I add this to <ticket-id>?" On yes, add the block to the ticket description, below the existing text, under the team's heading or `## Scenarios`. If the ticket already has a Gherkin block, update only that block and keep its IDs. If the tracker setup cannot edit a description, say so and give the tester the block to paste. If the tester agrees, post the red cards as a comment on the ticket.
 
@@ -160,7 +163,7 @@ Then sign-in and the seed test, the Playwright way:
 - **The seed test** is the starting point for the planner and generator agents: it opens the app in the state the scenarios start from.
 - **Every test stands alone:** its own data, its own browser context, and it runs in any order. If tests run on a shared test server, they create their own data and clean it up.
 
-**Stop 3.** Show the four things as found or missing. Ask only about what is missing. Anything that blocks the planner today is a blocker, in one plain sentence, for a developer to fix.
+**Stop 3.** Show the four things as found or missing. Ask about what is missing as a grilling round. Anything that blocks the planner today is a blocker, in one plain sentence, for a developer to fix.
 
 ## Handover to the agents
 
