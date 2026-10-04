@@ -10,7 +10,7 @@ their plan. The requirements themselves live in Linear.
   `docs/agents/issue-tracker.md`) holds the story, the acceptance criteria and the
   Gherkin scenarios in one ```` ```gherkin ```` block, each scenario named with a
   stable id (`AS-1 …`). It is the only source of the requirements; prepare it with
-  `/ticket-to-scenarios <spec-id>`.
+  `/spec-to-scenarios <spec-id>`.
 - **Implementation tickets** (sub-issues) say which scenarios they make pass, on a
   line of their own: `Covers: AS-1, AS-3`.
 - **`specs/<feature>.md`** holds the Playwright test plan the planner writes, with
@@ -64,7 +64,7 @@ could not be read. Fork and Dependabot PRs never receive secrets.
 
 ## Adding a feature
 
-1. Run `/ticket-to-scenarios <spec-id>`. It adds the Gherkin to the Spec, with
+1. Run `/spec-to-scenarios <spec-id>`. It adds the Gherkin to the Spec, with
    exactly one type tag per scenario (`@happy`, `@edge`, `@error`, `@negative`,
    `@regression`; at least one `@happy`, `@error` and `@regression`), and the
    `Covers:` lines to its tickets.

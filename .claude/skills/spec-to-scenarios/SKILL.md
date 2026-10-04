@@ -1,14 +1,14 @@
 ---
-name: ticket-to-scenarios
-description: Use when a tester wants a ticket ready for Playwright's planner agent. Runs the five questions, adds Gherkin with tags to the ticket, checks the test environment, and hands over to the planner.
+name: spec-to-scenarios
+description: Use when a tester wants a Spec ready for Playwright's planner agent. Runs the five questions, adds Gherkin with tags to the Spec and Covers lines to its tickets, checks the test environment, and hands over to the planner.
 disable-model-invocation: true
 ---
 
-# Ticket to scenarios
+# Spec to scenarios
 
 The goal is one thing: a ticket that Playwright's planner agent can plan from, and that the pull request pipeline can turn into a video receipt. If the ticket is already ready, say so and stop. Only fill the gaps that are there.
 
-Start: `/ticket-to-scenarios <ticket id>`, or `/ticket-to-scenarios` followed by the pasted ticket text.
+Start: `/spec-to-scenarios <spec id>`, or `/spec-to-scenarios` followed by the pasted Spec text. Given an implementation ticket instead, the skill works on its parent Spec.
 
 ## Which ticket: the Spec, not the implementation tickets
 
