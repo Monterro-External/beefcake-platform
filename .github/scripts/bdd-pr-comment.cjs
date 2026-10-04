@@ -85,7 +85,8 @@ async function fetchIssue(id, apiKey, fetchImpl = fetch) {
 /**
  * Group the PR's tickets by the Spec that holds their Gherkin: a ticket's parent,
  * or the ticket itself when it carries the Gherkin. A ticket without a Covers
- * line claims every scenario of its Spec.
+ * line shows every scenario of its Spec. Only scenarios a ticket names on its
+ * Covers line are claimed: they need a test, while the rest may not be built yet.
  */
 function resolveSpecs(issues) {
   const specs = new Map();
@@ -100,9 +101,10 @@ function resolveSpecs(issues) {
     }
     if (scenarios === null) continue;
     const spec = specs.get(candidate.identifier)
-      ?? { id: candidate.identifier, title: candidate.title, url: candidate.url, scenarios, covered: new Set(), tickets: [] };
+      ?? { id: candidate.identifier, title: candidate.title, url: candidate.url, scenarios, covered: new Set(), claimed: new Set(), tickets: [] };
     const covers = candidate === issue ? undefined : parseCovers(issue.description);
     for (const id of covers ?? scenarios.map((scenario) => scenario.id)) spec.covered.add(id);
+    for (const id of covers ?? []) spec.claimed.add(id);
     spec.tickets.push({ id: issue.identifier, title: issue.title, url: issue.url, covers });
     specs.set(spec.id, spec);
   }
@@ -136,7 +138,7 @@ function evidenceFor(scenario, spec, specs, timelines, fileExists) {
     status = result.status;
   }
   const ok = test !== undefined && result?.status === 'passed' && test.expectedStatus === 'passed' && video && trace;
-  return { status, video, trace, timeline, ok };
+  return { status, video, trace, timeline, ok, built: matchingSpecs.length > 0 };
 }
 
 function renderReport({ specs: linked, notes = [], linkedIds = [], report, timelines = [], testOutcome, artifactUrl, repoUrl, headSha, mergeSha, runUrl,
@@ -158,7 +160,7 @@ function renderReport({ specs: linked, notes = [], linkedIds = [], report, timel
   lines.push('### What this PR covers', '');
   for (const spec of linked) {
     for (const ticket of spec.tickets) {
-      const claim = ticket.covers === undefined ? 'every scenario' : (ticket.covers.join(', ') || 'no scenarios');
+      const claim = ticket.covers === undefined ? 'every scenario built so far' : (ticket.covers.join(', ') || 'no scenarios');
       lines.push(`- [${ticket.id}](${ticket.url}) ${ticket.title}: covers ${claim} of [${spec.id}](${spec.url})`);
     }
   }
@@ -190,6 +192,11 @@ function renderReport({ specs: linked, notes = [], linkedIds = [], report, timel
         continue;
       }
       const evidence = evidenceFor(scenario, spec, tests, timelines, fileExists);
+      // Without a report nothing can be called unbuilt; the failed run is reported below.
+      if (report && !evidence.built && !spec.claimed.has(scenario.id)) {
+        lines.push(`- **${scenario.name}** (${scenario.kind}) — Not built yet: no test tagged @${spec.id} with this title`, '');
+        continue;
+      }
       if (!evidence.ok) {
         problems.push(`${spec.id} / ${scenario.name}: ${evidence.status}; video ${evidence.video ? 'present' : 'missing'}; trace ${evidence.trace ? 'present' : 'missing'}`);
       }

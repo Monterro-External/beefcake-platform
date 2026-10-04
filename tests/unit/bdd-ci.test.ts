@@ -132,6 +132,36 @@ describe('BDD evidence reporting', () => {
     expect(result.problems).toEqual([]);
   });
 
+  it('lists scenarios without a test as not built yet when the PR links only the Spec', () => {
+    const result = renderReport({ ...input(), specs: resolveSpecs([specIssue]).specs, report: { suites: [] }, timelines: [] });
+    expect(result.body).toContain(`**${names[0]}** (happy path) — Not built yet: no test tagged @BCPLA-142 with this title`);
+    expect(result.problems).toEqual([]);
+  });
+
+  it('lists scenarios without a test as not built yet for a ticket without a Covers line', () => {
+    const result = renderReport({ ...input(), specs: resolveSpecs([ticket('BCPLA-143')]).specs, report: { suites: [] }, timelines: [] });
+    expect(result.body).toContain('Not built yet');
+    expect(result.problems).toEqual([]);
+  });
+
+  it('fails when a ticket names a scenario on its Covers line and the scenario has no test', () => {
+    const result = renderReport({ ...input('AS-1'), report: { suites: [] }, timelines: [] });
+    expect(result.body).toContain(`**${names[0]}** (happy path) — Not verified`);
+    expect(result.problems.length).toBeGreaterThan(0);
+  });
+
+  it('calls nothing unbuilt when the browser run produced no report', () => {
+    const result = renderReport({ ...input(), specs: resolveSpecs([specIssue]).specs, report: undefined, testOutcome: 'failure' });
+    expect(result.body).not.toContain('Not built yet');
+    expect(result.problems).toContain('Browser run did not complete successfully');
+  });
+
+  it('fails when a scenario the PR does not name has a test that failed', () => {
+    const data = { ...input(), specs: resolveSpecs([specIssue]).specs };
+    data.report.suites[0]!.specs[0]!.tests[0]!.results[0]!.status = 'failed';
+    expect(renderReport(data).problems.length).toBeGreaterThan(0);
+  });
+
   it('does not accept a same-named test without the Spec tag', () => {
     const data = input();
     data.report.suites[0]!.specs[0]!.tags = ['acceptance', 'registration'];

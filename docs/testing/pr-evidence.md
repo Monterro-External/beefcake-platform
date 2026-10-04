@@ -41,8 +41,10 @@ recording video and trace, and one bot comment is created or updated:
 2. **Find the Spec.** For each ticket it reads the issue and its parent from Linear.
    The Gherkin comes from the parent; a ticket that carries the Gherkin itself is
    its own Spec.
-3. **Pick the scenarios.** The ticket's `Covers:` line names them. A ticket without
-   one claims every scenario of its Spec.
+3. **Pick the scenarios.** The ticket's `Covers:` line names them, and those are
+   **claimed**: each needs a passing, recorded test. `Covers: none` claims nothing.
+   A ticket without the line, or the Spec linked directly, shows every scenario
+   but claims none, so a Spec can be linked before anything is built.
 4. **Match the tests.** A scenario's test is the one tagged with the Spec and titled
    with the scenario name.
 
@@ -52,10 +54,11 @@ named test step, links to the tested source lines, and a link to the private CI
 artifact with the report and recordings. The Spec's other scenarios are listed by
 id only.
 
-The check fails when a covered scenario has no test, or its test failed or was
-skipped, or its video, trace or timeline is missing, or a ticket covers an id the
-Spec does not have, or the Spec's Gherkin is invalid. Scenarios tagged `@wip` are
-listed as planned and do not fail it.
+The check fails when a claimed scenario has no test, or any shown scenario's test
+failed or was skipped, or its video, trace or timeline is missing, or a ticket
+covers an id the Spec does not have, or the Spec's Gherkin is invalid. A shown but
+unclaimed scenario without a test is listed as not built yet, and scenarios tagged
+`@wip` as planned; neither fails it. A video exists only where a test ran.
 
 The check does not fail, and the comment says why, when no ticket is linked, the
 Spec has no Gherkin yet, or Linear cannot be read.
