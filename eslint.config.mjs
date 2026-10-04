@@ -54,6 +54,12 @@ const config = [
       'import/no-anonymous-default-export': 'off',
     },
   },
+  {
+    // Playwright best practice: an un-awaited action or assertion passes silently.
+    files: ['tests/e2e/**/*.ts'],
+    languageOptions: { parserOptions: { project: './tests/e2e/tsconfig.json', tsconfigRootDir: import.meta.dirname } },
+    rules: { '@typescript-eslint/no-floating-promises': 'error' },
+  },
 ];
 
 export default config;

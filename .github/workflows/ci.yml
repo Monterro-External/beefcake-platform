@@ -26,9 +26,9 @@ jobs:
     name: Lint, typecheck, unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -48,9 +48,9 @@ jobs:
     name: Seed at full scale
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -65,13 +65,73 @@ jobs:
       - name: Build
         run: npm run build
 
+  # Records the @acceptance scenarios and posts them on the PR: PR → linked BCPLA
+  # ticket → parent Spec → the scenarios the ticket covers. See docs/testing/pr-evidence.md.
+  acceptance:
+    name: Playwright acceptance scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Seed
+        run: npm run db:reset -- --scale small --quiet
+
+      - name: Run the @acceptance scenarios
+        id: bdd-tests
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/bdd-results.json
+        run: npm run test:e2e -- --grep @acceptance --project=chromium --reporter=list,html,json
+
+      - name: Build video timelines from recorded test steps
+        if: ${{ !cancelled() }}
+        run: node .github/scripts/bdd-timeline.cjs
+
+      - uses: actions/upload-artifact@v7
+        id: bdd-artifact
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-acceptance-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+      - name: Publish the Spec's scenarios and recording links
+        if: ${{ !cancelled() }}
+        uses: actions/github-script@v9
+        env:
+          BDD_TEST_OUTCOME: ${{ steps.bdd-tests.outcome }}
+          BDD_ARTIFACT_URL: ${{ steps.bdd-artifact.outputs.artifact-url }}
+          # A Linear API key with read access to BCPLA. Without it the comment says
+          # the tickets could not be read and the check does not fail.
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        with:
+          script: |
+            const { publish } = require('./.github/scripts/bdd-pr-comment.cjs');
+            await publish({ github, context, core });
+
   e2e:
     name: End-to-end flows
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -84,10 +144,11 @@ jobs:
       - name: Seed
         run: npm run db:reset -- --scale small --quiet
 
-      - run: npm run test:e2e
+      # @acceptance scenarios run, recorded, in the acceptance job.
+      - run: npm run test:e2e -- --grep-invert @acceptance
 
-      - uses: actions/upload-artifact@v4
-        if: failure()
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
         with:
           name: playwright-report
           path: playwright-report/
