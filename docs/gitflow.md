@@ -81,7 +81,8 @@ branches, including equivalents with a tool namespace. Every PR must pass:
 
 - **Lint, typecheck, unit tests** (UTC)
 - **Seed at full scale** (database rebuild and production build)
-- **End-to-end flows**
+- **Playwright acceptance scenarios** (the linked Spec's scenarios, recorded and posted on the PR; see `docs/testing/pr-evidence.md`)
+- **End-to-end flows** (every other Playwright test)
 
 The repository uses `develop` as its default branch and merge commits as its
 only PR merge method. Automatic branch deletion stays off: release and hotfix
@@ -91,7 +92,7 @@ At setup, GitHub returned HTTP 403 for branch protection/rulesets because the
 current plan does not support them for this private repository. Until that
 changes, PRs and successful checks are a team convention, not a server-enforced
 restriction. Once available, protect both `main` and `develop`: require PRs,
-the three checks above and resolved conversations; disallow force pushes and
+the checks above and resolved conversations; disallow force pushes and
 deletion. Allow merge commits (do not require linear history).
 
 Based on [the original Gitflow model](https://nvie.com/posts/a-successful-git-branching-model/),

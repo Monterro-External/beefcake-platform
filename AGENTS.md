@@ -44,6 +44,7 @@ have caused incidents and the files to leave alone. This file is the map.
 | Signal exports and reports | `src/export/` | `exportSignals()`, `tenantHealth()`, `churnWithPaymentLag()` |
 | Surfaces | `src/app/(tenant)`, `(member)`, `(admin)` | `/app`, `/me`, `/admin`; server actions in `src/app/actions/` |
 | Timezones | `src/domain/dates.ts` | `TIMEZONES`; `timezoneForCountry()` in `src/jobs/runner.ts` |
+| Acceptance specs and PR evidence | `specs/`, `tests/e2e/<feature>/`, `.github/scripts/` | `recordEvidence`, `@acceptance`, `// spec:` header, `parseGherkin()`, `resolveSpecs()` |
 
 ## Commands
 
@@ -101,13 +102,23 @@ Start with tenant Puls Träning for ordinary work, Nordic Fitness Group for volu
 4. Read the matching runbook in `docs/runbooks/` before changing anything.
 5. Fix in `src/domain/` with a unit test at the boundary, then re-run the same command. Identical seed and today give an identical database, so the diff is the fix.
 
+### Product ticket to implementation tickets
+
+1. `/grill-with-docs <BCPRO-id>`: settle the design; the glossary and ADRs are updated as terms land.
+2. `/to-spec`: publish the BCPLA Spec, its first line linking the BCPRO ticket.
+3. `/spec-to-scenarios <spec-id>`: add the criteria and the Gherkin to the Spec.
+4. `/to-tickets <spec-id>`: the implementation tickets, as vertical slices with blocking edges. Never create them by hand. A ticket that makes no acceptance scenario pass says `Covers: none`; one with no `Covers:` line claims every scenario.
+5. The Playwright planner runs once the feature's screens exist, not before.
+
+The skills that start each step are user-invoked: an agent finishing one step names the next and stops.
+
 Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 
 ## Docs
 
 - `docs/agents/rules.md`: shared engineering rules and files requiring discussion.
 - `docs/gitflow.md`: branches, pull requests, releases, hotfixes and CI.
-- `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `CONTEXT.md`.
+- `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `GLOSSARY.md`.
 - `docs/adr/0001-tenant-id-on-every-table.md`: isolation via `tenant_id` everywhere plus a repository layer.
 - `docs/adr/0002-money-as-minor-units.md`: integer minor units with explicit currency and rounding.
 - `docs/adr/0003-tenant-settings-as-kv.md`: one key-value table, defaults in one module.
@@ -123,5 +134,21 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 - `docs/agents/issue-tracker.md`: Linear via MCP; team `BCPLA`, product tickets in `BCPRO` read-only.
 - `docs/agents/triage-labels.md`: the five triage roles mapped to label strings.
 - `docs/agents/design-system.md`: implementing from Figma with `tokens/figma-map.json`.
+- `docs/testing/pr-evidence.md`: the BCPLA Spec issue holds the Gherkin, `specs/` the Playwright plans; agents and PR evidence.
+- `docs/test-tags.md`: the one list of test tags (ticket, area, type, run).
 - `docs/figma-design-system-plan.md`: the three Figma files and the plan for the library.
 - `docs/figma-design-system-step3.md`: the token decisions handed into the codebase.
+
+## Agent skills
+
+### Issue tracker
+
+Linear via MCP: team `BCPLA`, with Product Tickets in `BCPRO` (read-only). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels, in a Linear `triage` label group. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `docs/domain-glossary.md` and `docs/adr/`. See `docs/agents/domain.md`.

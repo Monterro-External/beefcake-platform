@@ -138,6 +138,32 @@ its own suite asserting that it is deterministic, that the story anchors land
 where the reports expect them, and that the invariants that make the data
 believable actually hold.
 
+The [member registration acceptance scenarios](specs/member-registration.md)
+run in a separate **Playwright acceptance scenarios** CI job. It seeds a small
+database and runs every `@acceptance` test in Chromium: registration and member search,
+duplicate rejection, and tenant isolation. Every scenario records a 1280×720
+video with highlighted actions and step captions, plus a trace, including
+successful runs. Named Given/When/Then steps and recordings appear in the HTML
+report. CI retains the report, videos, traces and acceptance/evidence documents
+for seven days in the `playwright-acceptance-report` artifact. Run these
+scenarios locally against a seeded database with:
+
+```bash
+npm run test:e2e -- --grep @acceptance --project=chromium
+```
+
+These tests create members through the app. CI uses a fresh database per job.
+Locally, recordings are saved under `test-results/`. To generate and open the
+same HTML report locally, add `--reporter=html` to the command above and run
+`npx playwright show-report`. Each scenario has its own video and trace.
+The [release evidence example](docs/testing/member-registration-release-evidence.md)
+maps visible release-note claims to the corresponding scenario and video step.
+On pull requests, CI also publishes one updated comment with the scenarios of the
+linked ticket's Spec in Linear, their results, recording links and approximate
+timestamps. The artifact
+includes `test-results/bdd-evidence/index.html`, a player with clickable chapters.
+See [Acceptance specs and PR evidence](docs/testing/pr-evidence.md) to add more scenarios.
+
 ## Integrations
 
 Nothing external runs in development. Each integration has an interface in
