@@ -158,8 +158,9 @@ same HTML report locally, add `--reporter=html` to the command above and run
 `npx playwright show-report`. Each scenario has its own video and trace.
 The [release evidence example](docs/testing/member-registration-release-evidence.md)
 maps visible release-note claims to the corresponding scenario and video step.
-On pull requests, CI also publishes one updated comment with the spec's change
-summary, scenario results, recording links and approximate timestamps. The artifact
+On pull requests, CI also publishes one updated comment with the scenarios of the
+linked ticket's Spec in Linear, their results, recording links and approximate
+timestamps. The artifact
 includes `test-results/bdd-evidence/index.html`, a player with clickable chapters.
 See [Acceptance specs and PR evidence](docs/testing/pr-evidence.md) to add more scenarios.
 

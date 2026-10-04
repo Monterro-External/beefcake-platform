@@ -24,6 +24,6 @@ database assertions in the test report, not visual evidence from the application
 
 CI fails when a scenario assertion fails or a required scenario, video, trace or
 timeline is missing. It retains evidence for successful and failed scenarios and
-updates a PR comment with the spec's change summary and generated video timestamps.
+updates a PR comment with the linked Spec's scenarios and generated video timestamps.
 This table is reviewed manually; CI does not validate arbitrary release-note
 claims or their visual coverage. See [the PR workflow](pr-evidence.md).

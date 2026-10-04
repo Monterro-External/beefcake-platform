@@ -81,11 +81,8 @@ branches, including equivalents with a tool namespace. Every PR must pass:
 
 - **Lint, typecheck, unit tests** (UTC)
 - **Seed at full scale** (database rebuild and production build)
-- **End-to-end flows** (every Playwright test, `@acceptance` scenarios included)
-
-**Playwright acceptance scenarios** (recorded video evidence as a PR comment) is
-paused and shows as skipped; see `docs/testing/pr-evidence.md`. Add it back to
-this list when it is re-enabled.
+- **Playwright acceptance scenarios** (the linked Spec's scenarios, recorded and posted on the PR; see `docs/testing/pr-evidence.md`)
+- **End-to-end flows** (every other Playwright test)
 
 The repository uses `develop` as its default branch and merge commits as its
 only PR merge method. Automatic branch deletion stays off: release and hotfix

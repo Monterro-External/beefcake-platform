@@ -65,12 +65,10 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Disabled: the PR video evidence will read the Gherkin from the tickets linked
-  # to the PR instead of specs/. Until then the @acceptance tests run in the e2e
-  # job without the recorded PR comment. Re-enable by removing `if: false`.
+  # Records the @acceptance scenarios and posts them on the PR: PR → linked BCPLA
+  # ticket → parent Spec → the scenarios the ticket covers. See docs/testing/pr-evidence.md.
   acceptance:
     name: Playwright acceptance scenarios
-    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -110,15 +108,17 @@ jobs:
           path: |
             playwright-report/
             test-results/
-            specs/
           retention-days: 7
 
-      - name: Publish spec summary and recording links
+      - name: Publish the Spec's scenarios and recording links
         if: ${{ !cancelled() }}
         uses: actions/github-script@v9
         env:
           BDD_TEST_OUTCOME: ${{ steps.bdd-tests.outcome }}
           BDD_ARTIFACT_URL: ${{ steps.bdd-artifact.outputs.artifact-url }}
+          # A Linear API key with read access to BCPLA. Without it the comment says
+          # the tickets could not be read and the check does not fail.
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         with:
           script: |
             const { publish } = require('./.github/scripts/bdd-pr-comment.cjs');
@@ -144,7 +144,8 @@ jobs:
       - name: Seed
         run: npm run db:reset -- --scale small --quiet
 
-      - run: npm run test:e2e
+      # @acceptance scenarios run, recorded, in the acceptance job.
+      - run: npm run test:e2e -- --grep-invert @acceptance
 
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}

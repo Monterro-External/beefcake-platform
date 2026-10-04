@@ -2,17 +2,15 @@
 
 <!-- Describe the concrete problem and resulting behaviour. -->
 
-## Acceptance spec
+## Ticket
 
-<!-- Add or update specs/<feature>.md in this PR (see docs/testing/pr-evidence.md).
-     Include an English "Change summary" and Gherkin acceptance scenarios tagged
-     as in docs/test-tags.md. Add one test per scenario in
-     tests/e2e/<feature>/ with a `// spec:` header, the scenario name as title
-     and the @acceptance tag. (The recorded PR comment is paused for now.)
-     Do not describe existing
-     behaviour as new. For changes without a behaviour scenario, explain why. -->
+<!-- Name the BCPLA ticket (BCPLA-123); the branch name from Linear is enough.
+     CI reads its parent Spec's Gherkin and the ticket's `Covers:` line, and
+     posts the covered scenarios with their recordings (docs/testing/pr-evidence.md).
+     Give each covered scenario a test tagged with the Spec and titled with the
+     scenario name. For changes without a ticket or scenario, explain why. -->
 
-Spec:
+Ticket:
 
 ## Validation
 

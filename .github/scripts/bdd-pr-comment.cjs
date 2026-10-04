@@ -1,21 +1,20 @@
 const fs = require('node:fs');
-const path = require('node:path');
 const { collectSpecs, timestamp } = require('./bdd-timeline.cjs');
 
 const MARKER = '<!-- beefcake-bdd-evidence -->';
+const TEAM_KEY = 'BCPLA';
 
-// Type tags from docs/test-tags.md; each spec needs at least one happy, error and regression scenario.
+// Type tags from docs/test-tags.md; each Spec needs at least one happy, error and regression scenario.
 const KINDS = { happy: 'happy path', edge: 'edge case', error: 'error case', negative: 'negative case', regression: 'regression' };
 const REQUIRED_KINDS = ['happy path', 'error case', 'regression'];
 
-// Gherkin belongs on the BCPLA Spec issue; sub-issues list the scenario ids they
-// cover. Until the job reads Linear, it reads specs/<feature>.md, which has a Change summary, and Acceptance scenarios in Gherkin whose
-// tags give each scenario's kind. Tests link back with a `// spec:` header and a
-// title equal to the scenario name, as the generator agent writes them.
-function parseSpec(source, filename) {
-  const title = source.match(/^# (.+)$/m)?.[1];
-  const summary = source.match(/^## Change summary\s*\n([\s\S]*?)(?=^## |$(?![\s\S]))/m)?.[1].trim();
-  const gherkin = source.match(/^```gherkin\s*\n([\s\S]*?)^```/m)?.[1] ?? '';
+// The Gherkin lives on the BCPLA Spec issue, the parent of the implementation
+// tickets (docs/agents/issue-tracker.md). A ticket names the scenarios it makes
+// pass with a `Covers: AS-1, AS-3` line. Tests carry the Spec as a tag and the
+// scenario name, id included, as their title.
+function parseGherkin(text, label) {
+  const gherkin = text.match(/^```gherkin\s*\n([\s\S]*?)^```/m)?.[1];
+  if (gherkin === undefined) return undefined;
   const scenarios = [];
   let pending = [];
   let featureTags = [];
@@ -30,7 +29,8 @@ function parseSpec(source, filename) {
     } else if (/^Scenario( Outline)?:/.test(line)) {
       const tags = [...featureTags, ...pending];
       const kinds = tags.filter((tag) => tag in KINDS);
-      current = { name: line.replace(/^Scenario( Outline)?:\s*/, ''), kind: kinds.length === 1 ? KINDS[kinds[0]] : undefined,
+      const name = line.replace(/^Scenario( Outline)?:\s*/, '');
+      current = { id: name.match(/^(AS-\d+) /)?.[1], name, kind: kinds.length === 1 ? KINDS[kinds[0]] : undefined,
         kindTags: kinds.length, wip: tags.includes('wip'), steps: [] };
       scenarios.push(current);
       pending = [];
@@ -40,97 +40,176 @@ function parseSpec(source, filename) {
       current.steps.push(line);
     }
   }
-  if (!title || !summary || scenarios.length === 0) {
-    throw new Error(`${filename}: expected a title, Change summary and Acceptance scenarios in a gherkin block`);
-  }
-  const ids = scenarios.map((scenario) => scenario.name.match(/^(AS-\d+) /)?.[1]);
+  if (scenarios.length === 0) throw new Error(`${label}: the gherkin block has no scenarios`);
+  const ids = scenarios.map((scenario) => scenario.id);
   if (ids.some((id) => !id) || new Set(ids).size !== ids.length) {
-    throw new Error(`${filename}: start every scenario name with a unique id such as AS-1, so tickets can say which scenarios they cover`);
+    throw new Error(`${label}: start every scenario name with a unique id such as AS-1, so tickets can say which scenarios they cover`);
   }
   if (new Set(scenarios.map((scenario) => scenario.name)).size !== scenarios.length
       || scenarios.some((scenario) => scenario.kindTags !== 1)
       || REQUIRED_KINDS.some((kind) => !scenarios.some((s) => s.kind === kind))
       || scenarios.some(({ steps }) => !['Given', 'When', 'Then'].every((word) => steps.some((step) => step.startsWith(`${word} `))))) {
-    throw new Error(`${filename}: use unique scenario names, one type tag per scenario (docs/test-tags.md), at least @happy, @error and @regression, and Given/When/Then steps`);
+    throw new Error(`${label}: use unique scenario names, one type tag per scenario (docs/test-tags.md), at least @happy, @error and @regression, and Given/When/Then steps`);
   }
-  return { filename, title, summary, scenarios: scenarios.map(({ kindTags, ...scenario }) => scenario) };
+  return scenarios.map(({ kindTags, ...scenario }) => scenario);
 }
 
-// The `// spec:` header of a test file, read relative to the report's root.
-function specHeader(file, rootDir, readSource) {
-  const source = readSource(path.join(rootDir, file)) ?? '';
-  return source.match(/^\/\/ spec: (\S+)/m)?.[1];
+/** Ticket ids named in the PR's branch, title or body, in order of first mention. */
+function linkedIssueIds({ headRef = '', title = '', body = '' }, teamKey = TEAM_KEY) {
+  const found = `${headRef}\n${title}\n${body}`.match(new RegExp(`\\b${teamKey}-\\d+\\b`, 'gi')) ?? [];
+  return [...new Set(found.map((id) => id.toUpperCase()))];
 }
 
-function readIfExists(file) {
-  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : undefined;
+/** The scenario ids on a ticket's `Covers:` line, or undefined when it has none. */
+function parseCovers(description = '') {
+  const line = description.match(/^\W*Covers:\s*(.+)$/im)?.[1];
+  return line === undefined ? undefined : [...new Set(line.match(/AS-\d+/gi)?.map((id) => id.toUpperCase()) ?? [])];
 }
 
-function renderReport({ documents, changedFiles, report, timelines = [], testOutcome, artifactUrl, repoUrl, headSha, mergeSha, runUrl,
-  fileExists = fs.existsSync, readSource = readIfExists }) {
-  const specs = collectSpecs(report?.suites);
-  const rootDir = report?.config?.rootDir ? path.relative(process.cwd(), report.config.rootDir) || '.' : 'tests/e2e';
-  const headers = new Map();
-  const headerOf = (file) => {
-    if (!headers.has(file)) headers.set(file, specHeader(file, rootDir, readSource));
-    return headers.get(file);
-  };
+const ISSUE_QUERY = `query Issue($id: String!) {
+  issue(id: $id) { identifier title description url parent { identifier title description url } }
+}`;
+
+async function fetchIssue(id, apiKey, fetchImpl = fetch) {
+  const response = await fetchImpl('https://api.linear.app/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: apiKey },
+    body: JSON.stringify({ query: ISSUE_QUERY, variables: { id } }),
+  });
+  if (!response.ok) throw new Error(`Linear answered ${response.status} for ${id}`);
+  const json = await response.json();
+  if (json.errors?.length) throw new Error(`Linear: ${json.errors.map((error) => error.message).join('; ')} (${id})`);
+  return json.data?.issue ?? undefined;
+}
+
+/**
+ * Group the PR's tickets by the Spec that holds their Gherkin: a ticket's parent,
+ * or the ticket itself when it carries the Gherkin. A ticket without a Covers
+ * line claims every scenario of its Spec.
+ */
+function resolveSpecs(issues) {
+  const specs = new Map();
+  const notes = [];
+  const errors = [];
+  for (const issue of issues) {
+    const candidate = issue.parent && parseGherkinSafe(issue.parent, errors) !== undefined ? issue.parent : issue;
+    const scenarios = parseGherkinSafe(candidate, errors);
+    if (scenarios === undefined) {
+      notes.push(`${issue.identifier} has no Spec with Gherkin${issue.parent ? ` (its parent ${issue.parent.identifier} has none either)` : ''}.`);
+      continue;
+    }
+    if (scenarios === null) continue;
+    const spec = specs.get(candidate.identifier)
+      ?? { id: candidate.identifier, title: candidate.title, url: candidate.url, scenarios, covered: new Set(), tickets: [] };
+    const covers = candidate === issue ? undefined : parseCovers(issue.description);
+    for (const id of covers ?? scenarios.map((scenario) => scenario.id)) spec.covered.add(id);
+    spec.tickets.push({ id: issue.identifier, title: issue.title, url: issue.url, covers });
+    specs.set(spec.id, spec);
+  }
+  return { specs: [...specs.values()], notes, errors };
+}
+
+// undefined: no gherkin block; null: a block that does not validate (reported in errors).
+function parseGherkinSafe(issue, errors) {
+  try {
+    return parseGherkin(issue.description ?? '', issue.identifier);
+  } catch (error) {
+    if (!errors.includes(error.message)) errors.push(error.message);
+    return null;
+  }
+}
+
+function evidenceFor(scenario, spec, specs, timelines, fileExists) {
+  const tag = spec.id.toLowerCase();
+  const matchingSpecs = specs.filter((item) => item.title === scenario.name
+    && (item.tags ?? []).some((t) => t.replace(/^@/, '').toLowerCase() === tag));
+  const matches = matchingSpecs.flatMap((item) => item.tests.filter((test) => test.projectName === 'chromium'));
+  const test = matches.length === 1 ? matches[0] : undefined;
+  const timeline = matchingSpecs.length === 1 ? timelines.find((item) => item.specId === matchingSpecs[0].id) : undefined;
+  const result = test?.results.at(-1);
+  const video = result?.attachments?.some((a) => a.contentType === 'video/webm' && a.path && fileExists(a.path));
+  const trace = result?.attachments?.some((a) => a.name === 'trace' && a.path && fileExists(a.path));
+  let status = 'Not verified';
+  if (result?.status === 'passed' && test.expectedStatus === 'passed') {
+    status = test.status === 'flaky' ? 'Passed on retry (flaky)' : 'Passed';
+  } else if (result) {
+    status = result.status;
+  }
+  const ok = test !== undefined && result?.status === 'passed' && test.expectedStatus === 'passed' && video && trace;
+  return { status, video, trace, timeline, ok };
+}
+
+function renderReport({ specs: linked, notes = [], linkedIds = [], report, timelines = [], testOutcome, artifactUrl, repoUrl, headSha, mergeSha, runUrl,
+  fileExists = fs.existsSync }) {
+  const tests = collectSpecs(report?.suites);
   const problems = [];
-  const changes = documents.filter((doc) => changedFiles.includes(doc.filename));
   const lines = [MARKER, '## BDD description and browser evidence', '',
-    `PR head: \`${headSha}\`. Tested revision: \`${mergeSha}\`.`, '',
-    '### What this PR changes — from the specs', ''];
-  if (changes.length === 0) {
-    lines.push('No spec change summary was added or updated in this PR. Update the relevant `specs/*.md` to describe this change; the scenarios below are existing regression coverage.');
+    `PR head: \`${headSha}\`. Tested revision: \`${mergeSha}\`.`, ''];
+
+  if (linked.length === 0) {
+    lines.push(linkedIds.length === 0
+      ? `No ${TEAM_KEY} ticket is linked to this PR, so there are no scenarios to show. Name the ticket (\`${TEAM_KEY}-123\`) in the branch, title or description.`
+      : `The linked tickets (${linkedIds.join(', ')}) have no Spec with Gherkin scenarios yet.`, '');
+    for (const note of notes) lines.push(`- ${note}`);
+    if (notes.length) lines.push('');
+    return { body: lines.join('\n'), problems };
   }
-  for (const doc of changes) lines.push(`**${doc.title}**`, '', doc.summary, '');
+
+  lines.push('### What this PR covers', '');
+  for (const spec of linked) {
+    for (const ticket of spec.tickets) {
+      const claim = ticket.covers === undefined ? 'every scenario' : (ticket.covers.join(', ') || 'no scenarios');
+      lines.push(`- [${ticket.id}](${ticket.url}) ${ticket.title}: covers ${claim} of [${spec.id}](${spec.url})`);
+    }
+  }
+  for (const note of notes) lines.push(`- ${note}`);
   lines.push('', `Browser test step: **${testOutcome}**. [Workflow run](${runUrl}).`, '');
   if (artifactUrl) {
-    lines.push(`[Download HTML report, videos, traces and specs](${artifactUrl})`, '',
+    lines.push(`[Download HTML report, videos and traces](${artifactUrl})`, '',
       'Requires repository access. Download and unzip the artifact. Open `test-results/bdd-evidence/index.html` for videos with clickable timestamps, or run `npx playwright show-report playwright-report` for the full report. Artifacts are retained for seven days.', '');
   } else {
     lines.push('**The report artifact is unavailable.** See the workflow logs.', '');
     problems.push('Report artifact missing');
   }
-  for (const doc of documents) {
-    const sourceUrl = `${repoUrl}/blob/${mergeSha}/${doc.filename}`;
-    lines.push(`### ${doc.title}`, '', `[Spec](${sourceUrl})`, '');
-    for (const scenario of doc.scenarios) {
+
+  const cell = (text) => String(text).replaceAll('|', '\\|').replaceAll('\n', ' ');
+  for (const spec of linked) {
+    lines.push(`### [${spec.id}](${spec.url}) ${spec.title}`, '');
+    const known = new Set(spec.scenarios.map((scenario) => scenario.id));
+    for (const id of spec.covered) {
+      if (!known.has(id)) problems.push(`${spec.id}: a ticket covers ${id}, which the Spec does not have`);
+    }
+    const others = [];
+    for (const scenario of spec.scenarios) {
+      if (!spec.covered.has(scenario.id)) {
+        others.push(scenario);
+        continue;
+      }
       if (scenario.wip) {
         lines.push(`- **${scenario.name}** (${scenario.kind}) — Planned (@wip), not automated yet`, '');
         continue;
       }
-      const matchingSpecs = specs.filter((spec) => spec.title === scenario.name && headerOf(spec.file) === doc.filename);
-      const matches = matchingSpecs.flatMap((spec) => spec.tests.filter((test) => test.projectName === 'chromium'));
-      const test = matches.length === 1 ? matches[0] : undefined;
-      const timeline = matchingSpecs.length === 1 ? timelines.find((item) => item.specId === matchingSpecs[0].id) : undefined;
-      const result = test?.results.at(-1);
-      const video = result?.attachments?.some((a) => a.contentType === 'video/webm' && a.path && fileExists(a.path));
-      const trace = result?.attachments?.some((a) => a.name === 'trace' && a.path && fileExists(a.path));
-      let status = 'Not verified';
-      if (result?.status === 'passed' && test.expectedStatus === 'passed') {
-        status = test.status === 'flaky' ? 'Passed on retry (flaky)' : 'Passed';
-      } else if (result) {
-        status = result.status;
+      const evidence = evidenceFor(scenario, spec, tests, timelines, fileExists);
+      if (!evidence.ok) {
+        problems.push(`${spec.id} / ${scenario.name}: ${evidence.status}; video ${evidence.video ? 'present' : 'missing'}; trace ${evidence.trace ? 'present' : 'missing'}`);
       }
-      if (!test || result?.status !== 'passed' || test.expectedStatus !== 'passed' || !video || !trace) {
-        problems.push(`${doc.title} / ${scenario.name}: ${status}; video ${video ? 'present' : 'missing'}; trace ${trace ? 'present' : 'missing'}`);
-      }
-      lines.push(`- **${scenario.name}** (${scenario.kind}) — ${status} · Video: ${video ? 'recorded' : 'missing'} · Trace: ${trace ? 'recorded' : 'missing'}`,
+      lines.push(`- **${scenario.name}** (${scenario.kind}) — ${evidence.status} · Video: ${evidence.video ? 'recorded' : 'missing'} · Trace: ${evidence.trace ? 'recorded' : 'missing'}`,
         ...scenario.steps.map((step) => `  ${step}  `), '');
-      if (timeline?.chapters.length) {
+      if (evidence.timeline?.chapters.length) {
         lines.push('| Video time (approx.) | Test step | Test location |', '|---|---|---|');
-        const cell = (text) => String(text).replaceAll('|', '\\|').replaceAll('\n', ' ');
-        for (const chapter of timeline.chapters) {
+        for (const chapter of evidence.timeline.chapters) {
           const location = chapter.file && chapter.line
             ? `[${cell(chapter.file)}:${chapter.line}](${repoUrl}/blob/${mergeSha}/${chapter.file}#L${chapter.line})` : '—';
           lines.push(`| ${timestamp(chapter.seconds)} | ${cell(chapter.title)} | ${location} |`);
         }
         lines.push('');
-      } else {
+      } else if (evidence.ok || evidence.status !== 'Not verified') {
         lines.push('**Video timestamps unavailable.**', '');
-        problems.push(`${doc.title} / ${scenario.name}: timeline missing`);
+        problems.push(`${spec.id} / ${scenario.name}: timeline missing`);
       }
+    }
+    if (others.length) {
+      lines.push(`Other scenarios in ${spec.id}, not claimed by this PR: ${others.map((scenario) => scenario.id).join(', ')}.`, '');
     }
   }
   if (!report || report.errors?.length || testOutcome !== 'success') problems.push('Browser run did not complete successfully');
@@ -153,40 +232,48 @@ async function upsertComment({ github, context, body }) {
   return 'created';
 }
 
-async function publish({ github, context, core }) {
+async function publish({ github, context, core, fetchImpl = fetch }) {
   const pr = context.payload.pull_request;
-  const changedFiles = pr ? (await github.paginate(github.rest.pulls.listFiles, {
-    ...context.repo, pull_number: pr.number, per_page: 100,
-  })).map((file) => file.filename) : [];
-  const documents = [];
-  const parseErrors = [];
-  for (const file of fs.readdirSync('specs').filter((file) => file.endsWith('.md') && file !== 'README.md' && !file.startsWith('_')).sort()) {
-    const filename = `specs/${file}`;
-    try {
-      documents.push(parseSpec(fs.readFileSync(filename, 'utf8'), filename));
-    } catch (error) {
-      parseErrors.push(error.message);
+  const linkedIds = linkedIssueIds({ headRef: pr?.head.ref, title: pr?.title, body: pr?.body ?? '' });
+  const apiKey = process.env.LINEAR_API_KEY;
+  const issues = [];
+  const notes = [];
+  if (linkedIds.length && !apiKey) {
+    notes.push('Linear is not configured for this run (no `LINEAR_API_KEY`), so the linked tickets could not be read.');
+    core.warning('LINEAR_API_KEY is not set; scenarios were not read from Linear.');
+  }
+  if (apiKey) {
+    for (const id of linkedIds) {
+      try {
+        const issue = await fetchIssue(id, apiKey, fetchImpl);
+        if (issue) issues.push(issue); else notes.push(`${id} was not found in Linear.`);
+      } catch (error) {
+        notes.push(`${id} could not be read from Linear: ${error.message}`);
+        core.warning(error.message);
+      }
     }
   }
-  if (documents.length === 0) parseErrors.push('No valid specs found');
+  const resolved = resolveSpecs(issues);
   const reportPath = 'test-results/bdd-results.json';
   const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : undefined;
   const timelinePath = 'test-results/bdd-evidence/chapters.json';
   const timelines = fs.existsSync(timelinePath) ? JSON.parse(fs.readFileSync(timelinePath, 'utf8')) : [];
   const repoUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}`;
   const rendered = renderReport({
-    documents, changedFiles, report, timelines,
+    specs: resolved.specs, notes: [...notes, ...resolved.notes], linkedIds, report, timelines,
     testOutcome: process.env.BDD_TEST_OUTCOME || 'not run',
     artifactUrl: process.env.BDD_ARTIFACT_URL,
     repoUrl, headSha: pr?.head.sha ?? context.sha, mergeSha: context.sha,
     runUrl: `${repoUrl}/actions/runs/${context.runId}`,
   });
-  const body = rendered.body + (parseErrors.length ? `\n\n### Spec validation errors\n\n${parseErrors.map((error) => `- ${error}`).join('\n')}` : '');
-  const problems = [...rendered.problems, ...parseErrors];
+  const body = rendered.body + (resolved.errors.length ? `\n\n### Spec validation errors\n\n${resolved.errors.map((error) => `- ${error}`).join('\n')}` : '');
+  const problems = [...rendered.problems, ...resolved.errors];
   await core.summary.addRaw(body).write();
   const published = await upsertComment({ github, context, body });
   core.info(`BDD PR comment: ${published}`);
   if (problems.length) core.setFailed(`BDD evidence incomplete: ${problems.join('; ')}`);
 }
 
-module.exports = { MARKER, parseSpec, renderReport, upsertComment, publish };
+module.exports = {
+  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, renderReport, upsertComment, publish,
+};
