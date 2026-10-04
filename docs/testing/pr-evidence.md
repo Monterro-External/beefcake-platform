@@ -14,8 +14,12 @@ their plan. The requirements themselves live in Linear.
 - **Implementation tickets** (sub-issues) say which scenarios they make pass, on a
   line of their own: `Covers: AS-1, AS-3`.
 - **`specs/<feature>.md`** holds the Playwright test plan the planner writes, with
-  a `**Spec:**` line. The older specs still carry an Acceptance block until
-  their Spec issue exists in Linear.
+  a `**Spec:**` line. It is written when the feature is built, never by hand
+  during discovery, and it holds no Gherkin of its own: CI reads scenarios only
+  from the Spec issue. The planner brief `/spec-to-scenarios` saves as
+  `specs/<spec-id>-brief.md` carries a word-for-word copy for the planner, and
+  nothing else reads it. The Acceptance blocks in the older specs are leftovers
+  that move to their Spec issue once it exists; don't copy them into a new file.
 - **Tests** carry the Spec tag (`@BCPLA-<n>`) and a title equal to the scenario
   name, id included.
 - **Tags** are listed in `docs/test-tags.md`.

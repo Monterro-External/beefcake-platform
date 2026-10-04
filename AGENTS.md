@@ -44,7 +44,7 @@ have caused incidents and the files to leave alone. This file is the map.
 | Signal exports and reports | `src/export/` | `exportSignals()`, `tenantHealth()`, `churnWithPaymentLag()` |
 | Surfaces | `src/app/(tenant)`, `(member)`, `(admin)` | `/app`, `/me`, `/admin`; server actions in `src/app/actions/` |
 | Timezones | `src/domain/dates.ts` | `TIMEZONES`; `timezoneForCountry()` in `src/jobs/runner.ts` |
-| Acceptance specs and PR evidence | `specs/`, `tests/e2e/<feature>/`, `.github/scripts/` | `recordEvidence`, `@acceptance`, `// spec:` header, `parseSpec()` |
+| Acceptance specs and PR evidence | `specs/`, `tests/e2e/<feature>/`, `.github/scripts/` | `recordEvidence`, `@acceptance`, `// spec:` header, `parseGherkin()`, `resolveSpecs()` |
 
 ## Commands
 

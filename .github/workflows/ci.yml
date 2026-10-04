@@ -90,7 +90,7 @@ jobs:
       - name: Seed
         run: npm run db:reset -- --scale small --quiet
 
-      - name: Run the acceptance scenarios linked from specs/
+      - name: Run the @acceptance scenarios
         id: bdd-tests
         env:
           PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/bdd-results.json

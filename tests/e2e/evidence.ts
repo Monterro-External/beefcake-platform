@@ -5,7 +5,7 @@ import { expect as baseExpect, type PlaywrightTestOptions, type PlaywrightWorker
 export const expect = baseExpect.configure({ timeout: 15_000 });
 
 /**
- * Recording for acceptance scenarios linked from `specs/`: video and trace on
+ * Recording for acceptance scenarios (see docs/testing/pr-evidence.md): video and trace on
  * every run, including passing ones, so the PR evidence job can build a
  * timeline from the named `test.step` blocks. Use with `test.use(recordEvidence)`.
  */
