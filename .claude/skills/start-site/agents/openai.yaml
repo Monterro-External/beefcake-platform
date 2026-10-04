@@ -1,0 +1,3 @@
+interface:
+  display_name: "Start site"
+  short_description: "Start the site via Aspire and list its links"
