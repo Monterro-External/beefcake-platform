@@ -108,7 +108,7 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 
 - `docs/agents/rules.md`: shared engineering rules and files requiring discussion.
 - `docs/gitflow.md`: branches, pull requests, releases, hotfixes and CI.
-- `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `CONTEXT.md`.
+- `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `GLOSSARY.md`.
 - `docs/adr/0001-tenant-id-on-every-table.md`: isolation via `tenant_id` everywhere plus a repository layer.
 - `docs/adr/0002-money-as-minor-units.md`: integer minor units with explicit currency and rounding.
 - `docs/adr/0003-tenant-settings-as-kv.md`: one key-value table, defaults in one module.
@@ -128,3 +128,17 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 - `docs/test-tags.md`: the one list of test tags (ticket, area, type, run).
 - `docs/figma-design-system-plan.md`: the three Figma files and the plan for the library.
 - `docs/figma-design-system-step3.md`: the token decisions handed into the codebase.
+
+## Agent skills
+
+### Issue tracker
+
+Linear via MCP: team `BCPLA`, with Product Tickets in `BCPRO` (read-only). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default labels, in a Linear `triage` label group. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `docs/domain-glossary.md` and `docs/adr/`. See `docs/agents/domain.md`.
