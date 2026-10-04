@@ -8,7 +8,7 @@ import { fillRegistration, registrationFor, tenantCounts } from './registration'
 
 test.use(recordEvidence);
 
-test.describe('Member registration', { tag: ['@acceptance', '@registration'] }, () => {
+test.describe('Member registration', { tag: ['@acceptance', '@registration', '@BCPLA-17'] }, () => {
   test.setTimeout(90_000);
 
   test('AS-2 A duplicate email is rejected without changing existing records', { tag: '@error' }, async ({ page, context }) => {

@@ -33,11 +33,16 @@ tests/e2e/evidence.ts                       recordEvidence: video and trace on e
 
 ## The PR comment
 
-Every opened, updated or reopened PR runs the `@acceptance` scenarios in Chromium,
-recording video and trace, and one bot comment is created or updated:
+A PR runs the job when it is opened or reopened and on every push. It runs every
+`@acceptance` test in Chromium, recording video and trace, and creates or updates
+one bot comment. Editing the title or description does not start a run; re-run
+the job instead, and it reads the PR as it is then.
 
-1. **Find the tickets.** CI reads `BCPLA-<n>` ids from the branch name, the PR
+1. **Find the tickets.** CI reads every `BCPLA-<n>` in the branch name, the PR
    title and the PR description. Linear's own branch names (`per/bcpla-143-…`) work.
+   Every mention counts, an example or a "see also" included: a ticket named in
+   passing links its Spec, and its `Covers:` line claims scenarios for this PR.
+   Write `a Spec` or a link text without the id when you don't mean the ticket.
 2. **Find the Spec.** For each ticket it reads the issue and its parent from Linear.
    The Gherkin comes from the parent; a ticket that carries the Gherkin itself is
    its own Spec.
@@ -48,11 +53,11 @@ recording video and trace, and one bot comment is created or updated:
 4. **Match the tests.** A scenario's test is the one tagged with the Spec and titled
    with the scenario name.
 
-The comment lists each ticket and what it covers, then each covered scenario with
+The comment lists each ticket and what it covers, then each shown scenario with
 its Given/When/Then steps, its result, approximate video timestamps for every
 named test step, links to the tested source lines, and a link to the private CI
-artifact with the report and recordings. The Spec's other scenarios are listed by
-id only.
+artifact with the report and recordings. A scenario without a test reads *Not
+built yet*. The Spec's other scenarios are listed by id only.
 
 The check fails when a claimed scenario has no test, or any shown scenario's test
 failed or was skipped, or its video, trace or timeline is missing, or a ticket
@@ -71,28 +76,36 @@ could not be read. Fork and Dependabot PRs never receive secrets.
 
 ## Adding a feature
 
+The chain from Product Ticket to tickets is in `AGENTS.md` (Product ticket to
+implementation tickets).
+
 1. Run `/spec-to-scenarios <spec-id>`. It adds the Gherkin to the Spec, with
    exactly one type tag per scenario (`@happy`, `@edge`, `@error`, `@negative`,
-   `@regression`; at least one `@happy`, `@error` and `@regression`), and the
-   `Covers:` lines to its tickets.
-2. Ask the `playwright-test-planner` agent for the plan in `specs/<feature>.md`,
-   and review it.
-3. Ask the `playwright-test-generator` agent to write the tests. Each file starts
+   `@regression`; at least one `@happy`, `@error` and `@regression`), and saves
+   the planner brief.
+2. Run `/to-tickets <spec-id>`. Each ticket gets its `Covers:` line, or
+   `Covers: none` when it makes no scenario pass.
+3. Build the ticket. Once its screens run locally, ask the
+   `playwright-test-planner` agent for the plan in `specs/<feature>.md`, and
+   review it. The planner explores the running app, so it cannot plan a screen
+   that does not exist yet.
+4. Ask the `playwright-test-generator` agent to write the tests. Each file starts
    with `// spec: specs/<feature>.md`, its title equals the scenario name, its
    describe is tagged `@acceptance` and the area, the test is tagged with its type
    and the Spec, it calls `test.use(recordEvidence)`, and each step is a named
    `test.step`. Use one browser page per scenario so each timeline matches one
    recording.
-4. Ask the `playwright-test-healer` agent to fix failing tests. A test it marks as
+5. Ask the `playwright-test-healer` agent to fix failing tests. A test it marks as
    skipped needs a person to decide whether it is a product bug.
-5. Name the ticket in the branch or PR, so the comment shows its scenarios.
+6. Name the ticket in the branch or PR, so the comment shows its scenarios, and
+   no other ticket you don't mean to claim.
 
 ## Running locally
 
 ```bash
 npm run db:reset -- --scale small
 npm run test:e2e -- --grep @acceptance --project=chromium
-npm run test:e2e -- --grep @BCPLA-142 --reporter=html && npx playwright show-report
+npm run test:e2e -- --grep @BCPLA-<n> --reporter=html && npx playwright show-report
 ```
 
 Recordings are saved under `test-results/`.

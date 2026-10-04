@@ -8,8 +8,8 @@ const {
 } = require('../../.github/scripts/bdd-pr-comment.cjs');
 const { chaptersFromTrace, timestamp, renderTimeline } = require('../../.github/scripts/bdd-timeline.cjs');
 
-// The registration Acceptance block stands in for a Spec issue's description.
-const gherkin = readFileSync(new URL('../../specs/member-registration.md', import.meta.url), 'utf8');
+// A copy of the registration Spec's Gherkin stands in for a Spec issue's description.
+const gherkin = readFileSync(new URL('./fixtures/registration-spec.md', import.meta.url), 'utf8');
 const scenarios = parseGherkin(gherkin, 'BCPLA-142');
 const names: string[] = scenarios.map((scenario: { name: string }) => scenario.name);
 

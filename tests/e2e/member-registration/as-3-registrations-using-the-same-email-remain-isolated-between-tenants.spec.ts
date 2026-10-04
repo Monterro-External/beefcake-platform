@@ -11,7 +11,7 @@ import {
 
 test.use(recordEvidence);
 
-test.describe('Member registration', { tag: ['@acceptance', '@registration'] }, () => {
+test.describe('Member registration', { tag: ['@acceptance', '@registration', '@BCPLA-17'] }, () => {
   test.setTimeout(90_000);
 
   test('AS-3 Registrations using the same email remain isolated between tenants', { tag: '@regression' }, async ({ page, context }) => {

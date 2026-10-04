@@ -138,7 +138,7 @@ its own suite asserting that it is deterministic, that the story anchors land
 where the reports expect them, and that the invariants that make the data
 believable actually hold.
 
-The [member registration acceptance scenarios](specs/member-registration.md)
+The member registration acceptance scenarios ([Spec](https://linear.app/monterro-demo/issue/BCPLA-17/spec-member-registration), [test plan](specs/member-registration.md))
 run in a separate **Playwright acceptance scenarios** CI job. It seeds a small
 database and runs every `@acceptance` test in Chromium: registration and member search,
 duplicate rejection, and tenant isolation. Every scenario records a 1280×720
