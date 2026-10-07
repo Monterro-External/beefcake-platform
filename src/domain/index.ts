@@ -10,3 +10,4 @@ export * as tenantSettings from './tenant-settings';
 export * as subscriptions from './subscriptions';
 export * as health from './health';
 export * as billing from './billing';
+export * as calendarFile from './calendar-file';
