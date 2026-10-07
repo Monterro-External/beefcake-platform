@@ -1,7 +1,7 @@
 import { and, asc, count, eq, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
 import type { BookingSnapshot, ClassSnapshot } from '@/domain/waitlist';
-import { type Booking, type Class, bookings, classes } from '../schema';
-import { type TenantScope, guard, guardOne } from './scope';
+import { type Booking, type Class, bookings, classes, sites, tenants } from '../schema';
+import { type AdminScope, type TenantScope, guard, guardOne } from './scope';
 
 export function listClasses(
   scope: TenantScope,
@@ -261,4 +261,47 @@ export function fillRateBySite(scope: TenantScope, window: { from: string; to: s
     booked: byBookings.get(row.siteId)?.booked ?? 0,
     attended: byBookings.get(row.siteId)?.attended ?? 0,
   }));
+}
+
+export interface BookingOutcomeRow {
+  readonly tenantId: string;
+  readonly tenantName: string;
+  readonly siteName: string;
+  readonly timezone: string;
+  readonly memberId: string;
+  readonly startsAt: string;
+  readonly status: string;
+}
+
+/**
+ * Every booked, attended or no-show booking on a class that was not cancelled and
+ * starts in [from, to), across all tenants. Callers bucket by site-local day.
+ */
+export function allBookingOutcomes(
+  scope: AdminScope,
+  window: { from: string; to: string },
+): BookingOutcomeRow[] {
+  return scope.db
+    .select({
+      tenantId: bookings.tenantId,
+      tenantName: tenants.name,
+      siteName: sites.name,
+      timezone: sites.timezone,
+      memberId: bookings.memberId,
+      startsAt: classes.startsAt,
+      status: bookings.status,
+    })
+    .from(bookings)
+    .innerJoin(classes, and(eq(classes.id, bookings.classId), eq(classes.tenantId, bookings.tenantId)))
+    .innerJoin(sites, and(eq(sites.id, classes.siteId), eq(sites.tenantId, classes.tenantId)))
+    .innerJoin(tenants, eq(tenants.id, bookings.tenantId))
+    .where(
+      and(
+        eq(classes.cancelled, false),
+        inArray(bookings.status, ['booked', 'attended', 'no_show']),
+        gte(classes.startsAt, window.from),
+        lt(classes.startsAt, window.to),
+      ),
+    )
+    .all();
 }
