@@ -8,7 +8,7 @@ import { sequentialId } from '../ids';
 import type { Sqlite } from '../client';
 import { BulkInserter } from './writer';
 import { addressFor, cityFor } from './names';
-import { holdsCard } from './people';
+import { holdsCard, memberLogins } from './people';
 import type { SeedWorld, TableCounts } from './model';
 import type { Anchors } from './options';
 
@@ -233,8 +233,7 @@ export function writeCore(
 
     // A handful of member logins per tenant, so the dev persona switcher has
     // someone to be. Picked deterministically from the active base.
-    const loginCandidates = tenant.members.filter((m) => m.status === 'active').slice(0, 3);
-    for (const member of loginCandidates) {
+    for (const { member } of memberLogins(tenant.members)) {
       userRows.push({
         id: sequentialId('user', 500000 + member.seq),
         tenantId: tenant.id,
