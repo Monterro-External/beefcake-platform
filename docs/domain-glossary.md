@@ -205,14 +205,16 @@ removes it rather than leaving the old class behind. A member gets a file as
 long as it holds at least one entry, even if every entry is cancelled; only a
 member with nothing to send gets no file.
 
-**Fill rate** is bookings divided by capacity. **No-show rate** is unattended
-bookings divided by bookings. Both are per site and per period, and both are what
-an owner uses to decide whether to keep a timetable slot.
+**Fill rate** is bookings divided by capacity. **No-show rate** is no-shows
+divided by attended bookings plus no-shows. Both are per site and per period, and
+both are what an owner uses to decide whether to keep a timetable slot.
 
-**Unmarked booking** is a booking on a class that has started where nobody took
-the roster, so the booking is neither attended nor a no-show. It is not
-unattended: an unmarked booking counts in neither side of the no-show rate and is
-reported on its own, because a roster nobody took says nothing about the member.
+**Unmarked booking** is a booking on a class that has started whose attendance
+was never recorded, so it is neither attended nor a no-show. Staff mark the
+roster one booking at a time, so a class can hold both marked and unmarked
+bookings. An unmarked booking counts in neither side of the no-show rate and is
+reported on its own, because an entry nobody marked says nothing about the
+member.
 
 ## Access
 

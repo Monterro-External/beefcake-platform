@@ -3,8 +3,8 @@
 //   BEEFCAKE_DB=<path> npx tsx scripts/one-off/no-show-baseline.ts > no-show-baseline.csv
 //
 // Definitions settled on BCPLA-9:
-// - No-show rate = no_show / (attended + no_show). A past booking still `booked` is
-//   unmarked (nobody took the roster) and is counted separately, not as a no-show.
+// - No-show rate = no_show / (attended + no_show). A booking on a started class still
+//   `booked` is unmarked (attendance never recorded for it) and is counted on its own.
 //   Cancelled and waitlisted bookings are in neither.
 // - Month = the class's site-local day, via localDay() with the site timezone.
 // - Frequent = the member's marked + unmarked bookings across all the tenant's sites
@@ -12,42 +12,25 @@
 //   more. One group per member per tenant. (The seed's timetable starts mid-August,
 //   so dividing by a full 13 weeks would understate frequency.)
 // - Fleet-wide = every tenant in the database, pooled by booking.
-import Database from 'better-sqlite3';
-import { localDay, type Timezone } from '../../src/domain/dates';
+import { openDatabase } from '../../src/db/client';
+import { adminScope, classesRepo } from '../../src/db/repositories';
+import type { BookingOutcomeRow } from '../../src/db/repositories/classes';
+import { type PlainDate, type Timezone, differenceInDays, localDay } from '../../src/domain/dates';
 
-const FROM_DAY = '2026-07-01';
-const TO_DAY = '2026-09-30';
+const FROM_DAY: PlainDate = '2026-07-01';
+const TO_DAY: PlainDate = '2026-09-30';
 const FOCUS = ['Puls Träning', 'Aktiv Hälsa'];
 
-const db = new Database(process.env.BEEFCAKE_DB ?? 'data/beefcake.db', { readonly: true });
-
-interface Row {
-  tenantId: string;
-  tenantName: string;
-  siteName: string;
-  timezone: string;
-  memberId: string;
-  startsAt: string;
-  status: string;
-}
+const { db } = openDatabase(process.env.BEEFCAKE_DB ?? 'data/beefcake.db', { readonly: true });
 
 // A day either side of the quarter in UTC, then trimmed by site-local day below.
-const rows = db
-  .prepare(
-    `select t.id tenantId, t.name tenantName, s.name siteName, s.timezone timezone,
-            b.member_id memberId, c.starts_at startsAt, b.status status
-       from bookings b
-       join classes c on c.id = b.class_id and c.tenant_id = b.tenant_id
-       join sites s on s.id = c.site_id and s.tenant_id = c.tenant_id
-       join tenants t on t.id = b.tenant_id
-      where c.cancelled = 0
-        and b.status in ('booked','attended','no_show')
-        and c.starts_at >= '2026-06-30' and c.starts_at < '2026-10-02'`,
-  )
-  .all() as Row[];
+const rows = classesRepo.allBookingOutcomes(adminScope({ db }), {
+  from: '2026-06-30',
+  to: '2026-10-02',
+});
 
-interface Booking extends Row {
-  day: string;
+interface Booking extends BookingOutcomeRow {
+  day: PlainDate;
   month: string;
 }
 const inQuarter: Booking[] = [];
@@ -57,8 +40,8 @@ for (const row of rows) {
   inQuarter.push({ ...row, day, month: day.slice(0, 7) });
 }
 
-const firstDay = inQuarter.reduce((min, b) => (b.day < min ? b.day : min), TO_DAY);
-const WEEKS = (Date.parse(TO_DAY) - Date.parse(firstDay) + 86_400_000) / (7 * 86_400_000);
+const firstDay = inQuarter.reduce<PlainDate>((min, b) => (b.day < min ? b.day : min), TO_DAY);
+const WEEKS = (differenceInDays(TO_DAY, firstDay) + 1) / 7;
 
 const perMember = new Map<string, number>();
 for (const b of inQuarter) {
