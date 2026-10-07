@@ -122,7 +122,7 @@ the schedule.
 
 ## 6. Environment
 
-- **App:** `playwright.config.ts` starts `npm run dev` on `127.0.0.1:3000`, locally and in CI, against a database from `npm run db:reset -- --scale small`.
+- **App:** `playwright.config.ts` starts its own `npm run dev` on `127.0.0.1:3100` (`E2E_PORT` to move it), locally and in CI, never reusing a running server, against a database from `npm run db:reset -- --scale small`.
 - **Accounts:** sign in with the persona cookie via `signIn` and `memberLogin(tenantName)` in `tests/e2e/helpers.ts`. The seed has three member logins per tenant, Kuntoklubi Kallio included. The seed test signs in as Puls Träning's front desk; member scenarios sign in themselves.
 - **Data:** each test makes its own bookings through the member schedule. Tests share one SQLite file and run serially (`workers: 1`), so no test relies on another's bookings. Promotion runs as in `tests/e2e/booking.spec.ts`; `waitlist_auto_promote` is on by default.
 - **Outside services:** none; email and payments are fakes writing to `outbox`.

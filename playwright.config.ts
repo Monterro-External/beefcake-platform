@@ -1,4 +1,11 @@
+import { resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+
+// The tests start their own server on a port of their own, never a dev server
+// that is already running: that one may be another checkout with another
+// database, and the tests read the database directly through `withDb`.
+const port = Number(process.env.E2E_PORT ?? 3100);
+const baseURL = `http://127.0.0.1:${port}`;
 
 /**
  * End-to-end flows run against a real dev server and a seeded database. There
@@ -17,15 +24,17 @@ export default defineConfig({
   reporter: process.env.CI === undefined ? 'list' : [['list'], ['html', { open: 'never' }]],
   timeout: 30_000,
   use: {
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL,
     // Acceptance scenarios record every run through `recordEvidence` instead.
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://127.0.0.1:3000',
-    reuseExistingServer: process.env.CI === undefined,
+    command: `npm run dev -- --port ${port}`,
+    url: baseURL,
+    reuseExistingServer: false,
+    // The same file `tests/e2e/helpers.ts` opens.
+    env: { BEEFCAKE_DB: resolve(process.env.BEEFCAKE_DB ?? 'data/beefcake.db') },
     timeout: 120_000,
   },
 });
