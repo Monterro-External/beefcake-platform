@@ -155,6 +155,18 @@ export default async function MemberSchedule() {
         </div>
       )}
 
+      <section aria-label="Calendar file" className="mb-4 flex flex-wrap items-center gap-3">
+        {/* A plain anchor: the answer is a file download, not a page to route to. */}
+        <a
+          href="/me/calendar"
+          download
+          className="inline-flex items-center justify-center gap-1.5 rounded border border-line bg-surface-raised px-2.5 py-1.5 font-medium hover:bg-accent-soft"
+        >
+          Add my booked classes to your calendar
+        </a>
+        <span className="text-ink-muted">Changed a booking? Download again to update your calendar.</span>
+      </section>
+
       {byDay.size === 0 ? (
         <Card>
           <EmptyState

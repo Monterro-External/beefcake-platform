@@ -1,6 +1,7 @@
-import { and, asc, count, eq, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
+import type { CalendarBooking } from '@/domain/calendar-file';
 import type { BookingSnapshot, ClassSnapshot } from '@/domain/waitlist';
-import { type Booking, type Class, bookings, classes } from '../schema';
+import { type Booking, type Class, bookings, classes, sites, users } from '../schema';
 import { type TenantScope, guard, guardOne } from './scope';
 
 export function listClasses(
@@ -156,6 +157,52 @@ export function otherBookingsFor(
             .all(),
         );
   return { bookings: rows, classes: classRows };
+}
+
+/**
+ * A member's bookings on classes that have not started at `now`, with what the
+ * calendar file needs of each class, its site and its instructor. Every status
+ * comes back: which bookings become events is the calendar file's rule, not the
+ * query's.
+ */
+export function calendarBookings(scope: TenantScope, memberId: string, now: string): CalendarBooking[] {
+  const rows = guard(
+    scope,
+    'bookings',
+    scope.db
+      .select({
+        tenantId: bookings.tenantId,
+        bookingId: bookings.id,
+        status: bookings.status,
+        className: classes.name,
+        startsAt: classes.startsAt,
+        endsAt: classes.endsAt,
+        classCancelled: classes.cancelled,
+        instructorName: users.name,
+        siteName: sites.name,
+        addressLine: sites.addressLine,
+        city: sites.city,
+      })
+      .from(bookings)
+      .innerJoin(classes, and(eq(classes.id, bookings.classId), eq(classes.tenantId, scope.tenantId)))
+      .innerJoin(sites, and(eq(sites.id, classes.siteId), eq(sites.tenantId, scope.tenantId)))
+      .leftJoin(users, and(eq(users.id, classes.instructorId), eq(users.tenantId, scope.tenantId)))
+      .where(
+        and(eq(bookings.tenantId, scope.tenantId), eq(bookings.memberId, memberId), gt(classes.startsAt, now)),
+      )
+      .orderBy(asc(classes.startsAt))
+      .all(),
+  );
+  return rows.map((row) => ({
+    bookingId: row.bookingId,
+    status: row.status,
+    className: row.className,
+    startsAt: row.startsAt,
+    endsAt: row.endsAt,
+    classCancelled: row.classCancelled,
+    instructorName: row.instructorName,
+    site: { name: row.siteName, addressLine: row.addressLine, city: row.city },
+  }));
 }
 
 export function toClassSnapshot(row: Class): ClassSnapshot {
