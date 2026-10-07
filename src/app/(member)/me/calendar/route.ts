@@ -8,10 +8,9 @@
  */
 
 import { NextResponse } from 'next/server';
-import * as classesRepo from '@/db/repositories/classes';
-import { calendarFile } from '@/domain/calendar-file';
 import { clock } from '@/lib/clock';
 import { getSession, tenantScopeFor } from '@/lib/session';
+import { loadCalendarFile } from './load';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,8 +22,7 @@ export async function GET(): Promise<NextResponse> {
   }
 
   const scope = tenantScopeFor(session);
-  const now = clock().now;
-  const file = calendarFile(classesRepo.calendarBookings(scope, member.id, now.toISOString()), now);
+  const file = loadCalendarFile(scope, member.id, clock().now);
   // Nothing to send, say from an old bookmark: back to the schedule, which says so. Never an empty file.
   // A relative location keeps the host the member came on, and with it their session.
   if (file.nothingToSend) {

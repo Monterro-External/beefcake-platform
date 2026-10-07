@@ -30,7 +30,7 @@ import { guard } from '@/db/repositories/scope';
 import { and, eq, inArray } from 'drizzle-orm';
 import { type PlainDate, addDays, localDay, startOfDay } from '@/domain/dates';
 import { effectiveStatus } from '@/domain/subscriptions';
-import { calendarFile } from '@/domain/calendar-file';
+import { loadCalendarFile } from './calendar/load';
 import { timezoneForCountry } from '@/jobs/runner';
 
 export const dynamic = 'force-dynamic';
@@ -116,10 +116,7 @@ export default async function MemberSchedule() {
   }
 
   // The same decision the download makes, so the button never leads to no file.
-  const nothingToSend = calendarFile(
-    classesRepo.calendarBookings(scope, member.id, time.now.toISOString()),
-    time.now,
-  ).nothingToSend;
+  const nothingToSend = loadCalendarFile(scope, member.id, time.now).nothingToSend;
 
   const canBook = state === 'active' || state === 'cancelling';
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
