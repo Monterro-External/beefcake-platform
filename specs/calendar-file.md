@@ -7,11 +7,17 @@
 
 A member downloads a calendar file of their upcoming booked classes from their
 schedule (`/me`), with the hint "Changed a booking? Download again to update
-your calendar." This plan covers AS-1, AS-3, AS-5 and AS-10 (BCPLA-14) and
-the empty state, AS-2 and AS-8 (BCPLA-15): with nothing to send the schedule
+your calendar." This plan covers AS-1, AS-3, AS-5 and AS-10 (BCPLA-14), the
+empty state, AS-2 and AS-8 (BCPLA-15): with nothing to send the schedule
 shows "You have no upcoming booked classes." instead of the button and hint,
-and `/me/calendar` sends the member back to `/me` without a file. Cancelled
-entries (AS-4, AS-6, AS-9) come with BCPLA-16. AS-7 and the other date rules are unit tests on
+and `/me/calendar` sends the member back to `/me` without a file; and the
+cancelled entries, AS-4, AS-6 and AS-9 (BCPLA-16): a booking the member
+cancelled, one promotion released, and one on a cancelled class, on a class
+that has not started, are written as cancelled events (`STATUS:CANCELLED`)
+with the booking's identity (`UID`), so a re-download cancels the event
+rather than adding one. A member whose only entries are cancelled still gets
+the button, the hint and the file. AS-7, a booking on a cancelled class (the
+tenant app cannot cancel a class) and the other date rules are unit tests on
 `src/domain/calendar-file.ts`.
 
 Every Then reads the downloaded `.ics` file or the schedule, never a calendar
@@ -20,7 +26,11 @@ them in the file by class name and start, because seeded members already hold
 upcoming bookings and earlier runs leave theirs behind. The empty state needs a
 member with nothing to send: the seed keeps one member login per tenant with no
 booking from the seeded day on (at Puls Träning, Maria Åkerlund at Solna), found
-by query rather than by name, and those tests book nothing as her.
+by query rather than by name, and those tests book nothing as her. AS-9 needs
+a member with nothing booked too, and books as them, so it never takes that
+login: it takes the first member login outside Puls Träning with no booking
+ahead other than cancelled ones, and a class they never booked. Repeated runs
+leave that member cancelled bookings, which AS-9 tolerates.
 
 ## Test plan
 
@@ -92,3 +102,41 @@ by query rather than by name, and those tests book nothing as her.
 **Expected:**
 - No download starts; the browser lands on `/me` with her greeting ("Hej <first name>").
 - The schedule shows "You have no upcoming booked classes."
+
+#### 1.7 AS-4 A booking the member cancelled is marked cancelled in the next calendar file
+
+**Steps:**
+1. Sign in as "Oskar" (Elin Sandberg, Solna) and book a Solna class with room that she does not hold (Yoga Flow where one has room).
+2. Download the calendar file.
+3. Choose "Cancel" on that class.
+4. Download the calendar file again.
+
+**Expected:**
+- The first file holds the class as `STATUS:CONFIRMED`.
+- The second file holds it once, as `STATUS:CANCELLED`, with the same `UID` as in the first file.
+
+#### 1.8 AS-6 After promotion, the next calendar file holds the promoted class and marks the released fallback booking cancelled
+
+**Steps:**
+1. Find the same setup as AS-3: two member logins at one site, a class with one place left and nobody waiting, and an overlapping class with room.
+2. As "Oskar", book the overlapping class (the fallback) and download the calendar file.
+3. As the other member, book the last place; as "Oskar", join the waitlist (position 1).
+4. As the other member, cancel; run `waitlist-promote` for the tenant; as "Oskar", reopen `/me` (the class shows "Booked").
+5. Download the calendar file again.
+
+**Expected:**
+- The first file holds the fallback as `STATUS:CONFIRMED`.
+- The second file holds the promoted class as `STATUS:CONFIRMED` and the fallback as `STATUS:CANCELLED`, with the same `UID` as in the first file.
+
+#### 1.9 AS-9 A member who cancelled their only booking still gets a calendar file
+
+**Steps:**
+1. Find a member login outside Puls Träning with no booking ahead other than cancelled ones, and a class with room they never booked (it plays Ebba; Puls Träning's idle login stays untouched for AS-2 and AS-8).
+2. Sign in, book that class, download the calendar file.
+3. Choose "Cancel" on that class and reload `/me`.
+4. Download the calendar file again.
+
+**Expected:**
+- The first file holds that class as its only `STATUS:CONFIRMED` event.
+- After cancelling, the schedule still shows "Add my booked classes to your calendar" and the hint, and not "You have no upcoming booked classes."
+- The second file holds that class as `STATUS:CANCELLED` and no confirmed event.

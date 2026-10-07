@@ -21,6 +21,7 @@ function booking(over: Partial<CalendarBooking> = {}): CalendarBooking {
     classCancelled: false,
     instructorName: 'Maja Lind',
     site: solna,
+    updatedAt: '2026-08-20T09:30:00.000Z',
     ...over,
   };
 }
@@ -44,6 +45,8 @@ describe('which bookings are in the calendar file', () => {
         description: 'Maja Lind',
         startsAt: new Date('2026-08-27T16:00:00.000Z'),
         endsAt: new Date('2026-08-27T17:00:00.000Z'),
+        lastModified: new Date('2026-08-20T09:30:00.000Z'),
+        sequence: 209381400,
       },
     ]);
   });
@@ -128,10 +131,74 @@ describe('which bookings are in the calendar file', () => {
     expect(calendarFile([booking()], downloadedAt).nothingToSend).toBe(false);
   });
 
-  it('a booking on a class the tenant cancelled is not sent as a class to go to', () => {
-    const file = calendarFile([booking({ classCancelled: true })], downloadedAt);
+  it('a booking on a class the tenant cancelled becomes a cancelled event', () => {
+    const file = calendarFile([booking({ bookingId: 'bkg_called_off', classCancelled: true })], downloadedAt);
 
-    expect(file.events.filter((event) => event.status === 'confirmed')).toEqual([]);
+    expect(file.events.map((event) => [event.uid, event.status])).toEqual([['bkg_called_off@beefcake', 'cancelled']]);
+  });
+
+  it('a booking the member cancelled on a class that has not started becomes a cancelled event', () => {
+    const file = calendarFile([booking({ bookingId: 'bkg_cancelled', status: 'cancelled' })], downloadedAt);
+
+    expect(file.events.map((event) => [event.uid, event.status])).toEqual([['bkg_cancelled@beefcake', 'cancelled']]);
+  });
+
+  it('a fallback booking promotion released becomes a cancelled event next to the promoted class', () => {
+    const file = calendarFile(
+      [
+        booking({ bookingId: 'bkg_spinning', className: 'Spinning 45', status: 'booked' }),
+        booking({
+          bookingId: 'bkg_core',
+          className: 'Core',
+          status: 'cancelled',
+          startsAt: '2026-08-27T16:15:00.000Z',
+          endsAt: '2026-08-27T17:00:00.000Z',
+        }),
+      ],
+      downloadedAt,
+    );
+
+    expect(file.events.map((event) => [event.summary, event.status])).toEqual([
+      ['Spinning 45', 'confirmed'],
+      ['Core', 'cancelled'],
+    ]);
+  });
+
+  it('a cancelled booking on a class that has started is left out', () => {
+    const file = calendarFile(
+      [
+        booking({
+          status: 'cancelled',
+          startsAt: '2026-08-26T07:30:00.000Z',
+          endsAt: '2026-08-26T08:30:00.000Z',
+        }),
+        booking({
+          bookingId: 'bkg_called_off_started',
+          classCancelled: true,
+          startsAt: '2026-08-26T07:00:00.000Z',
+          endsAt: '2026-08-26T07:45:00.000Z',
+        }),
+      ],
+      downloadedAt,
+    );
+
+    expect(file.nothingToSend).toBe(true);
+  });
+
+  it('a waitlisted place on a cancelled class is left out, as it was never in the calendar', () => {
+    const file = calendarFile([booking({ status: 'waitlisted', classCancelled: true })], downloadedAt);
+
+    expect(file.nothingToSend).toBe(true);
+  });
+
+  it('a member whose only entries are cancelled still has something to send', () => {
+    const file = calendarFile(
+      [booking({ status: 'cancelled' }), booking({ bookingId: 'bkg_called_off', classCancelled: true })],
+      downloadedAt,
+    );
+
+    expect(file.nothingToSend).toBe(false);
+    expect(textOf(file).match(/\r\nSTATUS:CANCELLED\r\n/g)).toHaveLength(2);
   });
 
   it('events come in the order the classes start', () => {
@@ -181,10 +248,21 @@ describe('what an event says', () => {
     expect(second.events.find((event) => event.uid === first.events[0]?.uid)).toBeDefined();
     expect(new Set(second.events.map((event) => event.uid)).size).toBe(2);
   });
+
+  it('a booking keeps its identity when it is cancelled, so a re-import cancels the event instead of adding one', () => {
+    const first = calendarFile([booking({ bookingId: 'bkg_0000042' })], downloadedAt);
+    const second = calendarFile(
+      [booking({ bookingId: 'bkg_0000042', status: 'cancelled', updatedAt: '2026-08-26T09:00:00.000Z' })],
+      new Date('2026-08-26T09:05:00.000Z'),
+    );
+
+    expect(second.events.map((event) => [event.uid, event.status])).toEqual([['bkg_0000042@beefcake', 'cancelled']]);
+    expect(second.events[0]?.uid).toBe(first.events[0]?.uid);
+  });
 });
 
 describe('the file a calendar app imports', () => {
-  it('is an iCalendar file with one event per booked class, stamped with the instant of download', () => {
+  it('is an iCalendar file with one event per booked class, stamped with the instant of download and the last change to the booking', () => {
     const file = calendarFile([booking()], downloadedAt);
 
     expect(textOf(file)).toBe(
@@ -199,6 +277,8 @@ describe('the file a calendar app imports', () => {
         'DTSTAMP:20260826T080000Z',
         'DTSTART:20260827T160000Z',
         'DTEND:20260827T170000Z',
+        'LAST-MODIFIED:20260820T093000Z',
+        'SEQUENCE:209381400',
         'SUMMARY:Yoga Flow',
         'LOCATION:Solna\\, Hamngatan 37\\, Solna',
         'DESCRIPTION:Maja Lind',
@@ -208,6 +288,51 @@ describe('the file a calendar app imports', () => {
         '',
       ].join('\r\n'),
     );
+  });
+
+  function lineOf(file: CalendarFile | NothingToSend, uid: string, property: string): string | undefined {
+    const event = textOf(file).split('BEGIN:VEVENT').find((block) => block.includes(`UID:${uid}\r\n`));
+    return event?.split('\r\n').find((line) => line.startsWith(`${property}:`));
+  }
+
+  function sequenceOf(file: CalendarFile | NothingToSend, uid = 'bkg_0000001@beefcake'): number {
+    return Number(lineOf(file, uid, 'SEQUENCE')?.slice('SEQUENCE:'.length));
+  }
+
+  it('a cancelled event says when the booking was cancelled', () => {
+    const file = calendarFile(
+      [booking({ status: 'cancelled', updatedAt: '2026-08-25T18:45:10.250Z' })],
+      downloadedAt,
+    );
+
+    expect(lineOf(file, 'bkg_0000001@beefcake', 'STATUS')).toBe('STATUS:CANCELLED');
+    expect(lineOf(file, 'bkg_0000001@beefcake', 'LAST-MODIFIED')).toBe('LAST-MODIFIED:20260825T184510Z');
+  });
+
+  it('an unchanged booking has the same sequence in every download, whenever it is downloaded', () => {
+    const first = calendarFile([booking()], downloadedAt);
+    const second = calendarFile([booking()], new Date('2026-08-27T06:00:00.000Z'));
+
+    expect(sequenceOf(second)).toBe(sequenceOf(first));
+  });
+
+  it('cancelling and then rebooking raise the sequence each time, so Apple Calendar and Outlook apply the update', () => {
+    const booked = calendarFile([booking({ updatedAt: '2026-08-20T09:30:00.000Z' })], downloadedAt);
+    const cancelled = calendarFile(
+      [booking({ status: 'cancelled', updatedAt: '2026-08-20T09:30:01.000Z' })],
+      downloadedAt,
+    );
+    const rebooked = calendarFile([booking({ updatedAt: '2026-08-25T07:00:00.000Z' })], downloadedAt);
+
+    expect(sequenceOf(cancelled)).toBeGreaterThan(sequenceOf(booked));
+    expect(sequenceOf(rebooked)).toBeGreaterThan(sequenceOf(cancelled));
+  });
+
+  it('a class the tenant cancels raises the sequence, although the booking itself did not change', () => {
+    const before = calendarFile([booking()], downloadedAt);
+    const after = calendarFile([booking({ classCancelled: true })], downloadedAt);
+
+    expect(sequenceOf(after)).toBeGreaterThan(sequenceOf(before));
   });
 
   function startLineFor(day: PlainDate, timezone: Timezone, hour: number, minute = 0): string | undefined {

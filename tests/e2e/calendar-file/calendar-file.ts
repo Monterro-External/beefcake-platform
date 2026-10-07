@@ -116,6 +116,43 @@ export function memberWithNothingToSend(tenantName: string): MemberLogin {
   return idle;
 }
 
+/**
+ * A member login with no booking on a class that has not started other than
+ * cancelled ones, and a class with room at a site they can book that they have
+ * never booked. Never at `notAt`, so the login a nothing-to-send scenario
+ * relies on there stays untouched. Earlier runs leave cancelled bookings
+ * behind, which is why cancelled ones are allowed.
+ */
+export function memberWithNothingBooked(notAt: string): { member: MemberLogin; klass: ClassRow } {
+  const today = `${seededToday()}T00:00:00.000Z`;
+  const tenants = withDb((db) =>
+    db
+      .prepare("select name from tenants where name != ? order by name")
+      .all(notAt)
+      .map((row) => (row as { name: string }).name),
+  );
+  for (const tenant of tenants) {
+    for (const member of memberLogins(tenant)) {
+      const ahead = withDb(
+        (db) =>
+          db
+            .prepare(
+              `select b.class_id as classId, b.status from bookings b join classes c on c.id = b.class_id
+                where b.member_id = ? and c.starts_at >= ?`,
+            )
+            .all(member.memberId, today) as { classId: string; status: string }[],
+      );
+      if (ahead.some((booking) => booking.status !== 'cancelled')) continue;
+      const touched = new Set(ahead.map((booking) => booking.classId));
+      const klass = upcomingClasses(member).find(
+        (candidate) => !touched.has(candidate.id) && freePlaces(candidate) > 0,
+      );
+      if (klass !== undefined) return { member, klass };
+    }
+  }
+  throw new Error(`No member login outside ${notAt} with nothing booked ahead; run npm run db:reset -- --scale small`);
+}
+
 function scheduleWindow(): [string, string] {
   const today = new Date(`${seededToday()}T00:00:00.000Z`);
   const day = 86_400_000;
@@ -176,6 +213,62 @@ export function freePlaces(klass: ClassRow): number {
 
 export function overlaps(a: ClassRow, b: ClassRow): boolean {
   return a.startsAt < b.endsAt && b.startsAt < a.endsAt;
+}
+
+export interface PromotionSetup {
+  /** Oskar in the scenario: waits for the full class and holds a fallback. */
+  readonly waiting: MemberLogin;
+  /** Takes the last place on the full class and later gives it back. */
+  readonly other: MemberLogin;
+  /** Spinning 45 in the scenario. */
+  readonly full: ClassRow;
+  /** Core in the scenario: overlaps the full class and has room. */
+  readonly fallback: ClassRow;
+}
+
+/**
+ * Two members who can book at the same site, a class there with one place left
+ * and nobody waiting, and an overlapping class with room. Puls Träning first;
+ * its Solna timetable has no overlapping classes on the small seed, so the
+ * search moves on to the next tenant whose timetable does.
+ */
+export function findPromotionSetup(): PromotionSetup {
+  const tenants = withDb((db) =>
+    db
+      .prepare(
+        `select t.name from tenants t
+          where (select count(*) from users u where u.tenant_id = t.id and u.role = 'member') >= 2
+          order by t.name = 'Puls Träning' desc, t.name`,
+      )
+      .all()
+      .map((row) => (row as { name: string }).name),
+  );
+  for (const tenant of tenants) {
+    const logins = memberLogins(tenant);
+    for (const waiting of logins) {
+      for (const other of logins) {
+        if (other.memberId === waiting.memberId) continue;
+        const heldByWaiting = heldClassIds(waiting.memberId);
+        const heldByOther = heldClassIds(other.memberId);
+        const othersClasses = new Set(upcomingClasses(other).map((klass) => klass.id));
+        const classes = upcomingClasses(waiting);
+        for (const full of classes) {
+          if (full.waitlisted !== 0 || freePlaces(full) !== 1) continue;
+          if (heldByWaiting.has(full.id) || heldByOther.has(full.id) || !othersClasses.has(full.id)) continue;
+          const fallback = classes.find(
+            (candidate) =>
+              candidate.id !== full.id &&
+              candidate.siteId === full.siteId &&
+              overlaps(candidate, full) &&
+              freePlaces(candidate) > 0 &&
+              !heldByWaiting.has(candidate.id),
+          );
+          if (fallback !== undefined) return { waiting, other, full, fallback };
+        }
+      }
+    }
+  }
+  throw new Error('No full class with an overlapping fallback class in the seeded timetable');
 }
 
 /** Act as this member on every surface and open their schedule. */
