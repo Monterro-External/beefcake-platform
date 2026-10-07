@@ -56,6 +56,7 @@ npm run db:reset -- --today 2026-11-12 --seed my-experiment   # same story shift
 npm run dev                                # http://localhost:3000, persona switcher in the header
 npm run lint && npm run typecheck && npm test                 # what CI runs, with TZ=UTC
 npm run test:e2e                           # needs a seeded db; starts the dev server itself
+npm run aspire:start                       # the site under Aspire on :3000; /start-site also lists every link
 npm run jobs:payment-run -- --now 2026-09-25 --tenant ten_000000b --dry-run
 npm run export:signals -- --since 2026-01-01 --out ../beefcake-product/signals/platform/
 npm run db:studio                          # browse data/beefcake.db ($BEEFCAKE_DB to relocate)
@@ -101,6 +102,15 @@ Start with tenant Puls Träning for ordinary work, Nordic Fitness Group for volu
 3. Inspect `job_runs` and `outbox` for what the job did and what it would have sent.
 4. Read the matching runbook in `docs/runbooks/` before changing anything.
 5. Fix in `src/domain/` with a unit test at the boundary, then re-run the same command. Identical seed and today give an identical database, so the diff is the fix.
+
+### Read the logs after a test run
+
+Every e2e run, and every manual check of a change in the browser, ends with
+reading what the server did, not only the test verdict.
+
+1. Read Playwright's output: the list reporter, then `test-results/` (error context, trace, video) for each failure.
+2. If `aspire ps` shows the AppHost running, Playwright reused its server on :3000, so the server side of the run is in Aspire. Read `aspire logs web --search <text>` (console), `aspire otel logs web` and `aspire otel traces web` (spans with status). An error or a 4xx/5xx there that no test asserted on gets reported too.
+3. CI has no AppHost: step 1 is all there is. Locally Aspire complements Playwright's output; it never replaces it.
 
 ### Product ticket to implementation tickets
 
