@@ -10,12 +10,12 @@
  * Pure: the bookings and the instant of download come in, the file goes out.
  */
 
-export type CalendarBookingStatus = 'booked' | 'waitlisted' | 'cancelled' | 'attended' | 'no_show';
+import type { BookingStatus } from './waitlist';
 
 /** One of the member's bookings with what the file needs of its class and site. */
 export interface CalendarBooking {
   readonly bookingId: string;
-  readonly status: CalendarBookingStatus;
+  readonly status: BookingStatus;
   readonly className: string;
   /** ISO-8601 instants. */
   readonly startsAt: string;
@@ -110,7 +110,7 @@ function toEvent(booking: CalendarBooking, status: CalendarEvent['status']): Cal
     startsAt: new Date(booking.startsAt),
     endsAt: new Date(booking.endsAt),
     lastModified: new Date(booking.updatedAt),
-    sequence: sequenceOf(booking),
+    sequence: sequenceFromLastChange(booking),
   };
 }
 
@@ -125,7 +125,7 @@ const SEQUENCE_EPOCH = Date.UTC(2020, 0, 1);
  * booking as it was, so a cancelled class adds one: it cannot be booked again,
  * so nothing later competes for that number.
  */
-function sequenceOf(booking: CalendarBooking): number {
+function sequenceFromLastChange(booking: CalendarBooking): number {
   const seconds = Math.floor((new Date(booking.updatedAt).getTime() - SEQUENCE_EPOCH) / 1000);
   return Math.max(0, seconds) + (booking.classCancelled ? 1 : 0);
 }
@@ -143,15 +143,15 @@ function toICalendar(events: readonly CalendarEvent[], now: Date): string {
     'METHOD:PUBLISH',
     ...events.flatMap((event) => [
       'BEGIN:VEVENT',
-      `UID:${text(event.uid)}`,
-      `DTSTAMP:${utc(now)}`,
-      `DTSTART:${utc(event.startsAt)}`,
-      `DTEND:${utc(event.endsAt)}`,
-      `LAST-MODIFIED:${utc(event.lastModified)}`,
+      `UID:${escapeText(event.uid)}`,
+      `DTSTAMP:${formatUtc(now)}`,
+      `DTSTART:${formatUtc(event.startsAt)}`,
+      `DTEND:${formatUtc(event.endsAt)}`,
+      `LAST-MODIFIED:${formatUtc(event.lastModified)}`,
       `SEQUENCE:${event.sequence}`,
-      `SUMMARY:${text(event.summary)}`,
-      `LOCATION:${text(event.location)}`,
-      `DESCRIPTION:${text(event.description)}`,
+      `SUMMARY:${escapeText(event.summary)}`,
+      `LOCATION:${escapeText(event.location)}`,
+      `DESCRIPTION:${escapeText(event.description)}`,
       `STATUS:${event.status.toUpperCase()}`,
       'END:VEVENT',
     ]),
@@ -188,7 +188,7 @@ function fold(line: string): string {
 }
 
 /** An absolute instant in UTC: `20261025T170000Z`. */
-function utc(at: Date): string {
+function formatUtc(at: Date): string {
   return at
     .toISOString()
     .replace(/[-:]/g, '')
@@ -196,6 +196,6 @@ function utc(at: Date): string {
 }
 
 /** A TEXT value, escaped. */
-function text(value: string): string {
+function escapeText(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
 }

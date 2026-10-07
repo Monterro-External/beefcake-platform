@@ -161,10 +161,12 @@ export function otherBookingsFor(
 
 /**
  * A member's bookings on classes that have not started at `now`, with what the
- * calendar file needs of each class, its site and its instructor. Every status
- * comes back, cancelled bookings and bookings on cancelled classes included:
- * which bookings become events, and which become cancelled events, is the
- * calendar file's rule, not the query's.
+ * calendar file needs of each class, its site and its instructor. The query
+ * leaves out classes starting at or before `now` so the file never loads the
+ * member's history; the calendar file checks that again, and its check is the
+ * rule of record. Every status comes back, cancelled bookings and bookings on
+ * cancelled classes included: which bookings become events, and which become
+ * cancelled events, is the calendar file's rule, not the query's.
  */
 export function calendarBookings(scope: TenantScope, memberId: string, now: string): CalendarBooking[] {
   const rows = guard(

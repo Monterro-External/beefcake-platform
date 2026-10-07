@@ -531,6 +531,15 @@ export function memberLogins(members: readonly SeedMember[]): { member: SeedMemb
   ];
 }
 
+/** Ids of the member logins with nothing booked from today on: they keep their past classes only. */
+export function membersWithNothingAhead(members: readonly SeedMember[]): ReadonlySet<string> {
+  return new Set(
+    memberLogins(members)
+      .filter((login) => !login.booksAhead)
+      .map((login) => login.member.id),
+  );
+}
+
 /** Periods in which the member should be charged, given their history. */
 export function billablePeriods(member: SeedMember, runs: readonly { period: BillingPeriod; from: PlainDate; to: PlainDate; completed: boolean }[]): BillingPeriod[] {
   const out: BillingPeriod[] = [];

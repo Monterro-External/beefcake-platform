@@ -371,6 +371,23 @@ describe('the file a calendar app imports', () => {
     expect(startLineFor('2026-10-24' as PlainDate, 'Europe/Stockholm', 18)).toBe('DTSTART:20261024T160000Z');
     expect(startLineFor('2026-10-25' as PlainDate, 'Europe/Stockholm', 18)).toBe('DTSTART:20261025T170000Z');
     expect(startLineFor('2026-10-25' as PlainDate, 'Europe/Helsinki', 18)).toBe('DTSTART:20261025T160000Z');
+    expect(startLineFor('2026-10-24' as PlainDate, 'Europe/Oslo', 18)).toBe('DTSTART:20261024T160000Z');
+    expect(startLineFor('2026-10-25' as PlainDate, 'Europe/Oslo', 18)).toBe('DTSTART:20261025T170000Z');
+    expect(startLineFor('2026-10-24' as PlainDate, 'Europe/Copenhagen', 18)).toBe('DTSTART:20261024T160000Z');
+    expect(startLineFor('2026-10-25' as PlainDate, 'Europe/Copenhagen', 18)).toBe('DTSTART:20261025T170000Z');
+  });
+
+  it.each([
+    ['Europe/Stockholm', 'DTSTART:20261210T170000Z'],
+    ['Europe/Oslo', 'DTSTART:20261210T170000Z'],
+    ['Europe/Copenhagen', 'DTSTART:20261210T170000Z'],
+    ['Europe/Helsinki', 'DTSTART:20261210T160000Z'],
+  ] as const)('a class at 18:00 in %s in winter time is written as an absolute instant, %s', (timezone, expected) => {
+    expect(startLineFor('2026-12-10' as PlainDate, timezone, 18)).toBe(expected);
+  });
+
+  it('a class at 01:30 Copenhagen time on the first of the month is written on the last day of the previous month in UTC', () => {
+    expect(startLineFor('2026-09-01' as PlainDate, 'Europe/Copenhagen', 1, 30)).toBe('DTSTART:20260831T233000Z');
   });
 
   it('a class just after midnight on the first of the month is written on the last day of the previous month in UTC', () => {
