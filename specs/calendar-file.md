@@ -7,15 +7,20 @@
 
 A member downloads a calendar file of their upcoming booked classes from their
 schedule (`/me`), with the hint "Changed a booking? Download again to update
-your calendar." This plan covers AS-1, AS-3, AS-5 and AS-10 (BCPLA-14). The
-empty state (AS-2, AS-8) and cancelled entries (AS-4, AS-6, AS-9) come with
-BCPLA-15 and BCPLA-16. AS-7 and the other date rules are unit tests on
+your calendar." This plan covers AS-1, AS-3, AS-5 and AS-10 (BCPLA-14) and
+the empty state, AS-2 and AS-8 (BCPLA-15): with nothing to send the schedule
+shows "You have no upcoming booked classes." instead of the button and hint,
+and `/me/calendar` sends the member back to `/me` without a file. Cancelled
+entries (AS-4, AS-6, AS-9) come with BCPLA-16. AS-7 and the other date rules are unit tests on
 `src/domain/calendar-file.ts`.
 
 Every Then reads the downloaded `.ics` file or the schedule, never a calendar
 app. Each test books its own classes through the member schedule and finds
 them in the file by class name and start, because seeded members already hold
-upcoming bookings and earlier runs leave theirs behind.
+upcoming bookings and earlier runs leave theirs behind. The empty state needs a
+member with nothing to send: the seed keeps one member login per tenant with no
+booking from the seeded day on (at Puls Träning, Maria Åkerlund at Solna), found
+by query rather than by name, and those tests book nothing as her.
 
 ## Test plan
 
@@ -67,3 +72,23 @@ upcoming bookings and earlier runs leave theirs behind.
 **Expected:**
 - The file holds the shared class and not Ebba's other class.
 - The file holds neither member's name, email, login email or phone number.
+
+#### 1.5 AS-2 A member with nothing to send is told so and offered no calendar file
+
+**Steps:**
+1. Find the Puls Träning member login with no booking on a class that has not started (it plays Ebba).
+2. Sign in as her and open `/me`.
+
+**Expected:**
+- The schedule shows "You have no upcoming booked classes."
+- There is no "Add my booked classes to your calendar" link and no hint "Changed a booking? Download again to update your calendar."
+
+#### 1.6 AS-8 Opening the calendar file address with nothing to send leads back to the schedule
+
+**Steps:**
+1. Find the same member login and sign in as her.
+2. Open `/me/calendar` directly.
+
+**Expected:**
+- No download starts; the browser lands on `/me` with her greeting ("Hej <first name>").
+- The schedule shows "You have no upcoming booked classes."

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type CalendarBooking, calendarFile } from '@/domain/calendar-file';
+import { type CalendarBooking, type CalendarFile, type NothingToSend, calendarFile } from '@/domain/calendar-file';
 import { type PlainDate, type Timezone, atLocalTime } from '@/domain/dates';
 
 const solna = {
@@ -23,6 +23,12 @@ function booking(over: Partial<CalendarBooking> = {}): CalendarBooking {
     site: solna,
     ...over,
   };
+}
+
+/** The downloaded text; a test that reads it expects something to send. */
+function textOf(file: CalendarFile | NothingToSend): string {
+  if (file.nothingToSend) throw new Error('Expected a calendar file, got nothing to send');
+  return file.text;
 }
 
 describe('which bookings are in the calendar file', () => {
@@ -94,8 +100,32 @@ describe('which bookings are in the calendar file', () => {
     expect(file.events.map((event) => event.startsAt)).toEqual([new Date('2026-08-26T08:01:00.000Z')]);
   });
 
-  it('a member with nothing booked gets a file with no events', () => {
-    expect(calendarFile([], downloadedAt).events).toEqual([]);
+  it('a member with nothing booked has nothing to send, so no file is written', () => {
+    const file = calendarFile([], downloadedAt);
+
+    expect(file.nothingToSend).toBe(true);
+    expect(file.events).toEqual([]);
+    expect('text' in file).toBe(false);
+  });
+
+  it('a member whose only bookings are waitlisted or have started has nothing to send', () => {
+    const file = calendarFile(
+      [
+        booking({ bookingId: 'bkg_waiting', status: 'waitlisted' }),
+        booking({
+          bookingId: 'bkg_started',
+          startsAt: '2026-08-26T07:30:00.000Z',
+          endsAt: '2026-08-26T08:15:00.000Z',
+        }),
+      ],
+      downloadedAt,
+    );
+
+    expect(file.nothingToSend).toBe(true);
+  });
+
+  it('a member with one booked class that has not started has something to send', () => {
+    expect(calendarFile([booking()], downloadedAt).nothingToSend).toBe(false);
   });
 
   it('a booking on a class the tenant cancelled is not sent as a class to go to', () => {
@@ -157,7 +187,7 @@ describe('the file a calendar app imports', () => {
   it('is an iCalendar file with one event per booked class, stamped with the instant of download', () => {
     const file = calendarFile([booking()], downloadedAt);
 
-    expect(file.text).toBe(
+    expect(textOf(file)).toBe(
       [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
@@ -187,7 +217,7 @@ describe('the file a calendar app imports', () => {
       [booking({ startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString() })],
       downloadedAt,
     );
-    return file.text.split('\r\n').find((line) => line.startsWith('DTSTART'));
+    return textOf(file).split('\r\n').find((line) => line.startsWith('DTSTART'));
   }
 
   it.each([
@@ -235,8 +265,8 @@ describe('the file a calendar app imports', () => {
       downloadedAt,
     );
 
-    expect(file.text).toContain('SUMMARY:Rygg\\; Nacke\\\\Core\r\n');
-    expect(file.text).toContain('DESCRIPTION:Anna\\, Bo\\nCecilia\r\n');
+    expect(textOf(file)).toContain('SUMMARY:Rygg\\; Nacke\\\\Core\r\n');
+    expect(textOf(file)).toContain('DESCRIPTION:Anna\\, Bo\\nCecilia\r\n');
   });
 
   it('a line longer than 75 octets is folded without splitting a character', () => {
@@ -248,12 +278,12 @@ describe('the file a calendar app imports', () => {
       ],
       downloadedAt,
     );
-    const lines = file.text.split('\r\n');
+    const lines = textOf(file).split('\r\n');
     const summary = lines.findIndex((line) => line.startsWith('SUMMARY:'));
 
     for (const line of lines) expect(Buffer.byteLength(line, 'utf8')).toBeLessThanOrEqual(75);
     expect(lines[summary + 1]?.startsWith(' ')).toBe(true);
-    expect(file.text.replace(/\r\n /g, '')).toContain(
+    expect(textOf(file).replace(/\r\n /g, '')).toContain(
       'SUMMARY:Löpteknik för nybörjare och återkommande löpare med fokus på hållning och steg\r\n',
     );
   });

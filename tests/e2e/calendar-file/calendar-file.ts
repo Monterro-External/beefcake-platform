@@ -89,6 +89,33 @@ export function upcomingClasses(login: MemberLogin): ClassRow[] {
   );
 }
 
+/**
+ * A member login with nothing to send: no booking of any status on a class that
+ * has not started. The seed keeps one such login per tenant; a test that books
+ * as them leaves a booking behind, so this asks for a fresh seed when none is left.
+ */
+export function memberWithNothingToSend(tenantName: string): MemberLogin {
+  // From the start of the seeded day: earlier than any class that has not started.
+  const today = `${seededToday()}T00:00:00.000Z`;
+  const idle = memberLogins(tenantName).find((login) =>
+    withDb(
+      (db) =>
+        (
+          db
+            .prepare(
+              `select count(*) as n from bookings b join classes c on c.id = b.class_id
+                where b.member_id = ? and c.starts_at >= ?`,
+            )
+            .get(login.memberId, today) as { n: number }
+        ).n === 0,
+    ),
+  );
+  if (idle === undefined) {
+    throw new Error(`No member login at ${tenantName} with nothing booked ahead; run npm run db:reset -- --scale small`);
+  }
+  return idle;
+}
+
 function scheduleWindow(): [string, string] {
   const today = new Date(`${seededToday()}T00:00:00.000Z`);
   const day = 86_400_000;

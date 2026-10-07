@@ -43,17 +43,28 @@ export interface CalendarEvent {
 }
 
 export interface CalendarFile {
+  readonly nothingToSend: false;
   readonly events: readonly CalendarEvent[];
   /** The iCalendar (RFC 5545) text: what the member downloads. */
   readonly text: string;
 }
 
-export function calendarFile(bookings: readonly CalendarBooking[], now: Date): CalendarFile {
+/**
+ * No entry to send: the schedule says "You have no upcoming booked classes."
+ * and no file is written, so an empty one can never be served.
+ */
+export interface NothingToSend {
+  readonly nothingToSend: true;
+  readonly events: readonly [];
+}
+
+export function calendarFile(bookings: readonly CalendarBooking[], now: Date): CalendarFile | NothingToSend {
   const events = bookings
     .filter((booking) => !hasStarted(booking, now) && isEntry(booking))
     .map(toEvent)
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
-  return { events, text: toICalendar(events, now) };
+  if (events.length === 0) return { nothingToSend: true, events: [] };
+  return { nothingToSend: false, events, text: toICalendar(events, now) };
 }
 
 /** A class starting at the instant of download has started. */
