@@ -17,7 +17,7 @@ import { sequentialId } from '../ids';
 import type { Sqlite } from '../client';
 import { BulkInserter } from './writer';
 import { CLASS_NAMES } from './names';
-import { memberLogins } from './people';
+import { membersWithNothingAhead } from './people';
 import type { SeedMember, SeedSite, SeedWorld, TableCounts } from './model';
 import type { Anchors } from './options';
 
@@ -147,12 +147,7 @@ export function writeSchedule(
   const days = eachDay(anchors.classesFrom, anchors.classesTo);
 
   for (const tenant of world.tenants) {
-    // The login with nothing booked ahead keeps their past classes only.
-    const nothingAhead = new Set(
-      memberLogins(tenant.members)
-        .filter((login) => !login.booksAhead)
-        .map((login) => login.member.id),
-    );
+    const nothingAhead = membersWithNothingAhead(tenant.members);
     for (const site of tenant.sites) {
       const rng = createRng(`${seed}|schedule|${site.id}`);
       const template = weeklyTemplate(rng, site);
