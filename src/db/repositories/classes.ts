@@ -162,8 +162,9 @@ export function otherBookingsFor(
 /**
  * A member's bookings on classes that have not started at `now`, with what the
  * calendar file needs of each class, its site and its instructor. Every status
- * comes back: which bookings become events is the calendar file's rule, not the
- * query's.
+ * comes back, cancelled bookings and bookings on cancelled classes included:
+ * which bookings become events, and which become cancelled events, is the
+ * calendar file's rule, not the query's.
  */
 export function calendarBookings(scope: TenantScope, memberId: string, now: string): CalendarBooking[] {
   const rows = guard(
@@ -174,6 +175,7 @@ export function calendarBookings(scope: TenantScope, memberId: string, now: stri
         tenantId: bookings.tenantId,
         bookingId: bookings.id,
         status: bookings.status,
+        updatedAt: bookings.updatedAt,
         className: classes.name,
         startsAt: classes.startsAt,
         endsAt: classes.endsAt,
@@ -196,6 +198,7 @@ export function calendarBookings(scope: TenantScope, memberId: string, now: stri
   return rows.map((row) => ({
     bookingId: row.bookingId,
     status: row.status,
+    updatedAt: row.updatedAt,
     className: row.className,
     startsAt: row.startsAt,
     endsAt: row.endsAt,

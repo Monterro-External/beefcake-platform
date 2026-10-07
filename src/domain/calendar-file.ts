@@ -28,18 +28,28 @@ export interface CalendarBooking {
     readonly addressLine: string | null;
     readonly city: string | null;
   };
+  /** ISO-8601 instant of the booking's last change: booked, cancelled, released, rebooked. */
+  readonly updatedAt: string;
 }
 
 export interface CalendarEvent {
   /** Derived from the booking, so every download gives the booking the same event. */
   readonly uid: string;
-  readonly status: 'confirmed';
+  /** `cancelled` takes the class out of the member's calendar on re-import. */
+  readonly status: 'confirmed' | 'cancelled';
   readonly summary: string;
   readonly location: string;
   /** The instructor; empty when the class has none. */
   readonly description: string;
   readonly startsAt: Date;
   readonly endsAt: Date;
+  /** The booking's last change. */
+  readonly lastModified: Date;
+  /**
+   * Rises with every change to the booking, and when the tenant calls the class
+   * off, so Apple Calendar and Outlook take a re-import as an update.
+   */
+  readonly sequence: number;
 }
 
 export interface CalendarFile {
@@ -60,8 +70,11 @@ export interface NothingToSend {
 
 export function calendarFile(bookings: readonly CalendarBooking[], now: Date): CalendarFile | NothingToSend {
   const events = bookings
-    .filter((booking) => !hasStarted(booking, now) && isEntry(booking))
-    .map(toEvent)
+    .filter((booking) => !hasStarted(booking, now))
+    .flatMap((booking) => {
+      const status = entryStatus(booking);
+      return status === null ? [] : [toEvent(booking, status)];
+    })
     .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
   if (events.length === 0) return { nothingToSend: true, events: [] };
   return { nothingToSend: false, events, text: toICalendar(events, now) };
@@ -72,16 +85,23 @@ function hasStarted(booking: CalendarBooking, now: Date): boolean {
   return new Date(booking.startsAt).getTime() <= now.getTime();
 }
 
-/** A place in a class that runs. */
-function isEntry(booking: CalendarBooking): boolean {
-  return booking.status === 'booked' && !booking.classCancelled;
+/**
+ * What the booking is in the file, or null when it is no entry. A place in a
+ * class that runs is a confirmed event. A booking the member cancelled or
+ * promotion released is a cancelled event, as is a place on a cancelled class,
+ * so a re-import takes the class out of the member's calendar.
+ */
+function entryStatus(booking: CalendarBooking): CalendarEvent['status'] | null {
+  if (booking.status === 'cancelled') return 'cancelled';
+  if (booking.status !== 'booked') return null;
+  return booking.classCancelled ? 'cancelled' : 'confirmed';
 }
 
-function toEvent(booking: CalendarBooking): CalendarEvent {
+function toEvent(booking: CalendarBooking, status: CalendarEvent['status']): CalendarEvent {
   const { site } = booking;
   return {
     uid: `${booking.bookingId}@beefcake`,
-    status: 'confirmed',
+    status,
     summary: booking.className,
     location: [site.name, site.addressLine, site.city]
       .filter((part) => part !== null && part !== '')
@@ -89,7 +109,25 @@ function toEvent(booking: CalendarBooking): CalendarEvent {
     description: booking.instructorName ?? '',
     startsAt: new Date(booking.startsAt),
     endsAt: new Date(booking.endsAt),
+    lastModified: new Date(booking.updatedAt),
+    sequence: sequenceOf(booking),
   };
+}
+
+/** Where sequences count from; seconds from here fit RFC 5545's 32-bit INTEGER until 2088. */
+const SEQUENCE_EPOCH = Date.UTC(2020, 0, 1);
+
+/**
+ * The event's SEQUENCE, derived from the data and never from the clock, so the
+ * same booking gives the same number in every download until it changes.
+ * Every change to a booking (booked, cancelled, released, rebooked) moves its
+ * `updatedAt` on, which raises the sequence. Calling a class off leaves the
+ * booking as it was, so a cancelled class adds one: it cannot be booked again,
+ * so nothing later competes for that number.
+ */
+function sequenceOf(booking: CalendarBooking): number {
+  const seconds = Math.floor((new Date(booking.updatedAt).getTime() - SEQUENCE_EPOCH) / 1000);
+  return Math.max(0, seconds) + (booking.classCancelled ? 1 : 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +147,8 @@ function toICalendar(events: readonly CalendarEvent[], now: Date): string {
       `DTSTAMP:${utc(now)}`,
       `DTSTART:${utc(event.startsAt)}`,
       `DTEND:${utc(event.endsAt)}`,
+      `LAST-MODIFIED:${utc(event.lastModified)}`,
+      `SEQUENCE:${event.sequence}`,
       `SUMMARY:${text(event.summary)}`,
       `LOCATION:${text(event.location)}`,
       `DESCRIPTION:${text(event.description)}`,
