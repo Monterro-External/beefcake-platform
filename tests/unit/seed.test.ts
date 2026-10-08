@@ -483,6 +483,22 @@ describe('classes, bookings and waitlists', () => {
     ).toBe(0);
   });
 
+  it('gives every tenant a member login with nothing booked from today on', () => {
+    // The member the schedule tells "You have no upcoming booked classes."
+    const without = sql(
+      `select t.id from tenants t
+        where not exists (
+          select 1 from users u
+            join members m on m.id = u.member_id
+            join subscriptions s on s.member_id = m.id and s.status = 'active'
+           where u.tenant_id = t.id and u.role = 'member' and m.status = 'active'
+             and not exists (
+               select 1 from bookings b join classes c on c.id = b.class_id
+                where b.member_id = m.id and c.starts_at >= (select today from seed_meta)))`,
+    );
+    expect(without).toEqual([]);
+  });
+
   it('never fills a class past capacity', () => {
     expect(
       row<{ n: number }>(

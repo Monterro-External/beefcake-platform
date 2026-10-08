@@ -143,7 +143,7 @@ function promoteInto(
       .where(and(eq(bookings.tenantId, scope.tenantId), eq(bookings.id, promotion.bookingId)))
       .get();
 
-    if (applied?.status === 'waitlisted') {
+    if (applied?.status === 'booked') {
       for (const releasedId of promotion.releases) {
         scope.db
           .update(bookings)
@@ -167,7 +167,7 @@ function promoteInto(
       at,
     });
 
-    if (applied?.status === 'waitlisted') {
+    if (applied?.status === 'booked') {
       for (const releasedId of promotion.releases) {
         recordEvent(scope, {
           action: 'booking.cancelled',

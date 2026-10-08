@@ -30,6 +30,7 @@ import { guard } from '@/db/repositories/scope';
 import { and, eq, inArray } from 'drizzle-orm';
 import { type PlainDate, addDays, localDay, startOfDay } from '@/domain/dates';
 import { effectiveStatus } from '@/domain/subscriptions';
+import { loadCalendarFile } from './calendar/load';
 import { timezoneForCountry } from '@/jobs/runner';
 
 export const dynamic = 'force-dynamic';
@@ -114,6 +115,9 @@ export default async function MemberSchedule() {
     byDay.set(day, list);
   }
 
+  // The same decision the download makes, so the button never leads to no file.
+  const nothingToSend = loadCalendarFile(scope, member.id, time.now).nothingToSend;
+
   const canBook = state === 'active' || state === 'cancelling';
   const siteNames = new Map(sites.map((site) => [site.id, site.name]));
 
@@ -154,6 +158,24 @@ export default async function MemberSchedule() {
           </Callout>
         </div>
       )}
+
+      <section aria-label="Calendar file" className="mb-4 flex flex-wrap items-center gap-3">
+        {nothingToSend ? (
+          <span className="text-ink-muted">You have no upcoming booked classes.</span>
+        ) : (
+          <>
+            {/* A plain anchor: the answer is a file download, not a page to route to. */}
+            <a
+              href="/me/calendar"
+              download
+              className="inline-flex items-center justify-center gap-1.5 rounded border border-line bg-surface-raised px-2.5 py-1.5 font-medium hover:bg-accent-soft"
+            >
+              Add my booked classes to your calendar
+            </a>
+            <span className="text-ink-muted">Changed a booking? Download again to update your calendar.</span>
+          </>
+        )}
+      </section>
 
       {byDay.size === 0 ? (
         <Card>

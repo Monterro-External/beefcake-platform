@@ -515,6 +515,31 @@ export function holdsCard(member: SeedMember): boolean {
   return member.status !== 'former';
 }
 
+/**
+ * The member logins at a tenant, so the dev persona switcher has someone to be.
+ * The first three active members, who book classes like everyone else, and one
+ * more on an active subscription who has nothing booked from today on: the
+ * member the schedule tells "You have no upcoming booked classes."
+ */
+export function memberLogins(members: readonly SeedMember[]): { member: SeedMember; booksAhead: boolean }[] {
+  const active = members.filter((m) => m.status === 'active');
+  const booking = active.slice(0, 3);
+  const idle = active.slice(3).find((m) => m.subscriptionStatus === 'active');
+  return [
+    ...booking.map((member) => ({ member, booksAhead: true })),
+    ...(idle === undefined ? [] : [{ member: idle, booksAhead: false }]),
+  ];
+}
+
+/** Ids of the member logins with nothing booked from today on: they keep their past classes only. */
+export function membersWithNothingAhead(members: readonly SeedMember[]): ReadonlySet<string> {
+  return new Set(
+    memberLogins(members)
+      .filter((login) => !login.booksAhead)
+      .map((login) => login.member.id),
+  );
+}
+
 /** Periods in which the member should be charged, given their history. */
 export function billablePeriods(member: SeedMember, runs: readonly { period: BillingPeriod; from: PlainDate; to: PlainDate; completed: boolean }[]): BillingPeriod[] {
   const out: BillingPeriod[] = [];

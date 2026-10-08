@@ -17,6 +17,7 @@ import { sequentialId } from '../ids';
 import type { Sqlite } from '../client';
 import { BulkInserter } from './writer';
 import { CLASS_NAMES } from './names';
+import { membersWithNothingAhead } from './people';
 import type { SeedMember, SeedSite, SeedWorld, TableCounts } from './model';
 import type { Anchors } from './options';
 
@@ -146,6 +147,7 @@ export function writeSchedule(
   const days = eachDay(anchors.classesFrom, anchors.classesTo);
 
   for (const tenant of world.tenants) {
+    const nothingAhead = membersWithNothingAhead(tenant.members);
     for (const site of tenant.sites) {
       const rng = createRng(`${seed}|schedule|${site.id}`);
       const template = weeklyTemplate(rng, site);
@@ -228,6 +230,7 @@ export function writeSchedule(
             if ((perMemberToday.get(member.id) ?? 0) >= dailyCap) continue;
             if (member.joinedOn > day) continue;
             if (member.endsOn !== null && member.endsOn < day) continue;
+            if (!inThePast && nothingAhead.has(member.id)) continue;
             bookedToday.add(`${klass.id}|${member.id}`);
             perMemberToday.set(member.id, (perMemberToday.get(member.id) ?? 0) + 1);
 
