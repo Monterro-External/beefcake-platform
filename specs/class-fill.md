@@ -9,20 +9,22 @@ The class fill report splits the bookings that hold a place into upcoming,
 unmarked, attended and no-show. Fill rate is places taken ÷ capacity; no-show
 rate is no-shows ÷ (attended + no-shows), and a site that marked nothing has no
 no-show rate, shown as "–". The reports page (`/app/reports`) class fill table
-reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. The class fill
-CSV export keeps its columns in order and adds `no_show`, `unmarked` and
-`upcoming` at the end. This plan covers AS-1 and AS-2 (BCPLA-21), AS-3
-(BCPLA-23): the classes page (`/app/classes`) site fill tile reads "No
-attendance marked · N classes" when the site has no no-show rate, AS-5
-(BCPLA-24), and AS-6 (BCPLA-25): the dashboard class fill tile agrees with the
-class fill report. Upcoming against unmarked, waitlisted and
-cancelled bookings, cancelled classes and tenant isolation are unit tests on
-the report (`tests/unit/class-fill.test.ts`).
+reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. A class
+counts in the period of its site-local day, in its own site's timezone. The
+class fill CSV export keeps its columns in order and adds `no_show`,
+`unmarked` and `upcoming` at the end. This plan covers AS-1 and AS-2
+(BCPLA-21), AS-3 (BCPLA-23): the classes page (`/app/classes`) site fill tile
+reads "No attendance marked · N classes" when the site has no no-show rate,
+AS-4 (BCPLA-22), AS-5 (BCPLA-24), and AS-6 (BCPLA-25): the dashboard class
+fill tile agrees with the class fill report. Upcoming against unmarked,
+waitlisted and cancelled bookings, cancelled classes, tenant isolation, and
+the Stockholm, Helsinki and leap-year month ends are unit tests on the report
+(`tests/unit/class-fill.test.ts`).
 
 The seed marks every past booking, so it never produces an unmarked roster.
 Each test adds its own site, Hornstull (Europe/Stockholm), to Puls Träning
-with only the classes and bookings its scenario describes, three days before
-the seeded today at 18:00 local, and removes the site, its classes, bookings
+with only the classes and bookings its scenario describes, by default three
+days before the seeded today at 18:00 local, and removes the site, its classes, bookings
 and members when the test ends. The fixture is `hornstull` in
 `tests/e2e/class-fill/hornstull.ts`. Every Then reads the Hornstull row of the
 "Class fill by site" table for the last 30 days, by column header.
@@ -63,7 +65,21 @@ and members when the test ends. The fixture is `hornstull` in
 **Expected:**
 - The tile reads "No attendance marked · 2 classes", not a no-show percentage.
 
-#### 1.4 AS-5 The class fill export keeps its columns and adds the new counts at the end
+#### 1.4 AS-4 A class just after local midnight on the first day of the window counts in the window
+
+The last 30 days run from 30 days before the seeded today to today, as local
+days at Hornstull.
+
+**Steps:**
+1. Add Hornstull to Puls Träning with a class of 10 places at 00:30 local time 30 days before the seeded today (22:30 UTC the day before), with 2 attended bookings.
+2. Add a class of 20 places at 23:30 local time 31 days before the seeded today, with 5 attended bookings.
+3. Sign in as the owner of Puls Träning and open `/app/reports?days=30`.
+4. Read the Hornstull row of "Class fill by site".
+
+**Expected:**
+- Classes 1, Booked 2: the 00:30 class counts, the 23:30 class the night before does not.
+
+#### 1.5 AS-5 The class fill export keeps its columns and adds the new counts at the end
 
 **Steps:**
 1. Add Hornstull to Puls Träning with one class of 10 places and 3 bookings still `booked`, none marked.
@@ -74,7 +90,7 @@ and members when the test ends. The fixture is `hornstull` in
 - The header is `site_id, site_name, classes, capacity, booked, attended, waitlisted, fill_rate, no_show_rate, no_show, unmarked, upcoming`, in that order.
 - Hornstull's row has an empty `no_show_rate` cell and `unmarked` 3.
 
-#### 1.5 AS-6 The dashboard class fill tile agrees with the class fill report
+#### 1.6 AS-6 The dashboard class fill tile agrees with the class fill report
 
 **Steps:**
 1. Add Hornstull to Puls Träning with one class of 10 places and 3 bookings still `booked`, none marked.

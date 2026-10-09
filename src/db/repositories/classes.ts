@@ -261,7 +261,7 @@ export interface ClassFillRows {
 
 /**
  * What the class fill report counts: the classes that are not cancelled and
- * start in [from, to), with their site, and the place-holding and waitlisted
+ * start in [from, to), with their site and its timezone, and the place-holding and waitlisted
  * bookings on them. Two queries rather than one joined row per booking:
  * summing capacity over bookings joined to classes multiplies capacity by the
  * number of bookings, which is how the old fill-rate report managed to report
@@ -285,6 +285,7 @@ export function classFillRows(scope: TenantScope, window: { from: string; to: st
         id: classes.id,
         siteId: classes.siteId,
         siteName: sites.name,
+        timezone: sites.timezone,
         startsAt: classes.startsAt,
         capacity: classes.capacity,
       })
@@ -312,10 +313,11 @@ export function classFillRows(scope: TenantScope, window: { from: string; to: st
   );
 
   return {
-    classes: classRows.map(({ id, siteId, siteName, startsAt, capacity }) => ({
+    classes: classRows.map(({ id, siteId, siteName, timezone, startsAt, capacity }) => ({
       id,
       siteId,
       siteName,
+      timezone,
       startsAt,
       capacity,
     })),

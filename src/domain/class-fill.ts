@@ -9,8 +9,15 @@
  * Fill rate counts all four against capacity; no-show rate counts only the
  * marked ones, so a roster nobody took never reads as a no-show problem.
  *
- * Pure: rows and `now` in, per-site results out. No clock, no database.
+ * A class belongs to the window when its site-local day, in its own site's
+ * timezone, falls within the window's inclusive local days. A 00:30 class in
+ * Stockholm on the 1st belongs to the 1st, though it starts on the 31st in UTC.
+ *
+ * Pure: rows, the window and `now` in, per-site results out. No clock, no
+ * database.
  */
+
+import { type PlainDate, type Timezone, localDay } from '@/domain/dates';
 
 export type ClassFillBookingStatus = 'booked' | 'waitlisted' | 'cancelled' | 'attended' | 'no_show';
 
@@ -18,6 +25,7 @@ export interface ClassFillClass {
   readonly id: string;
   readonly siteId: string;
   readonly siteName: string;
+  readonly timezone: Timezone;
   /** ISO instant. */
   readonly startsAt: string;
   readonly capacity: number;
@@ -57,21 +65,31 @@ interface Tally {
   waitlisted: number;
 }
 
+/** Inclusive site-local days. */
+export interface LocalDayWindow {
+  readonly from: PlainDate;
+  readonly to: PlainDate;
+}
+
 /**
- * Every class passed in is counted; the caller has already chosen the window
- * and left out cancelled classes. Capacity is summed per class and bookings
+ * Counts the classes whose site-local day falls in `window`; the caller may
+ * pass classes either side of it, and has left out cancelled classes. Capacity is summed per class and bookings
  * per booking, never through one joined row, so capacity is never multiplied by
  * the booking count. Sites come back ordered by name.
  */
 export function classFillBySite(
   classList: readonly ClassFillClass[],
   bookingList: readonly ClassFillBooking[],
+  window: LocalDayWindow,
   now: Date,
 ): SiteClassFill[] {
   const tallies = new Map<string, Tally>();
   const started = new Map<string, { tally: Tally; started: boolean }>();
 
   for (const klass of classList) {
+    const startsAt = new Date(klass.startsAt);
+    const day = localDay(startsAt, klass.timezone);
+    if (day < window.from || day > window.to) continue;
     let tally = tallies.get(klass.siteId);
     if (tally === undefined) {
       tally = {
@@ -89,7 +107,7 @@ export function classFillBySite(
     }
     tally.classes += 1;
     tally.capacity += klass.capacity;
-    started.set(klass.id, { tally, started: Date.parse(klass.startsAt) <= now.getTime() });
+    started.set(klass.id, { tally, started: startsAt.getTime() <= now.getTime() });
   }
 
   for (const booking of bookingList) {

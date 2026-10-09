@@ -297,17 +297,21 @@ export function churnWithPaymentLag(scope: TenantScope, window: ReportWindow): C
 export type ClassFillRow = SiteClassFill;
 
 /**
- * Class fill per site over a window of days, as it stands at `now`. A class has
+ * Class fill per site over a window of days, as it stands at `now`. A class
+ * counts on its site-local day, in its own site's timezone. A class has
  * started when it starts at or before `now`; bookings on a class that has not
  * started are upcoming, and bookings on one that has but were never marked are
  * unmarked. Callers pass `now` from the application clock.
  */
 export function classFillBySite(scope: TenantScope, window: ReportWindow, now: Date): ClassFillRow[] {
+  // A Nordic local day lies within a day of the UTC day of the same date, so a
+  // one-day UTC pad either side fetches every candidate; the domain function
+  // keeps the classes whose site-local day is in the window.
   const rows = classesRepo.classFillRows(scope, {
-    from: `${window.from}T00:00:00.000Z`,
-    to: `${addDays(window.to, 1)}T00:00:00.000Z`,
+    from: `${addDays(window.from, -1)}T00:00:00.000Z`,
+    to: `${addDays(window.to, 2)}T00:00:00.000Z`,
   });
-  return siteClassFill(rows.classes, rows.bookings, now);
+  return siteClassFill(rows.classes, rows.bookings, window, now);
 }
 
 /**
