@@ -33,8 +33,9 @@ export default defineConfig({
     command: `npm run dev -- --port ${port}`,
     url: baseURL,
     reuseExistingServer: false,
-    // The same file `tests/e2e/helpers.ts` opens.
-    env: { BEEFCAKE_DB: resolve(process.env.BEEFCAKE_DB ?? 'data/beefcake.db') },
+    // The same file `tests/e2e/helpers.ts` opens. Its own log, so a dev server
+    // or Aspire running alongside keeps data/dev.log.
+    env: { BEEFCAKE_DB: resolve(process.env.BEEFCAKE_DB ?? 'data/beefcake.db'), DEV_LOG: 'data/e2e-dev.log' },
     timeout: 120_000,
   },
 });

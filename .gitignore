@@ -19,6 +19,7 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 data/.last-seed.json
+data/*.log
 
 .env
 .env.local
