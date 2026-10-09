@@ -14,7 +14,7 @@ One Next.js application serves three surfaces:
 
 ## Getting started
 
-Requires Node 20.11 or newer. No database server, no Docker.
+Requires Node 22 or newer. No database server, no Docker.
 
 ```bash
 git clone <this repo>

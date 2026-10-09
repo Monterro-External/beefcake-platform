@@ -1,0 +1,10 @@
+#!/bin/sh
+# Lint the staged files and typecheck the project before a commit: the two
+# fast halves of what CI runs. Installed by `npm install` (the prepare script).
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.tsx' '*.js' '*.mjs' '*.cjs')
+if [ -n "$staged" ]; then
+  echo "$staged" | xargs npx eslint
+fi
+npm run -s typecheck
