@@ -108,11 +108,10 @@ Start with tenant Puls Träning for ordinary work, Nordic Fitness Group for volu
 Every e2e run, and every manual check of a change in the browser, ends with
 reading what the server did, not only the test verdict.
 
-1. Start the site with `npm run aspire:start` before the run, so step 3 has traces to read.
-2. Read Playwright's output: the list reporter, then `test-results/` (error context, trace, video) for each failure.
-3. If `aspire ps` shows the AppHost running, Playwright reused its server on :3000, so the server side of the run is in Aspire. Read `aspire logs web --search <text>` (console), `aspire otel logs web` and `aspire otel traces web` (spans with status). An error or a 4xx/5xx there that no test asserted on gets reported too.
-4. Without the AppHost, the server's output is in `data/dev.log`, rewritten on each `npm run dev`.
-5. CI has no AppHost: step 2 is all there is. Locally Aspire complements Playwright's output; it never replaces it.
+1. Read Playwright's output: the list reporter, then `test-results/` (error context, trace, video) for each failure.
+2. An e2e run starts its own server on :3100 and never reuses one (`playwright.config.ts`), so the server side of the run is in `data/dev.log`, rewritten on each `npm run dev`. An error or a 4xx/5xx there that no test asserted on gets reported too.
+3. A manual check against the site under Aspire (`npm run aspire:start`, :3000) is in Aspire: `aspire logs web --search <text>` (console), `aspire otel logs web` and `aspire otel traces web` (spans with status).
+4. CI has no AppHost: Playwright's output, plus the dev log the job prints when Playwright fails.
 
 ### Product ticket to implementation tickets
 

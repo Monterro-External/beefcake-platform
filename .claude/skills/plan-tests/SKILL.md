@@ -21,12 +21,12 @@ You are the **manager**: the planner and generator subagents do the browser work
 
 3. **Generate.** Launch `playwright-test-generator` in the background on the plan, writing to `tests/e2e/<feature>/`, about 6 browser actions per scenario, each test run with `test_run` once written. Arm the watcher. Done when it hands back.
 
-4. **Watch** (after every launch). Start the Monitor tool, `timeout_ms` 1800000, on
-   `.claude/skills/plan-tests/scripts/watch-agent.sh <output_file> [tests/e2e/<feature>]`, with `output_file` from the Agent result. One line a minute; relay progress in a short line when the user asks or a file appears.
-   - On `STALL`: TaskStop the agent, then SendMessage the same agent id with narrower orders (save now, skip the call that hung). It keeps what it explored; a fresh agent starts over.
+4. **Watch** (after every launch). Run
+   `.claude/skills/plan-tests/scripts/watch-agent.sh <output_file> [tests/e2e/<feature>]` for up to 30 minutes, with `output_file` the subagent's transcript or output file. In Claude Code that is the Monitor tool (`timeout_ms` 1800000) on the Agent result's `output_file`; elsewhere, run it in the background and read its output. One line a minute; relay progress in a short line when the user asks or a file appears.
+   - On `STALL`: stop the agent, then send the same agent narrower orders (save now, skip the call that hung); in Claude Code, TaskStop then SendMessage with its id. It keeps what it explored; a fresh agent starts over.
    - On `DONE`: stop the monitor.
 
-5. **Verify.** Close the MCP browser with `browser_close`. Run `npx tsc --noEmit -p tests/e2e/tsconfig.json`, `npx eslint tests/e2e/<feature>`, then `npx playwright test tests/e2e/<feature> --project=chromium --reporter=list`. When several fail the same way, run an existing spec (`tests/e2e/personas.spec.ts`) as a control: if it fails too, the server is at fault, not the tests. Fix the tests, or tag `@wip` what is not built. Done when every test passes or is `@wip`.
+5. **Verify.** Close the MCP browser with `browser_close`. Run `npx tsc --noEmit -p tests/e2e/tsconfig.json`, `npx eslint tests/e2e/<feature>`, then `npx playwright test tests/e2e/<feature> --project=chromium --grep-invert @wip --reporter=list`. When several fail the same way, run an existing spec (`tests/e2e/personas.spec.ts`) as a control: if it fails too, the server is at fault, not the tests. Fix the tests, or tag `@wip` what is not built. Done when that run is green and anything left out is tagged `@wip`.
 
 6. **Read the logs** as in AGENTS.md "Read the logs after a test run": every 5xx or error that no test asserted on is reported.
 

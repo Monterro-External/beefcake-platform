@@ -7,7 +7,7 @@
   },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
-    "dev": "mkdir -p data && sh -c 'next dev \"$@\" 2>&1 | tee data/dev.log' --",
+    "dev": "mkdir -p data && bash -o pipefail -c 'next dev \"$@\" 2>&1 | tee data/dev.log' --",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
