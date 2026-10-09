@@ -14,7 +14,7 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
-Every Spec also gets browser acceptance scenarios later (`docs/testing/pr-evidence.md`): the seams here are for the tests beneath them, so the Testing Decisions name both.
+Every Spec also gets browser acceptance scenarios later (`docs/testing/pr-evidence.md`). The seams here are for the tests beneath them. The Testing Decisions therefore name two things: the unit or integration tests at these seams, and the user-visible flows the browser acceptance scenarios will cover.
 
 Check with the user that these seams match their expectations.
 
@@ -63,7 +63,8 @@ Exception: if a prototype produced a snippet that encodes a decision more precis
 A list of testing decisions that were made. Include:
 
 - A description of what makes a good test (only test external behavior, not implementation details)
-- Which modules will be tested
+- Which modules will be tested, at which seams
+- Which user-visible flows the browser acceptance scenarios will cover
 - Prior art for the tests (i.e. similar types of tests in the codebase)
 
 ## Out of Scope
