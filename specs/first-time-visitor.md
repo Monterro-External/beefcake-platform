@@ -2,7 +2,7 @@
 
 ## Application Overview
 
-Cold visitor to Beefcake dev site: a browser with no `beefcake_dev_persona` cookie. Scenarios use the `@registration` area tag (signup) and `@happy`/`@edge`/`@error`/`@negative`/`@regression` type tags from `docs/test-tags.md`; none are `@acceptance` (no BCPLA Spec). Every scenario starts in a fresh browser context with no cookies, base URL http://127.0.0.1:3000 (persona cookies are bound to host 127.0.0.1). Tenant: Puls Träning; look up its users via `personaFor(role, 'Puls Träning')` in `tests/e2e/helpers.ts`. The DB is read-only to tests.
+Cold visitor to Beefcake dev site: a browser with no `beefcake_dev_persona` cookie. Scenarios use the `@registration` area tag (signup) and `@happy`/`@edge`/`@error`/`@negative`/`@regression` type tags from `docs/test-tags.md`; none are `@acceptance` (no BCPLA Spec). Every scenario starts in a fresh browser context with no cookies, base URL http://127.0.0.1:3100 (`E2E_PORT` in `playwright.config.ts`; persona cookies are bound to host 127.0.0.1). Tenant: Puls Träning; pick its users through the switcher with `chooseInSwitcher(page, 'Puls Träning', role)` in `tests/e2e/helpers.ts` (it offers the first user by name, not the one `personaFor()` returns). The DB is read-only to tests.
 
 Not repeated, already covered: entry page heading, three surface links, seeded DB block and Tenant app link (`tests/e2e/site-smoke/entry-page-links-to-surfaces.spec.ts`); new-member form opening and duplicate email (`tests/e2e/site-smoke/`); no-cookie default landing per surface (`tests/e2e/personas.spec.ts`, second test); front-desk happy-path signup (`tests/e2e/member-signup.spec.ts`).
 
@@ -96,7 +96,7 @@ Open questions:
     - expect: Browser validation blocks submit; URL unchanged; no member created (not verified).
   2. Enter Name 'Testperson', Email 'not-an-email', click Sign up.
     - expect: Submit blocked by email validation (not verified).
-  3. Enter a valid email, set Birth year to a value above current year minus 14 (2020) and click Sign up.
+  3. Enter a valid email, set Birth year to one above the input's `max` (the seeded year minus 14, read from the page) and click Sign up.
     - expect: Browser blocks submit with a range message (not verified).
 
 #### 1.9. Signup rejects an existing Puls Träning email

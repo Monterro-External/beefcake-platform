@@ -3,8 +3,7 @@
 
 import { test } from '@playwright/test';
 import { expect } from '../evidence';
-import { chooseInSwitcher } from './switcher';
-import { withDb } from '../helpers';
+import { chooseInSwitcher, withDb } from '../helpers';
 
 test.describe('First-time visitor', { tag: '@registration' }, () => {
   test('Signup rejects an existing Puls Träning email', { tag: '@error' }, async ({ page }) => {

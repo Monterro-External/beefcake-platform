@@ -3,7 +3,7 @@
 
 import { test } from '@playwright/test';
 import { expect } from '../evidence';
-import { chooseInSwitcher } from './switcher';
+import { chooseInSwitcher } from '../helpers';
 
 test.describe('First-time visitor', { tag: '@registration' }, () => {
   test('Visitor picks Puls Träning front desk with the switcher', { tag: '@happy' }, async ({ page }) => {

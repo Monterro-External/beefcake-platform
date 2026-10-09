@@ -3,8 +3,7 @@
 
 import { test } from '@playwright/test';
 import { expect } from '../evidence';
-import { chooseInSwitcher } from './switcher';
-import { seededToday, withDb } from '../helpers';
+import { chooseInSwitcher, seededToday, withDb } from '../helpers';
 
 test.describe('First-time visitor', { tag: '@registration' }, () => {
   test('Visitor signs up a new member after choosing a persona', { tag: '@happy' }, async ({ page }) => {
