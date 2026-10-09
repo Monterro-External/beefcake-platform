@@ -5,6 +5,12 @@
  * two things the unit tests do not: a way to become a particular persona, and a
  * way to look ids up rather than hardcoding them (the seed is deterministic, but
  * hardcoding ids in tests makes every seed change a test change).
+ *
+ * The database is opened read-only: a test changes state through the app, and
+ * the data it starts from comes from the seed. When a scenario needs someone the
+ * seed lacks (a member with nothing booked, say), add them to the seed with an
+ * invariant in `tests/unit/seed.test.ts`, as `memberLogins()` in
+ * `src/db/seed/people.ts` does, and look them up here.
  */
 
 import Database from 'better-sqlite3';

@@ -3,9 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "engines": {
-    "node": ">=20.11"
+    "node": ">=22"
   },
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

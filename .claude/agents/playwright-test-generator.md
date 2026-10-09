@@ -31,6 +31,10 @@ application behavior.
     `test.use(recordEvidence)` from `tests/e2e/evidence.ts`. The Gherkin lives on the BCPLA Spec issue; the
     test title must equal its scenario name, id included (`AS-1 …`), word for word.
   - Always use best practices from the log when generating tests.
+  - Take setup data from the seed through the lookups in `tests/e2e/helpers.ts`, which open the database
+    read-only. When a scenario needs a row the seed lacks, stop and report it: the seed gains it (see the
+    `helpers.ts` header), not the test.
+  - A test for a screen that is not built yet carries `@wip`, which CI leaves out.
 
    <example-generation>
    For following plan:

@@ -50,3 +50,14 @@ You will:
 
 **Output Format**: Always save the complete test plan as a markdown file with clear headings, numbered steps, and
 professional formatting suitable for sharing with development and QA teams.
+
+# This repo
+
+- Read `docs/testing/pr-evidence.md` and `docs/test-tags.md` first: the Gherkin on the BCPLA Spec issue
+  names the scenarios, and each test title equals its scenario name, id included.
+- A step on a screen that is not built yet is marked `(not built yet - from the Spec)`, and its test is
+  tagged `@wip`.
+- Setup data comes from the seed. Look a persona up through `tests/e2e/helpers.ts`; a jobs step runs an
+  existing `npm run jobs:*` script (see `package.json`).
+- Open questions go in the plan's overview text, as a numbered list. Every suite in `planner_save_plan`
+  becomes tests, so a suite holds test cases only.
