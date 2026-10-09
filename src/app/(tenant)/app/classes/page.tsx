@@ -130,7 +130,9 @@ export default async function ClassesPage({
           hint={
             siteFill === undefined
               ? undefined
-              : `${optionalPercent(siteFill.noShowRate, 0, locale)} no-show over ${integer(siteFill.classes, locale)} classes`
+              : siteFill.noShowRate === null
+                ? `No attendance marked · ${integer(siteFill.classes, locale)} classes`
+                : `${percent(siteFill.noShowRate, 0, locale)} no-show over ${integer(siteFill.classes, locale)} classes`
           }
         />
       </div>
@@ -225,6 +227,7 @@ export default async function ClassesPage({
                   <TH align="right">Places</TH>
                   <TH align="right">Booked</TH>
                   <TH>Fill</TH>
+                  <TH align="right">Unmarked</TH>
                   <TH align="right">No-show</TH>
                   <TH align="right">Waitlisted</TH>
                 </TR>
@@ -242,6 +245,7 @@ export default async function ClassesPage({
                         tone={row.fillRate > 0.85 ? 'good' : row.fillRate < 0.5 ? 'warn' : 'info'}
                       />
                     </TD>
+                    <TD align="right">{integer(row.unmarked, locale)}</TD>
                     <TD align="right">{optionalPercent(row.noShowRate, 0, locale)}</TD>
                     <TD align="right">{integer(row.waitlisted, locale)}</TD>
                   </TR>

@@ -10,7 +10,9 @@ unmarked, attended and no-show. Fill rate is places taken ÷ capacity; no-show
 rate is no-shows ÷ (attended + no-shows), and a site that marked nothing has no
 no-show rate, shown as "–". The reports page (`/app/reports`) class fill table
 reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. This plan
-covers AS-1 and AS-2 (BCPLA-21). Upcoming against unmarked, waitlisted and
+covers AS-1 and AS-2 (BCPLA-21), and AS-3 (BCPLA-23): the classes page
+(`/app/classes`) site fill tile reads "No attendance marked · N classes" when
+the site has no no-show rate. Upcoming against unmarked, waitlisted and
 cancelled bookings, cancelled classes and tenant isolation are unit tests on
 the report (`tests/unit/class-fill.test.ts`).
 
@@ -47,3 +49,13 @@ and members when the test ends. The fixture is `hornstull` in
 
 **Expected:**
 - Unmarked 3, and No-show reads "–", not 0 %.
+
+#### 1.3 AS-3 The site tile says no attendance was marked
+
+**Steps:**
+1. Add Hornstull to Puls Träning with two classes of 10 places, 3 and 10 days before the seeded today, with 3 and 5 bookings still `booked`, none marked.
+2. Sign in as the site manager of Puls Träning and open `/app/classes?site=sit_e2ehornstull`.
+3. Read the "Site fill, 30 days" tile.
+
+**Expected:**
+- The tile reads "No attendance marked · 2 classes", not a no-show percentage.
