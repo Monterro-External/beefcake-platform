@@ -96,6 +96,11 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/bdd-results.json
         run: npm run test:e2e -- --grep @acceptance --grep-invert @wip --project=chromium --reporter=list,html,json
 
+      # The dev server writes to data/dev.log, not to Playwright's output.
+      - name: Server log
+        if: ${{ failure() }}
+        run: tail -n 300 data/dev.log || true
+
       - name: Build video timelines from recorded test steps
         if: ${{ !cancelled() }}
         run: node .github/scripts/bdd-timeline.cjs
@@ -146,6 +151,11 @@ jobs:
 
       # @acceptance scenarios run, recorded, in the acceptance job.
       - run: npm run test:e2e -- --grep-invert "@acceptance|@wip"
+
+      # The dev server writes to data/dev.log, not to Playwright's output.
+      - name: Server log
+        if: ${{ failure() }}
+        run: tail -n 300 data/dev.log || true
 
       # Only a failure needs the report; passing runs would fill the storage quota.
       - uses: actions/upload-artifact@v7
