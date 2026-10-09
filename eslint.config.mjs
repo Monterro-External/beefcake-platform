@@ -4,9 +4,11 @@ import next from 'eslint-config-next';
 // is the site's day boundary only when the site is in UTC, which no Nordic site
 // is. That is how classes, errors and seed cut-offs landed on the wrong day
 // (BCPLA-18, BCPLA-20). A midday UTC time falls on the same Nordic day, so seed
-// timestamps such as T10:00 are left alone.
+// timestamps such as T10:00 are left alone, and so are site-local times with an
+// offset (`T00:00:00+02:00`) or bare wall-clock times (`T23:14:07`): only a `Z`
+// marks UTC.
 const UTC_DAY = {
-  selector: 'TemplateElement[value.raw=/^T(?:00|23):/]',
+  selector: 'TemplateElement[value.raw=/^T(?:00|23):[0-9:.]*Z/]',
   message:
     'A plain date with a UTC time is not the site-local day. Use startOfDay(day, timezone) or localDay(at, timezone) from src/domain/dates.ts.',
 };
