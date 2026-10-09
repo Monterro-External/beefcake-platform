@@ -168,7 +168,7 @@ function renderReport({ specs: linked, notes = [], linkedIds = [], report, timel
   lines.push('', `Browser test step: **${testOutcome}**. [Workflow run](${runUrl}).`, '');
   if (artifactUrl) {
     lines.push(`[Download HTML report, videos and traces](${artifactUrl})`, '',
-      'Requires repository access. Download and unzip the artifact. Open `test-results/bdd-evidence/index.html` for videos with clickable timestamps, or run `npx playwright show-report playwright-report` for the full report. Artifacts are retained for seven days.', '');
+      'Requires repository access. Download and unzip the artifact. Open `test-results/bdd-evidence/index.html` for videos with clickable timestamps, or run `npx playwright show-report playwright-report` for the full report. Artifacts are retained for three days.', '');
   } else {
     lines.push('**The report artifact is unavailable.** See the workflow logs.', '');
     problems.push('Report artifact missing');
