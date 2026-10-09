@@ -91,9 +91,12 @@ branches need more than one integration before removal.
 The repository ruleset **Gitflow: protect main and develop** enforces this on
 the server for both branches: a PR is required, merge commits are the only
 allowed method, all four checks above must pass and every conversation must be
-resolved; force pushes and deletion are blocked. No approval count is required
-and nobody bypasses the ruleset. A separate ruleset requests a Copilot review on
-PRs into `develop`. Change the rulesets in the repository's Settings → Rules,
+resolved; one approving review is required; force pushes and deletion are
+blocked. Nobody bypasses it. GitHub counts only an Approve from an account with
+write access other than the PR's author: a colleague, or a machine account an
+agent reviews with. Copilot's review comments do not count. A separate ruleset
+requests a Copilot review on PRs into `develop`. Ruleset **Gitflow: release
+tags v\*** lets only admins create, move or delete `v*` tags. Change the rulesets in the repository's Settings → Rules,
 and update this section when they change.
 
 Based on [the original Gitflow model](https://nvie.com/posts/a-successful-git-branching-model/),
