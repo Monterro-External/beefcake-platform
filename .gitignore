@@ -6,6 +6,8 @@ coverage/
 playwright-report/
 blob-report/
 test-results/
+# Playwright MCP console logs: unignored, every log line triggers a dev rebuild
+.playwright-mcp/
 # Saved sign-in state (storageState) is never committed
 playwright/.auth/
 *.tsbuildinfo
@@ -17,6 +19,7 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 data/.last-seed.json
+data/*.log
 
 .env
 .env.local

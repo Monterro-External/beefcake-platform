@@ -261,6 +261,7 @@ export default async function MemberPage({ params }: { params: Promise<{ memberI
                       <TD>{humanise(freeze.reason)}</TD>
                       <TD className="text-ink-muted">
                         {formatDate(
+                          // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: plain-date arithmetic for display; use addDays
                           (new Date(Date.parse(`${endsOn}T00:00:00Z`) + 86_400_000)
                             .toISOString()
                             .slice(0, 10) as PlainDate),

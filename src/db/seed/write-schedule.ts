@@ -207,6 +207,7 @@ export function writeSchedule(
           [];
 
         for (const klass of perDay) {
+          // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: 'in the past' cut-off at UTC midnight (noted on BCPLA-18)
           const inThePast = klass.startsAt < `${anchors.today}T00:00:00.000Z`;
           const popularity = slotPopularity(klass.slot, day);
           const target = Math.min(
@@ -295,6 +296,7 @@ export function writeSchedule(
 
           bookedToday.add(`${fallback.id}|${member.id}`);
           bookedCount.set(fallback.id, (bookedCount.get(fallback.id) ?? 0) + 1);
+          // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: 'in the past' cut-off at UTC midnight (noted on BCPLA-18)
           const inThePast = fallback.startsAt < `${anchors.today}T00:00:00.000Z`;
           bookingSeq += 1;
           bookingRows.push({

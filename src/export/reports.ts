@@ -305,7 +305,9 @@ export interface ClassFillRow {
 }
 
 export function classFillBySite(scope: TenantScope, window: ReportWindow): ClassFillRow[] {
+  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: class fill UTC window, fixed by BCPLA-22
   const from = `${window.from}T00:00:00.000Z`;
+  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: class fill UTC window, fixed by BCPLA-22
   const to = `${window.to}T23:59:59.999Z`;
 
   // Capacity and bookings are counted separately on purpose: joining them and
@@ -568,6 +570,7 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
   const errorRows = scope.db
     .select({ n: count() })
     .from(sql`errors`)
+    // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: tenant health UTC window, BCPLA-20
     .where(sql`tenant_id = ${scope.tenantId} and at >= ${`${thirtyDays.from}T00:00:00.000Z`}`)
     .get();
 
@@ -576,6 +579,7 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
     scope.db
       .select({ n: count() })
       .from(sql`events`)
+      // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: tenant health UTC window, BCPLA-20
       .where(sql`tenant_id = ${scope.tenantId} and at >= ${`${thirtyDays.from}T00:00:00.000Z`}`)
       .get()?.n ?? 1000,
   );
@@ -585,6 +589,7 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
       .select({ n: sql<number>`count(distinct actor_id)` })
       .from(sql`events`)
       .where(
+        // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: tenant health UTC window, BCPLA-20
         sql`tenant_id = ${scope.tenantId} and action = 'member_app.session' and at >= ${`${thirtyDays.from}T00:00:00.000Z`}`,
       )
       .get()?.n ?? 0;
@@ -592,6 +597,7 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
   const lag = syncLagBySite(scope);
   const worstLagHours = lag.reduce((worst, row) => {
     if (row.lastSuccessAt === null) return Math.max(worst, 168);
+    // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: access sync lag measured from UTC end of day
     const hours = (Date.parse(`${today}T23:59:59Z`) - Date.parse(row.lastSuccessAt)) / 3_600_000;
     return Math.max(worst, Math.max(0, hours));
   }, 0);
