@@ -308,6 +308,47 @@ export function classFillBySite(scope: TenantScope, window: ReportWindow, now: D
   return siteClassFill(rows.classes, rows.bookings, now);
 }
 
+/**
+ * The class fill report as CSV columns and cells. Owners' spreadsheets refer to
+ * the columns by position, so new columns go at the end and existing ones never
+ * move. A site with no no-show rate gets an empty cell, never 0.
+ */
+export function classFillCsv(rows: readonly ClassFillRow[]): {
+  header: string[];
+  rows: (string | number | null)[][];
+} {
+  return {
+    header: [
+      'site_id',
+      'site_name',
+      'classes',
+      'capacity',
+      'booked',
+      'attended',
+      'waitlisted',
+      'fill_rate',
+      'no_show_rate',
+      'no_show',
+      'unmarked',
+      'upcoming',
+    ],
+    rows: rows.map((row) => [
+      row.siteId,
+      row.siteName,
+      row.classes,
+      row.capacity,
+      row.booked,
+      row.attended,
+      row.waitlisted,
+      row.fillRate.toFixed(4),
+      row.noShowRate === null ? null : row.noShowRate.toFixed(4),
+      row.noShow,
+      row.unmarked,
+      row.upcoming,
+    ]),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Access
 // ---------------------------------------------------------------------------

@@ -155,33 +155,8 @@ function build(
       };
     }
 
-    case 'classes': {
-      const rows = reports.classFillBySite(scope, window, now);
-      return {
-        header: [
-          'site_id',
-          'site_name',
-          'classes',
-          'capacity',
-          'booked',
-          'attended',
-          'waitlisted',
-          'fill_rate',
-          'no_show_rate',
-        ],
-        rows: rows.map((row) => [
-          row.siteId,
-          row.siteName,
-          row.classes,
-          row.capacity,
-          row.booked,
-          row.attended,
-          row.waitlisted,
-          row.fillRate.toFixed(4),
-          row.noShowRate === null ? null : row.noShowRate.toFixed(4),
-        ]),
-      };
-    }
+    case 'classes':
+      return reports.classFillCsv(reports.classFillBySite(scope, window, now));
 
     case 'members': {
       const summary = reports.membershipSummary(scope, window);
