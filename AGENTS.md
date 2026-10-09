@@ -111,7 +111,8 @@ reading what the server did, not only the test verdict.
 1. Start the site with `npm run aspire:start` before the run, so step 3 has traces to read.
 2. Read Playwright's output: the list reporter, then `test-results/` (error context, trace, video) for each failure.
 3. If `aspire ps` shows the AppHost running, Playwright reused its server on :3000, so the server side of the run is in Aspire. Read `aspire logs web --search <text>` (console), `aspire otel logs web` and `aspire otel traces web` (spans with status). An error or a 4xx/5xx there that no test asserted on gets reported too.
-4. CI has no AppHost: step 2 is all there is. Locally Aspire complements Playwright's output; it never replaces it.
+4. Without the AppHost, the server's output is in `data/dev.log`, rewritten on each `npm run dev`.
+5. CI has no AppHost: step 2 is all there is. Locally Aspire complements Playwright's output; it never replaces it.
 
 ### Product ticket to implementation tickets
 

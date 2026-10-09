@@ -7,7 +7,7 @@
   },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
-    "dev": "next dev",
+    "dev": "next dev 2>&1 | tee data/dev.log",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

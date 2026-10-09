@@ -38,7 +38,11 @@ export interface Persona {
   readonly tenantName: string;
 }
 
-/** A user of a given role at a given tenant, looked up rather than hardcoded. */
+/**
+ * A user of a given role at a given tenant, looked up rather than hardcoded.
+ * The first by id, which the switcher may not offer: to pick a user through the
+ * "Acting as" select, use `chooseInSwitcher()`.
+ */
 export function personaFor(role: string, tenantName: string): Persona {
   return withDb((db) => {
     const row = db
@@ -180,4 +184,20 @@ export function memberLogin(tenantName: string): { userId: string; memberId: str
 /** Wait for a server action to have re-rendered, by watching for its message. */
 export async function expectMessage(page: Page, pattern: RegExp): Promise<void> {
   await page.getByText(pattern).first().waitFor({ state: 'visible', timeout: 15_000 });
+}
+
+/**
+ * Choose the tenant's `role` user ("front desk", "member") in the "Acting as"
+ * switcher and return their name. The switcher offers one user per tenant and
+ * role, the first by name (`personaOptions()` in `src/lib/session.ts`), so the
+ * user is read from the page rather than from `personaFor()`.
+ */
+export async function chooseInSwitcher(page: Page, tenantName: string, role: string): Promise<string> {
+  const switcher = page.getByLabel('Acting as');
+  const option = switcher.locator(`optgroup[label="${tenantName}"] > option`, { hasText: `(${role})` }).first();
+  const value = await option.getAttribute('value');
+  const text = await option.textContent();
+  if (value === null || text === null) throw new Error(`No ${role} at ${tenantName} in the switcher`);
+  await switcher.selectOption(value);
+  return text.replace(/ \([^)]*\)$/, '');
 }
