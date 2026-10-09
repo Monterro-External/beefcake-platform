@@ -16,14 +16,13 @@ import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizz
 import {
   accessEvents,
   accessSyncState,
-  bookings,
   charges,
-  classes,
   members,
   paymentRuns,
   sites,
   subscriptions,
 } from '@/db/schema';
+import { classesRepo } from '@/db/repositories';
 import { type TenantScope, guard } from '@/db/repositories/scope';
 import {
   type BillingPeriod,
@@ -32,6 +31,7 @@ import {
   billingPeriodOf,
   differenceInDays,
 } from '@/domain/dates';
+import { type ClassFill, classFill } from '@/domain/class-fill';
 import type { Currency, Money } from '@/domain/money';
 import { type HealthInputs, type HealthScore, scoreTenantHealth } from '@/domain/health';
 
@@ -292,83 +292,18 @@ export function churnWithPaymentLag(scope: TenantScope, window: ReportWindow): C
 // Classes
 // ---------------------------------------------------------------------------
 
-export interface ClassFillRow {
-  readonly siteId: string;
-  readonly siteName: string;
-  readonly classes: number;
-  readonly capacity: number;
-  readonly booked: number;
-  readonly attended: number;
-  readonly waitlisted: number;
-  readonly fillRate: number;
-  readonly noShowRate: number;
-}
+export type ClassFillRow = ClassFill;
 
-export function classFillBySite(scope: TenantScope, window: ReportWindow): ClassFillRow[] {
-  const from = `${window.from}T00:00:00.000Z`;
-  const to = `${window.to}T23:59:59.999Z`;
-
-  // Capacity and bookings are counted separately on purpose: joining them and
-  // summing capacity in one statement multiplies capacity by the booking count,
-  // which is how the old version of this report managed to show 340% fill.
-  const capacityRows = scope.db
-    .select({
-      siteId: classes.siteId,
-      siteName: sites.name,
-      classes: count(),
-      capacity: sql<number>`coalesce(sum(${classes.capacity}), 0)`,
-    })
-    .from(classes)
-    .innerJoin(sites, eq(sites.id, classes.siteId))
-    .where(
-      and(
-        eq(classes.tenantId, scope.tenantId),
-        eq(classes.cancelled, false),
-        gte(classes.startsAt, from),
-        lte(classes.startsAt, to),
-      ),
-    )
-    .groupBy(classes.siteId, sites.name)
-    .orderBy(asc(sites.name))
-    .all();
-
-  const bookingRows = scope.db
-    .select({
-      siteId: classes.siteId,
-      booked: sql<number>`sum(case when ${bookings.status} in ('booked','attended','no_show') then 1 else 0 end)`,
-      attended: sql<number>`sum(case when ${bookings.status} = 'attended' then 1 else 0 end)`,
-      waitlisted: sql<number>`sum(case when ${bookings.status} = 'waitlisted' then 1 else 0 end)`,
-    })
-    .from(bookings)
-    .innerJoin(classes, eq(classes.id, bookings.classId))
-    .where(
-      and(
-        eq(bookings.tenantId, scope.tenantId),
-        eq(classes.cancelled, false),
-        gte(classes.startsAt, from),
-        lte(classes.startsAt, to),
-      ),
-    )
-    .groupBy(classes.siteId)
-    .all();
-
-  const byBookings = new Map(bookingRows.map((row) => [row.siteId, row]));
-  return capacityRows.map((row) => {
-    const counts = byBookings.get(row.siteId);
-    const booked = counts?.booked ?? 0;
-    const attended = counts?.attended ?? 0;
-    return {
-      siteId: row.siteId,
-      siteName: row.siteName,
-      classes: row.classes,
-      capacity: row.capacity,
-      booked,
-      attended,
-      waitlisted: counts?.waitlisted ?? 0,
-      fillRate: row.capacity === 0 ? 0 : booked / row.capacity,
-      noShowRate: booked === 0 ? 0 : Math.max(0, booked - attended) / booked,
-    };
+/**
+ * Class fill per site over the window, with bookings on classes that have
+ * started by `now` and were never marked counted as unmarked, not as no-shows.
+ */
+export function classFillBySite(scope: TenantScope, window: ReportWindow, now: Date): ClassFillRow[] {
+  const inputs = classesRepo.classFillInputs(scope, {
+    from: `${window.from}T00:00:00.000Z`,
+    to: `${addDays(window.to, 1)}T00:00:00.000Z`,
   });
+  return classFill(inputs, now);
 }
 
 // ---------------------------------------------------------------------------
@@ -561,7 +496,9 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
       .get()?.n ?? 0;
 
   const thirtyDays = windowOfDays(today, 30);
-  const fill = classFillBySite(scope, thirtyDays);
+  // Health reads only places taken and capacity, and neither depends on which
+  // classes have started, so the instant here is the start of the day after.
+  const fill = classFillBySite(scope, thirtyDays, new Date(Date.parse(addDays(today, 1))));
   const totalCapacity = fill.reduce((acc, row) => acc + row.capacity, 0);
   const totalBooked = fill.reduce((acc, row) => acc + row.booked, 0);
 
