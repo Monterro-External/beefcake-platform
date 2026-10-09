@@ -88,12 +88,17 @@ The repository uses `develop` as its default branch and merge commits as its
 only PR merge method. Automatic branch deletion stays off: release and hotfix
 branches need more than one integration before removal.
 
-At setup, GitHub returned HTTP 403 for branch protection/rulesets because the
-current plan does not support them for this private repository. Until that
-changes, PRs and successful checks are a team convention, not a server-enforced
-restriction. Once available, protect both `main` and `develop`: require PRs,
-the checks above and resolved conversations; disallow force pushes and
-deletion. Allow merge commits (do not require linear history).
+The repository ruleset **Gitflow: protect main and develop** enforces this on
+the server for both branches: a PR is required, merge commits are the only
+allowed method, all four checks above must pass and every conversation must be
+resolved; force pushes and deletion are blocked. No approving review is
+required: GitHub counts only an Approve from a write-access account other than
+the PR's author, and Copilot's comments do not count. Nobody bypasses the
+ruleset. A separate ruleset
+requests a Copilot review on PRs into `develop`. Ruleset **Gitflow: release
+tags v\*** lets only admins create, move or delete `v*` tags. Change the
+rulesets in the repository's Settings → Rules, and update this section when
+they change.
 
 Based on [the original Gitflow model](https://nvie.com/posts/a-successful-git-branching-model/),
 using `main` in place of `master`.
