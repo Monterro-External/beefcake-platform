@@ -1,5 +1,6 @@
-import { and, asc, count, eq, gt, gte, inArray, lt, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm';
 import type { CalendarBooking } from '@/domain/calendar-file';
+import type { ClassFillBooking, ClassFillClass } from '@/domain/class-fill';
 import type { BookingSnapshot, ClassSnapshot } from '@/domain/waitlist';
 import { type Booking, type Class, bookings, classes, sites, tenants, users } from '../schema';
 import { type AdminScope, type TenantScope, guard, guardOne } from './scope';
@@ -253,66 +254,73 @@ export function insertBooking(scope: TenantScope, values: Omit<Booking, 'tenantI
     .run();
 }
 
-export interface FillRateRow {
-  readonly siteId: string;
-  readonly classes: number;
-  readonly capacity: number;
-  readonly booked: number;
-  readonly attended: number;
+export interface ClassFillRows {
+  readonly classes: ClassFillClass[];
+  readonly bookings: ClassFillBooking[];
 }
 
 /**
- * Capacity and bookings per site over a window. Two queries rather than one:
- * joining bookings to classes and summing capacity in the same statement
- * multiplies capacity by the number of bookings, which is how the old fill-rate
- * report managed to report 340%.
+ * What the class fill report counts: the classes that are not cancelled and
+ * start in [from, to), with their site, and the place-holding and waitlisted
+ * bookings on them. Two queries rather than one joined row per booking:
+ * summing capacity over bookings joined to classes multiplies capacity by the
+ * number of bookings, which is how the old fill-rate report managed to report
+ * 340%. At Nordic Fitness Group's volume 30 days is a few thousand classes and
+ * tens of thousands of bookings, which fits in memory.
  */
-export function fillRateBySite(scope: TenantScope, window: { from: string; to: string }): FillRateRow[] {
-  const capacityRows = scope.db
-    .select({
-      siteId: classes.siteId,
-      classes: count(),
-      capacity: sql<number>`coalesce(sum(${classes.capacity}), 0)`,
-    })
-    .from(classes)
-    .where(
-      and(
-        eq(classes.tenantId, scope.tenantId),
-        eq(classes.cancelled, false),
-        gte(classes.startsAt, window.from),
-        lt(classes.startsAt, window.to),
-      ),
-    )
-    .groupBy(classes.siteId)
-    .all();
+export function classFillRows(scope: TenantScope, window: { from: string; to: string }): ClassFillRows {
+  const inWindow = and(
+    eq(classes.tenantId, scope.tenantId),
+    eq(classes.cancelled, false),
+    gte(classes.startsAt, window.from),
+    lt(classes.startsAt, window.to),
+  );
 
-  const bookingRows = scope.db
-    .select({
-      siteId: classes.siteId,
-      booked: sql<number>`sum(case when ${bookings.status} in ('booked','attended','no_show') then 1 else 0 end)`,
-      attended: sql<number>`sum(case when ${bookings.status} = 'attended' then 1 else 0 end)`,
-    })
-    .from(bookings)
-    .innerJoin(classes, eq(bookings.classId, classes.id))
-    .where(
-      and(
-        eq(bookings.tenantId, scope.tenantId),
-        eq(classes.cancelled, false),
-        gte(classes.startsAt, window.from),
-        lt(classes.startsAt, window.to),
-      ),
-    )
-    .groupBy(classes.siteId)
-    .all();
+  const classRows = guard(
+    scope,
+    'classes',
+    scope.db
+      .select({
+        tenantId: classes.tenantId,
+        id: classes.id,
+        siteId: classes.siteId,
+        siteName: sites.name,
+        startsAt: classes.startsAt,
+        capacity: classes.capacity,
+      })
+      .from(classes)
+      .innerJoin(sites, and(eq(sites.id, classes.siteId), eq(sites.tenantId, scope.tenantId)))
+      .where(inWindow)
+      .all(),
+  );
 
-  const byBookings = new Map(bookingRows.map((r) => [r.siteId, r]));
-  return capacityRows.map((row) => ({
-    siteId: row.siteId,
-    classes: row.classes,
-    capacity: row.capacity,
-    booked: byBookings.get(row.siteId)?.booked ?? 0,
-    attended: byBookings.get(row.siteId)?.attended ?? 0,
-  }));
+  const bookingRows = guard(
+    scope,
+    'bookings',
+    scope.db
+      .select({ tenantId: bookings.tenantId, classId: bookings.classId, status: bookings.status })
+      .from(bookings)
+      .innerJoin(classes, eq(classes.id, bookings.classId))
+      .where(
+        and(
+          eq(bookings.tenantId, scope.tenantId),
+          inArray(bookings.status, ['booked', 'attended', 'no_show', 'waitlisted']),
+          inWindow,
+        ),
+      )
+      .all(),
+  );
+
+  return {
+    classes: classRows.map(({ id, siteId, siteName, startsAt, capacity }) => ({
+      id,
+      siteId,
+      siteName,
+      startsAt,
+      capacity,
+    })),
+    bookings: bookingRows.map(({ classId, status }) => ({ classId, status })),
+  };
 }
 
 export interface BookingOutcomeRow {

@@ -52,7 +52,7 @@ export async function GET(
 
   let csv: Csv;
   try {
-    csv = build(report as ReportName, scope, window, today);
+    csv = build(report as ReportName, scope, window, today, time.now);
   } catch (error) {
     if (!(error instanceof reports.ReportTimeoutError)) throw error;
     recordError(scope, {
@@ -95,6 +95,7 @@ function build(
   scope: ReturnType<typeof tenantScopeFor>,
   window: reports.ReportWindow,
   today: string,
+  now: Date,
 ): Csv {
   switch (report) {
     case 'churn': {
@@ -155,7 +156,7 @@ function build(
     }
 
     case 'classes': {
-      const rows = reports.classFillBySite(scope, window);
+      const rows = reports.classFillBySite(scope, window, now);
       return {
         header: [
           'site_id',
@@ -177,7 +178,7 @@ function build(
           row.attended,
           row.waitlisted,
           row.fillRate.toFixed(4),
-          row.noShowRate.toFixed(4),
+          row.noShowRate === null ? null : row.noShowRate.toFixed(4),
         ]),
       };
     }
