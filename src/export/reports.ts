@@ -34,7 +34,7 @@ import {
   localDay,
 } from '@/domain/dates';
 import type { Currency, Money } from '@/domain/money';
-import { type SiteClassFill, classFillBySite as siteClassFill } from '@/domain/class-fill';
+import { type SiteClassFill, tallyClassFill } from '@/domain/class-fill';
 import { type HealthInputs, type HealthScore, scoreTenantHealth } from '@/domain/health';
 
 export interface ReportWindow {
@@ -311,7 +311,7 @@ export function classFillBySite(scope: TenantScope, window: ReportWindow, now: D
     from: `${addDays(window.from, -1)}T00:00:00.000Z`,
     to: `${addDays(window.to, 2)}T00:00:00.000Z`,
   });
-  return siteClassFill(rows.classes, rows.bookings, window, now);
+  return tallyClassFill(rows.classes, rows.bookings, window, now);
 }
 
 /**

@@ -17,9 +17,11 @@
  * database.
  */
 
+import type { Booking } from '@/db/schema';
 import { type PlainDate, type Timezone, localDay } from '@/domain/dates';
 
-export type ClassFillBookingStatus = 'booked' | 'waitlisted' | 'cancelled' | 'attended' | 'no_show';
+/** A booking's status as the schema stores it; the tally handles every one. */
+export type ClassFillBookingStatus = Booking['status'];
 
 export interface ClassFillClass {
   readonly id: string;
@@ -77,14 +79,14 @@ export interface LocalDayWindow {
  * per booking, never through one joined row, so capacity is never multiplied by
  * the booking count. Sites come back ordered by name.
  */
-export function classFillBySite(
+export function tallyClassFill(
   classList: readonly ClassFillClass[],
   bookingList: readonly ClassFillBooking[],
   window: LocalDayWindow,
   now: Date,
 ): SiteClassFill[] {
   const tallies = new Map<string, Tally>();
-  const started = new Map<string, { tally: Tally; started: boolean }>();
+  const byClass = new Map<string, { tally: Tally; started: boolean }>();
 
   for (const klass of classList) {
     const startsAt = new Date(klass.startsAt);
@@ -107,11 +109,11 @@ export function classFillBySite(
     }
     tally.classes += 1;
     tally.capacity += klass.capacity;
-    started.set(klass.id, { tally, started: startsAt.getTime() <= now.getTime() });
+    byClass.set(klass.id, { tally, started: startsAt.getTime() <= now.getTime() });
   }
 
   for (const booking of bookingList) {
-    const klass = started.get(booking.classId);
+    const klass = byClass.get(booking.classId);
     if (klass === undefined) continue;
     const { tally } = klass;
     switch (booking.status) {
