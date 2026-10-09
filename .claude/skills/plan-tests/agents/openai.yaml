@@ -1,0 +1,5 @@
+interface:
+  display_name: "Plan tests"
+  short_description: "Plan, generate and run Playwright tests with watched subagents."
+policy:
+  allow_implicit_invocation: false

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/cn';
 
 function shift(day: string, days: number): string {
+  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: weekday arithmetic on a plain date; UTC is correct here, move to a dates helper
   const at = new Date(`${day}T00:00:00Z`);
   at.setUTCDate(at.getUTCDate() + days);
   return at.toISOString().slice(0, 10);
@@ -33,6 +34,7 @@ export function DayPicker({ day, today, siteId }: { day: string; today: string; 
       {days.map((candidate) => {
         const isCurrent = candidate === day;
         const isToday = candidate === today;
+        // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: weekday of a plain date; UTC is correct here, move to a dates helper
         const weekday = WEEKDAYS[new Date(`${candidate}T00:00:00Z`).getUTCDay()] ?? '';
         return (
           <Link

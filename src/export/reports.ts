@@ -27,11 +27,14 @@ import * as classesRepo from '@/db/repositories/classes';
 import {
   type BillingPeriod,
   type PlainDate,
+  TIMEZONES,
   type Timezone,
   addDays,
   billingPeriodOf,
   differenceInDays,
+  endOfDayExclusive,
   localDay,
+  startOfDay,
 } from '@/domain/dates';
 import type { Currency, Money } from '@/domain/money';
 import { type SiteClassFill, tallyClassFill } from '@/domain/class-fill';
@@ -304,12 +307,14 @@ export type ClassFillRow = SiteClassFill;
  * unmarked. Callers pass `now` from the application clock.
  */
 export function classFillBySite(scope: TenantScope, window: ReportWindow, now: Date): ClassFillRow[] {
-  // A Nordic local day lies within a day of the UTC day of the same date, so a
-  // one-day UTC pad either side fetches every candidate; the domain function
-  // keeps the classes whose site-local day is in the window.
+  // Fetch from the earliest start of the first day to the latest end of the
+  // last day across the Nordic timezones; the domain function keeps the classes
+  // whose site-local day, in their own site's timezone, is in the window.
+  const starts = TIMEZONES.map((timezone) => startOfDay(window.from, timezone).getTime());
+  const ends = TIMEZONES.map((timezone) => endOfDayExclusive(window.to, timezone).getTime());
   const rows = classesRepo.classFillRows(scope, {
-    from: `${addDays(window.from, -1)}T00:00:00.000Z`,
-    to: `${addDays(window.to, 2)}T00:00:00.000Z`,
+    from: new Date(Math.min(...starts)).toISOString(),
+    to: new Date(Math.max(...ends)).toISOString(),
   });
   return tallyClassFill(rows.classes, rows.bookings, window, now);
 }
@@ -557,6 +562,7 @@ export function tenantHealth(scope: TenantScope, now: Date, timezone: Timezone):
   const errorRows = scope.db
     .select({ n: count() })
     .from(sql`errors`)
+    // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: tenant health UTC window, BCPLA-20
     .where(sql`tenant_id = ${scope.tenantId} and at >= ${`${thirtyDays.from}T00:00:00.000Z`}`)
     .get();
 
@@ -565,6 +571,7 @@ export function tenantHealth(scope: TenantScope, now: Date, timezone: Timezone):
     scope.db
       .select({ n: count() })
       .from(sql`events`)
+      // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: tenant health UTC window, BCPLA-20
       .where(sql`tenant_id = ${scope.tenantId} and at >= ${`${thirtyDays.from}T00:00:00.000Z`}`)
       .get()?.n ?? 1000,
   );
@@ -574,6 +581,7 @@ export function tenantHealth(scope: TenantScope, now: Date, timezone: Timezone):
       .select({ n: sql<number>`count(distinct actor_id)` })
       .from(sql`events`)
       .where(
+        // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: tenant health UTC window, BCPLA-20
         sql`tenant_id = ${scope.tenantId} and action = 'member_app.session' and at >= ${`${thirtyDays.from}T00:00:00.000Z`}`,
       )
       .get()?.n ?? 0;
@@ -581,6 +589,7 @@ export function tenantHealth(scope: TenantScope, now: Date, timezone: Timezone):
   const lag = syncLagBySite(scope);
   const worstLagHours = lag.reduce((worst, row) => {
     if (row.lastSuccessAt === null) return Math.max(worst, 168);
+    // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: access sync lag measured from UTC end of day
     const hours = (Date.parse(`${today}T23:59:59Z`) - Date.parse(row.lastSuccessAt)) / 3_600_000;
     return Math.max(worst, Math.max(0, hours));
   }, 0);
