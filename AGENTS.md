@@ -115,7 +115,7 @@ reading what the server did, not only the test verdict.
 
 ### Product ticket to implementation tickets
 
-Read the glossary and ADRs from `origin/develop` and write doc changes in a worktree from it: the shared checkout may be on an older branch.
+Run `git fetch origin` first, then read the glossary and ADRs from `origin/develop` and write doc changes in a worktree from it: the shared checkout may be on an older branch, and an unfetched `origin/develop` may be stale.
 
 1. `/grill-with-docs <BCPRO-id>`: settle the design; the glossary and ADRs are updated as terms land.
 2. `/to-spec`: publish the BCPLA Spec, its first line linking the BCPRO ticket.
