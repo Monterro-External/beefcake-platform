@@ -9,6 +9,18 @@ const config = {
   serverExternalPackages: ['better-sqlite3', '@opentelemetry/sdk-node', '@grpc/grpc-js'],
   // Playwright drives the dev server over 127.0.0.1 rather than localhost.
   allowedDevOrigins: ['127.0.0.1'],
+  // data/ holds the database and `npm run dev`'s own log. On Linux the dev
+  // watcher sees every write there, and each log line triggered a rebuild and
+  // a reload that cut off server actions in flight.
+  webpack(webpackConfig, { dev }) {
+    if (dev) {
+      webpackConfig.watchOptions = {
+        ...webpackConfig.watchOptions,
+        ignored: ['**/node_modules/**', '**/.git/**', '**/.next/**', '**/data/**'],
+      };
+    }
+    return webpackConfig;
+  },
 };
 
 export default config;
