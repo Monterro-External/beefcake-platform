@@ -17,11 +17,8 @@
  * database.
  */
 
-import type { Booking } from '@/db/schema';
 import { type PlainDate, type Timezone, localDay } from '@/domain/dates';
-
-/** A booking's status as the schema stores it; the tally handles every one. */
-export type ClassFillBookingStatus = Booking['status'];
+import type { BookingStatus } from './waitlist';
 
 export interface ClassFillClass {
   readonly id: string;
@@ -36,7 +33,7 @@ export interface ClassFillClass {
 /** How many bookings on one class have one status. */
 export interface ClassFillBookingCount {
   readonly classId: string;
-  readonly status: ClassFillBookingStatus;
+  readonly status: BookingStatus;
   readonly count: number;
 }
 
