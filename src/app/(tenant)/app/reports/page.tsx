@@ -65,7 +65,8 @@ export default async function ReportsPage({
 
   const scope = tenantScopeFor(session);
   const time = clock();
-  const today = time.today(timezoneForCountry(tenant.country));
+  const timezone = timezoneForCountry(tenant.country);
+  const today = time.today(timezone);
   const locale = tenant.locale;
 
   const requested = Number.parseInt(params.days ?? '90', 10);
@@ -95,7 +96,7 @@ export default async function ReportsPage({
   const revenue = reports.revenueByPeriod(scope, 18);
   const codes = reports.failedPaymentsByCode(scope, addBillingPeriods(periodForRunDay(today), -5));
   const fill = reports.classFillBySite(scope, window, time.now);
-  const health = reports.tenantHealth(scope, today);
+  const health = reports.tenantHealth(scope, time.now, timezone);
 
   const paymentDrivenLags = churnDetail
     .filter((row) => row.reason === 'payment_failure' && row.daysSinceLastFailedPayment !== null)

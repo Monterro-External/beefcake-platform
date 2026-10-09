@@ -13,8 +13,9 @@ reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. The class fill
 CSV export keeps its columns in order and adds `no_show`, `unmarked` and
 `upcoming` at the end. This plan covers AS-1 and AS-2 (BCPLA-21), AS-3
 (BCPLA-23): the classes page (`/app/classes`) site fill tile reads "No
-attendance marked · N classes" when the site has no no-show rate, and AS-5
-(BCPLA-24). Upcoming against unmarked, waitlisted and
+attendance marked · N classes" when the site has no no-show rate, AS-5
+(BCPLA-24), and AS-6 (BCPLA-25): the dashboard class fill tile agrees with the
+class fill report. Upcoming against unmarked, waitlisted and
 cancelled bookings, cancelled classes and tenant isolation are unit tests on
 the report (`tests/unit/class-fill.test.ts`).
 
@@ -72,3 +73,16 @@ and members when the test ends. The fixture is `hornstull` in
 **Expected:**
 - The header is `site_id, site_name, classes, capacity, booked, attended, waitlisted, fill_rate, no_show_rate, no_show, unmarked, upcoming`, in that order.
 - Hornstull's row has an empty `no_show_rate` cell and `unmarked` 3.
+
+#### 1.5 AS-6 The dashboard class fill tile agrees with the class fill report
+
+**Steps:**
+1. Add Hornstull to Puls Träning with one class of 10 places and 3 bookings still `booked`, none marked.
+2. Sign in as the owner of Puls Träning and open `/app`.
+3. Read the "Class fill, 30 days" tile: its fill and "N of M places".
+4. Export the class fill report for the last 30 days (`/app/reports/export/classes?days=30`) and total `booked` and `capacity` over every site.
+
+**Expected:**
+- The export's Hornstull row has capacity 10 and booked 3: unmarked bookings hold places.
+- The tile's places equal the export's totals, and its fill is booked ÷ capacity rounded to a whole percent.
+- Tenant health's class fill is the same total; that is a unit test on `tenantHealth` (`tests/unit/class-fill.test.ts`).

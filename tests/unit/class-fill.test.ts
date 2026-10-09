@@ -220,3 +220,30 @@ describe('class fill report', () => {
     expect(report('ten_b').map((row) => [row.siteId, row.capacity, row.booked])).toEqual([['sit_b', 30, 6]]);
   });
 });
+
+describe('tenant health', () => {
+  const health = (tenantId: string, now: Date) =>
+    reports.tenantHealth(tenantScope(tenantId, { db: testDb.db }), now, 'Europe/Stockholm');
+
+  it('reads class fill as places taken over capacity with unmarked bookings counted, as the class fill report totals it', () => {
+    tenant('ten_a');
+    site('ten_a', 'sit_a', 'Hornstull');
+    site('ten_a', 'sit_b', 'Södermalm');
+    klass('ten_a', 'sit_a', '2026-09-10T16:00:00.000Z', 10, times(3, 'booked'));
+    klass('ten_a', 'sit_b', '2026-09-12T16:00:00.000Z', 20, [...times(4, 'attended'), 'no_show']);
+
+    expect(health('ten_a', NOW).inputs.classFillRate).toBeCloseTo(8 / 30, 10);
+  });
+
+  it('takes its 30 days back from the local day at now, so just after local midnight the oldest day drops out', () => {
+    tenant('ten_a');
+    site('ten_a', 'sit_a', 'Hornstull');
+    // 31 August, 12:00 in Stockholm: inside the window ending 30 September, outside the one ending 1 October.
+    klass('ten_a', 'sit_a', '2026-08-31T10:00:00.000Z', 10, []);
+    klass('ten_a', 'sit_a', '2026-09-15T16:00:00.000Z', 10, times(5, 'attended'));
+
+    // 22:30 UTC on 30 September is 00:30 on 1 October in Stockholm.
+    expect(health('ten_a', new Date('2026-09-30T22:30:00.000Z')).inputs.classFillRate).toBe(0.5);
+    expect(health('ten_a', new Date('2026-09-30T21:30:00.000Z')).inputs.classFillRate).toBe(0.25);
+  });
+});

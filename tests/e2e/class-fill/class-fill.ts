@@ -63,8 +63,11 @@ export async function downloadClassFillExport(page: Page): Promise<ClassFillExpo
   const downloading = page.waitForEvent('download');
   await classFillCard(page).getByRole('link', { name: 'CSV' }).click();
   const download = await downloading;
-  const text = readFileSync(await download.path(), 'utf8').trimEnd();
-  const [headerLine = '', ...lines] = text.split('\n');
+  return parseCsv(readFileSync(await download.path(), 'utf8'));
+}
+
+function parseCsv(text: string): ClassFillExport {
+  const [headerLine = '', ...lines] = text.trimEnd().split(/\r?\n/);
   const header = splitCsvLine(headerLine);
   return {
     header,
@@ -96,3 +99,34 @@ function splitCsvLine(line: string): string[] {
   out.push(cell);
   return out;
 }
+
+/** Act as the owner of this tenant and open the dashboard. */
+export async function openDashboard(page: Page, context: BrowserContext, tenantName: string): Promise<void> {
+  const owner = personaFor('owner', tenantName);
+  await context.clearCookies();
+  await signIn(context, owner.userId);
+  await page.goto('/app');
+  await expect(classFillTile(page)).toBeVisible();
+}
+
+export function classFillTile(page: Page) {
+  return page.getByText('Class fill, 30 days', { exact: true }).locator('..');
+}
+
+/** The dashboard's 30-day class fill tile: its fill and the places behind it ("8 of 30 places"). */
+export async function readClassFillTile(page: Page): Promise<{ fill: string; booked: number; capacity: number }> {
+  const [, fill = '', hint = ''] = (await classFillTile(page).locator('p').allTextContents()).map(squash);
+  const places = /^([\d ]+) of ([\d ]+) places$/.exec(hint);
+  if (places === null) throw new Error(`Unexpected class fill tile hint: ${hint}`);
+  return { fill, booked: whole(places[1] ?? ''), capacity: whole(places[2] ?? '') };
+}
+
+/** The class fill report for the last `days` days as the owner exports it, one record per site by column name. */
+export async function classFillExport(page: Page, days = 30): Promise<Record<string, string>[]> {
+  const response = await page.request.get(`/app/reports/export/classes?days=${days}`);
+  expect(response.ok()).toBe(true);
+  return [...parseCsv(await response.text()).rows];
+}
+
+const squash = (text: string): string => text.replace(/\s+/g, ' ').trim();
+const whole = (text: string): number => Number.parseInt(text.replace(/\D/g, ''), 10);

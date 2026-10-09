@@ -53,7 +53,7 @@ export default async function AdminTenantPage({
     db.select().from(tenantSettings).where(eq(tenantSettings.tenantId, tenant.id)).all().map((row) => row.key),
   );
   const sites = tenantsRepo.listSites(scope);
-  const health = reports.tenantHealth(scope, today);
+  const health = reports.tenantHealth(scope, time.now, timezone);
   const revenue = reports.revenueByPeriod(scope, 6);
   const lag = reports.syncLagBySite(scope);
   const churn = reports.churnByWeek(scope, reports.windowOfDays(today, 84));

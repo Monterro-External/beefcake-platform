@@ -27,9 +27,11 @@ import * as classesRepo from '@/db/repositories/classes';
 import {
   type BillingPeriod,
   type PlainDate,
+  type Timezone,
   addDays,
   billingPeriodOf,
   differenceInDays,
+  localDay,
 } from '@/domain/dates';
 import type { Currency, Money } from '@/domain/money';
 import { type SiteClassFill, classFillBySite as siteClassFill } from '@/domain/class-fill';
@@ -507,8 +509,13 @@ export interface HealthReport {
  * The inputs behind a tenant's health score, computed from platform data only.
  * Support tickets and NPS live in other systems and are joined in downstream, so
  * they are deliberately absent.
+ *
+ * Health is as it stands at `now`; `today` is the tenant's local day at that
+ * instant. Callers pass `now` from the application clock and the tenant's
+ * timezone. Class fill is the class fill report's total over the same 30 days.
  */
-export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport {
+export function tenantHealth(scope: TenantScope, now: Date, timezone: Timezone): HealthReport {
+  const today = localDay(now, timezone);
   const lastRun = scope.db
     .select({ attempted: paymentRuns.chargesAttempted, failed: paymentRuns.chargesFailed })
     .from(paymentRuns)
@@ -539,10 +546,7 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
       .get()?.n ?? 0;
 
   const thirtyDays = windowOfDays(today, 30);
-  // Health only reads places taken, which upcoming and unmarked bookings both
-  // count toward, so the end of `today` serves as its instant until it takes
-  // `now` of its own.
-  const fill = classFillBySite(scope, thirtyDays, new Date(`${today}T23:59:59.999Z`));
+  const fill = classFillBySite(scope, thirtyDays, now);
   const totalCapacity = fill.reduce((acc, row) => acc + row.capacity, 0);
   const totalBooked = fill.reduce((acc, row) => acc + row.booked, 0);
 
