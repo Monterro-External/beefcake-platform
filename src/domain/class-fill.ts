@@ -33,9 +33,11 @@ export interface ClassFillClass {
   readonly capacity: number;
 }
 
-export interface ClassFillBooking {
+/** How many bookings on one class have one status. */
+export interface ClassFillBookingCount {
   readonly classId: string;
   readonly status: ClassFillBookingStatus;
+  readonly count: number;
 }
 
 export interface SiteClassFill {
@@ -76,12 +78,13 @@ export interface LocalDayWindow {
 /**
  * Counts the classes whose site-local day falls in `window`; the caller may
  * pass classes either side of it, and has left out cancelled classes. Capacity is summed per class and bookings
- * per booking, never through one joined row, so capacity is never multiplied by
- * the booking count. Sites come back ordered by name.
+ * from their counts per class and status, never through one joined row, so
+ * capacity is never multiplied by the booking count. Sites come back ordered by
+ * name.
  */
 export function tallyClassFill(
   classList: readonly ClassFillClass[],
-  bookingList: readonly ClassFillBooking[],
+  bookingCounts: readonly ClassFillBookingCount[],
   window: LocalDayWindow,
   now: Date,
 ): SiteClassFill[] {
@@ -112,23 +115,23 @@ export function tallyClassFill(
     byClass.set(klass.id, { tally, started: startsAt.getTime() <= now.getTime() });
   }
 
-  for (const booking of bookingList) {
-    const klass = byClass.get(booking.classId);
+  for (const { classId, status, count } of bookingCounts) {
+    const klass = byClass.get(classId);
     if (klass === undefined) continue;
     const { tally } = klass;
-    switch (booking.status) {
+    switch (status) {
       case 'attended':
-        tally.attended += 1;
+        tally.attended += count;
         break;
       case 'no_show':
-        tally.noShow += 1;
+        tally.noShow += count;
         break;
       case 'booked':
-        if (klass.started) tally.unmarked += 1;
-        else tally.upcoming += 1;
+        if (klass.started) tally.unmarked += count;
+        else tally.upcoming += count;
         break;
       case 'waitlisted':
-        tally.waitlisted += 1;
+        tally.waitlisted += count;
         break;
       case 'cancelled':
         break;

@@ -1,6 +1,6 @@
 import { and, asc, count, eq, gt, gte, inArray, lt, lte, ne } from 'drizzle-orm';
 import type { CalendarBooking } from '@/domain/calendar-file';
-import type { ClassFillBooking, ClassFillClass } from '@/domain/class-fill';
+import type { ClassFillBookingCount, ClassFillClass } from '@/domain/class-fill';
 import type { BookingSnapshot, ClassSnapshot } from '@/domain/waitlist';
 import { type Booking, type Class, bookings, classes, sites, tenants, users } from '../schema';
 import { type AdminScope, type TenantScope, guard, guardOne } from './scope';
@@ -256,17 +256,18 @@ export function insertBooking(scope: TenantScope, values: Omit<Booking, 'tenantI
 
 export interface ClassFillRows {
   readonly classes: ClassFillClass[];
-  readonly bookings: ClassFillBooking[];
+  readonly bookings: ClassFillBookingCount[];
 }
 
 /**
  * What the class fill report counts: the classes that are not cancelled and
- * start in [from, to), with their site and its timezone, and the place-holding and waitlisted
- * bookings on them. Two queries rather than one joined row per booking:
- * summing capacity over bookings joined to classes multiplies capacity by the
- * number of bookings, which is how the old fill-rate report managed to report
- * 340%. At Nordic Fitness Group's volume 30 days is a few thousand classes and
- * tens of thousands of bookings, which fits in memory.
+ * start in [from, to), with their site and its timezone, and how many
+ * place-holding and waitlisted bookings each has per status. Two queries rather
+ * than one joined row per booking: summing capacity over bookings joined to
+ * classes multiplies capacity by the number of bookings, which is how the old
+ * fill-rate report managed to report 340%. Bookings are counted in SQL, so a
+ * 730-day window at Nordic Fitness Group's volume loads a few rows per class,
+ * not one object per booking.
  */
 export function classFillRows(scope: TenantScope, window: { from: string; to: string }): ClassFillRows {
   const inWindow = and(
@@ -299,7 +300,12 @@ export function classFillRows(scope: TenantScope, window: { from: string; to: st
     scope,
     'bookings',
     scope.db
-      .select({ tenantId: bookings.tenantId, classId: bookings.classId, status: bookings.status })
+      .select({
+        tenantId: bookings.tenantId,
+        classId: bookings.classId,
+        status: bookings.status,
+        count: count(),
+      })
       .from(bookings)
       .innerJoin(classes, eq(classes.id, bookings.classId))
       .where(
@@ -309,6 +315,7 @@ export function classFillRows(scope: TenantScope, window: { from: string; to: st
           inWindow,
         ),
       )
+      .groupBy(bookings.tenantId, bookings.classId, bookings.status)
       .all(),
   );
 
@@ -321,7 +328,7 @@ export function classFillRows(scope: TenantScope, window: { from: string; to: st
       startsAt,
       capacity,
     })),
-    bookings: bookingRows.map(({ classId, status }) => ({ classId, status })),
+    bookings: bookingRows.map(({ classId, status, count }) => ({ classId, status, count })),
   };
 }
 
