@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bookings, classes, members, sites, tenants } from '@/db/schema';
 import { tenantScope } from '@/db/repositories/scope';
 import * as reports from '@/export/reports';
-import { type Timezone, plainDate } from '@/domain/dates';
+import { type PlainDate, type Timezone, plainDate } from '@/domain/dates';
 import { createTestDb, type TestDb } from '../helpers/test-db';
 
 const CREATED = '2026-01-01T00:00:00.000Z';
@@ -276,8 +276,8 @@ describe('class fill report', () => {
 });
 
 describe('tenant health', () => {
-  const health = (tenantId: string, now: Date) =>
-    reports.tenantHealth(tenantScope(tenantId, { db: testDb.db }), now, 'Europe/Stockholm');
+  const health = (tenantId: string, today: PlainDate, now: Date) =>
+    reports.tenantHealth(tenantScope(tenantId, { db: testDb.db }), today, now);
 
   it('reads class fill as places taken over capacity with unmarked bookings counted, as the class fill report totals it', () => {
     tenant('ten_a');
@@ -286,18 +286,25 @@ describe('tenant health', () => {
     klass('ten_a', 'sit_a', '2026-09-10T16:00:00.000Z', 10, times(3, 'booked'));
     klass('ten_a', 'sit_b', '2026-09-12T16:00:00.000Z', 20, [...times(4, 'attended'), 'no_show']);
 
-    expect(health('ten_a', NOW).inputs.classFillRate).toBeCloseTo(8 / 30, 10);
+    expect(health('ten_a', WINDOW.to, NOW).inputs.classFillRate).toBeCloseTo(8 / 30, 10);
   });
 
-  it('takes its 30 days back from the local day at now, so just after local midnight the oldest day drops out', () => {
+  it('takes its 30 days back from the report day it is given, not the local day at now, so at 22:30 UTC on a month end it still matches the class fill report', () => {
     tenant('ten_a');
     site('ten_a', 'sit_a', 'Hornstull', 'Europe/Stockholm');
     // 31 August, 12:00 in Stockholm: inside the window ending 30 September, outside the one ending 1 October.
     klass('ten_a', 'sit_a', '2026-08-31T10:00:00.000Z', 10, []);
     klass('ten_a', 'sit_a', '2026-09-15T16:00:00.000Z', 10, times(5, 'attended'));
 
-    // 22:30 UTC on 30 September is 00:30 on 1 October in Stockholm.
-    expect(health('ten_a', new Date('2026-09-30T22:30:00.000Z')).inputs.classFillRate).toBe(0.5);
-    expect(health('ten_a', new Date('2026-09-30T21:30:00.000Z')).inputs.classFillRate).toBe(0.25);
+    // 22:30 UTC on 30 September is already 00:30 on 1 October in Stockholm, but
+    // a pinned clock or `--today 2026-09-30` still reports 30 September.
+    const today = plainDate(2026, 9, 30);
+    const now = new Date('2026-09-30T22:30:00.000Z');
+    const fill = report('ten_a', now, reports.windowOfDays(today, 30));
+    const capacity = fill.reduce((acc, row) => acc + row.capacity, 0);
+    const booked = fill.reduce((acc, row) => acc + row.booked, 0);
+
+    expect(health('ten_a', today, now).inputs.classFillRate).toBe(0.25);
+    expect(health('ten_a', today, now).inputs.classFillRate).toBe(booked / capacity);
   });
 });

@@ -30,7 +30,7 @@ export default async function AdminTenants() {
   const tenants = tenantsRepo.listTenants(admin);
   const rows = tenants.map((tenant) => {
     const scope = tenantScope(tenant.id, { db });
-    const health = reports.tenantHealth(scope, time.now, timezoneForCountry(tenant.country));
+    const health = reports.tenantHealth(scope, time.today(timezoneForCountry(tenant.country)), time.now);
     const lastRun = reports.revenueByPeriod(scope, 1)[0] ?? null;
     const sites = tenantsRepo.listSites(scope).length;
     const lag = reports.syncLagBySite(scope);

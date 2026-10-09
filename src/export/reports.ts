@@ -28,12 +28,10 @@ import {
   type BillingPeriod,
   type PlainDate,
   TIMEZONES,
-  type Timezone,
   addDays,
   billingPeriodOf,
   differenceInDays,
   endOfDayExclusive,
-  localDay,
   startOfDay,
 } from '@/domain/dates';
 import type { Currency, Money } from '@/domain/money';
@@ -519,12 +517,14 @@ export interface HealthReport {
  * Support tickets and NPS live in other systems and are joined in downstream, so
  * they are deliberately absent.
  *
- * Health is as it stands at `now`; `today` is the tenant's local day at that
- * instant. Callers pass `now` from the application clock and the tenant's
- * timezone. Class fill is the class fill report's total over the same 30 days.
+ * Health is for the tenant's report day `today`, as it stands at `now`. Callers
+ * pass both from the application clock (`time.today(timezone)` and `time.now`)
+ * or the export's `--today`: the windows come from `today`, never from `now`,
+ * because a pinned clock or an explicit `--today` can put `now` on the next
+ * local day near Nordic midnight. `now` only splits upcoming from unmarked
+ * bookings. Class fill is the class fill report's total over the same 30 days.
  */
-export function tenantHealth(scope: TenantScope, now: Date, timezone: Timezone): HealthReport {
-  const today = localDay(now, timezone);
+export function tenantHealth(scope: TenantScope, today: PlainDate, now: Date): HealthReport {
   const lastRun = scope.db
     .select({ attempted: paymentRuns.chargesAttempted, failed: paymentRuns.chargesFailed })
     .from(paymentRuns)

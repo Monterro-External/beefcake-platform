@@ -25,14 +25,13 @@ import { errors, events, paymentRuns, seedMeta, tenants } from '@/db/schema';
 import { type AdminScope, tenantScope } from '@/db/repositories/scope';
 import { recordError } from '@/db/repositories/observability';
 import { type PlainDate, assertPlainDate, billingPeriodOf } from '@/domain/dates';
-import { timezoneForCountry } from '@/jobs/runner';
 import * as reports from './reports';
 
 export interface ExportOptions {
   readonly since: PlainDate;
   readonly outDir: string;
   readonly today: PlainDate;
-  /** The instant tenant health is read at; each tenant's local day at it is its today. */
+  /** The instant tenant health is read at; its windows end on `today`. */
   readonly now: Date;
 }
 
@@ -81,7 +80,7 @@ export function exportSignals(scope: AdminScope, options: ExportOptions): Export
     writeJsonl(outDir, 'errors.jsonl', errorRows(scope.db, options.since)),
     writeCsv(outDir, 'payment-runs.csv', paymentRunRows(scope.db, options.since)),
     writeCsv(outDir, 'churn.csv', churnRows(scope, options)),
-    writeCsv(outDir, 'tenant-health.csv', tenantHealthRows(scope, options.now)),
+    writeCsv(outDir, 'tenant-health.csv', tenantHealthRows(scope, options.today, options.now)),
     writeCsv(outDir, 'access-sync.csv', accessSyncRows(scope, options.today)),
   ];
 
@@ -365,12 +364,12 @@ export function isoWeek(day: PlainDate): string {
 // tenant-health.csv
 // ---------------------------------------------------------------------------
 
-function tenantHealthRows(scope: AdminScope, now: Date): CsvTable {
+function tenantHealthRows(scope: AdminScope, today: PlainDate, now: Date): CsvTable {
   const rows: CsvValue[][] = [];
 
   for (const tenant of scope.db.select().from(tenants).orderBy(asc(tenants.name)).all()) {
     const tenantView = tenantScope(tenant.id, { db: scope.db });
-    const health = reports.tenantHealth(tenantView, now, timezoneForCountry(tenant.country));
+    const health = reports.tenantHealth(tenantView, today, now);
     const sites = reports.syncLagBySite(tenantView).length;
     rows.push([
       tenant.id,

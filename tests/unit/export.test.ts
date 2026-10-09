@@ -20,7 +20,6 @@ import { adminScope, tenantScope } from '@/db/repositories/scope';
 import * as reports from '@/export/reports';
 import { EXPORTED_ACTIONS, csvCell, exportSignals, isoWeek } from '@/export/signals';
 import { plainDate } from '@/domain/dates';
-import { timezoneForCountry } from '@/jobs/runner';
 
 let dir: string;
 let connection: Connection;
@@ -290,7 +289,7 @@ describe('tenant health', () => {
       country: string;
     }[];
     for (const tenant of tenants) {
-      const health = reports.tenantHealth(scopeFor(tenant.id), PINNED_NOW, timezoneForCountry(tenant.country));
+      const health = reports.tenantHealth(scopeFor(tenant.id), PINNED_TODAY, PINNED_NOW);
       expect(health.score.score).toBeGreaterThanOrEqual(0);
       expect(health.score.score).toBeLessThanOrEqual(100);
       expect(health.inputs.failedPaymentRate).toBeGreaterThanOrEqual(0);
@@ -303,8 +302,8 @@ describe('tenant health', () => {
     const quiet = connection.sqlite
       .prepare("select id from tenants where name = 'Bodyfokus Umeå'")
       .get() as { id: string };
-    const stressed = reports.tenantHealth(scopeFor(keyAccountId), PINNED_NOW, 'Europe/Stockholm');
-    const calm = reports.tenantHealth(scopeFor(quiet.id), PINNED_NOW, 'Europe/Stockholm');
+    const stressed = reports.tenantHealth(scopeFor(keyAccountId), PINNED_TODAY, PINNED_NOW);
+    const calm = reports.tenantHealth(scopeFor(quiet.id), PINNED_TODAY, PINNED_NOW);
     expect(stressed.inputs.failedPaymentRate).toBeGreaterThan(calm.inputs.failedPaymentRate);
   });
 });

@@ -67,7 +67,7 @@ export default async function Overview() {
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const lag = reports.syncLagBySite(scope);
-  const health = reports.tenantHealth(scope, time.now, timezone);
+  const health = reports.tenantHealth(scope, today, time.now);
 
   const totalCapacity = fill.reduce((acc, row) => acc + row.capacity, 0);
   const totalBooked = fill.reduce((acc, row) => acc + row.booked, 0);

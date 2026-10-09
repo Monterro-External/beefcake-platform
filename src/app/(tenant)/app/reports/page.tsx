@@ -96,7 +96,7 @@ export default async function ReportsPage({
   const revenue = reports.revenueByPeriod(scope, 18);
   const codes = reports.failedPaymentsByCode(scope, addBillingPeriods(periodForRunDay(today), -5));
   const fill = reports.classFillBySite(scope, window, time.now);
-  const health = reports.tenantHealth(scope, time.now, timezone);
+  const health = reports.tenantHealth(scope, today, time.now);
 
   const paymentDrivenLags = churnDetail
     .filter((row) => row.reason === 'payment_failure' && row.daysSinceLastFailedPayment !== null)

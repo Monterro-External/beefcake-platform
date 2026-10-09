@@ -29,7 +29,7 @@ export default async function FleetHealth() {
 
   const rows = tenants.map((tenant) => {
     const scope = tenantScope(tenant.id, { db });
-    return { tenant, health: reports.tenantHealth(scope, time.now, timezoneForCountry(tenant.country)) };
+    return { tenant, health: reports.tenantHealth(scope, time.today(timezoneForCountry(tenant.country)), time.now) };
   });
 
   const mean = (pick: (row: (typeof rows)[number]) => number): number =>
