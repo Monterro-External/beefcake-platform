@@ -96,8 +96,9 @@ blocked. Nobody bypasses it. GitHub counts only an Approve from an account with
 write access other than the PR's author: a colleague, or a machine account an
 agent reviews with. Copilot's review comments do not count. A separate ruleset
 requests a Copilot review on PRs into `develop`. Ruleset **Gitflow: release
-tags v\*** lets only admins create, move or delete `v*` tags. Change the rulesets in the repository's Settings → Rules,
-and update this section when they change.
+tags v\*** lets only admins create, move or delete `v*` tags. Change the
+rulesets in the repository's Settings → Rules, and update this section when
+they change.
 
 Based on [the original Gitflow model](https://nvie.com/posts/a-successful-git-branching-model/),
 using `main` in place of `master`.
