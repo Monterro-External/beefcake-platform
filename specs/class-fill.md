@@ -11,10 +11,12 @@ rate is no-shows ÷ (attended + no-shows), and a site that marked nothing has no
 no-show rate, shown as "–". The reports page (`/app/reports`) class fill table
 reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. A class
 counts in the period of its site-local day, in its own site's timezone. This
-plan covers AS-1 and AS-2 (BCPLA-21) and AS-4 (BCPLA-22). Upcoming against
-unmarked, waitlisted and cancelled bookings, cancelled classes, tenant
-isolation, and the Stockholm, Helsinki and leap-year month ends are unit tests
-on the report (`tests/unit/class-fill.test.ts`).
+plan covers AS-1 and AS-2 (BCPLA-21), AS-3 (BCPLA-23): the classes page
+(`/app/classes`) site fill tile reads "No attendance marked · N classes" when
+the site has no no-show rate, and AS-4 (BCPLA-22). Upcoming against unmarked,
+waitlisted and cancelled bookings, cancelled classes, tenant isolation, and the
+Stockholm, Helsinki and leap-year month ends are unit tests on the report
+(`tests/unit/class-fill.test.ts`).
 
 The seed marks every past booking, so it never produces an unmarked roster.
 Each test adds its own site, Hornstull (Europe/Stockholm), to Puls Träning
@@ -50,7 +52,17 @@ and members when the test ends. The fixture is `hornstull` in
 **Expected:**
 - Unmarked 3, and No-show reads "–", not 0 %.
 
-#### 1.3 AS-4 A class just after local midnight on the first day of the window counts in the window
+#### 1.3 AS-3 The site tile says no attendance was marked
+
+**Steps:**
+1. Add Hornstull to Puls Träning with two classes of 10 places, 3 and 10 days before the seeded today, with 3 and 5 bookings still `booked`, none marked.
+2. Sign in as the site manager of Puls Träning and open `/app/classes?site=sit_e2ehornstull`.
+3. Read the "Site fill, 30 days" tile.
+
+**Expected:**
+- The tile reads "No attendance marked · 2 classes", not a no-show percentage.
+
+#### 1.4 AS-4 A class just after local midnight on the first day of the window counts in the window
 
 The last 30 days run from 30 days before the seeded today to today, as local
 days at Hornstull.
