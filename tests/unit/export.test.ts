@@ -20,6 +20,7 @@ import { adminScope, tenantScope } from '@/db/repositories/scope';
 import * as reports from '@/export/reports';
 import { EXPORTED_ACTIONS, csvCell, exportSignals, isoWeek } from '@/export/signals';
 import { plainDate } from '@/domain/dates';
+import { timezoneForCountry } from '@/jobs/runner';
 
 let dir: string;
 let connection: Connection;
@@ -227,12 +228,13 @@ describe('access', () => {
 
 describe('tenant health', () => {
   it('scores every tenant and shows its inputs', () => {
-    const tenants = connection.sqlite.prepare('select id, name from tenants').all() as {
+    const tenants = connection.sqlite.prepare('select id, name, country from tenants').all() as {
       id: string;
       name: string;
+      country: string;
     }[];
     for (const tenant of tenants) {
-      const health = reports.tenantHealth(scopeFor(tenant.id), PINNED_TODAY);
+      const health = reports.tenantHealth(scopeFor(tenant.id), PINNED_NOW, timezoneForCountry(tenant.country));
       expect(health.score.score).toBeGreaterThanOrEqual(0);
       expect(health.score.score).toBeLessThanOrEqual(100);
       expect(health.inputs.failedPaymentRate).toBeGreaterThanOrEqual(0);
@@ -245,8 +247,8 @@ describe('tenant health', () => {
     const quiet = connection.sqlite
       .prepare("select id from tenants where name = 'Bodyfokus Umeå'")
       .get() as { id: string };
-    const stressed = reports.tenantHealth(scopeFor(keyAccountId), PINNED_TODAY);
-    const calm = reports.tenantHealth(scopeFor(quiet.id), PINNED_TODAY);
+    const stressed = reports.tenantHealth(scopeFor(keyAccountId), PINNED_NOW, 'Europe/Stockholm');
+    const calm = reports.tenantHealth(scopeFor(quiet.id), PINNED_NOW, 'Europe/Stockholm');
     expect(stressed.inputs.failedPaymentRate).toBeGreaterThan(calm.inputs.failedPaymentRate);
   });
 });
@@ -256,6 +258,7 @@ describe('the export files', () => {
     exportSignals(adminScope({ db: connection.db }), {
       since: plainDate(2026, 1, 1),
       today: PINNED_TODAY,
+      now: PINNED_NOW,
       outDir,
     });
   });
@@ -347,6 +350,12 @@ describe('the export files', () => {
       n: number;
     };
     expect(readCsv('tenant-health.csv').rows).toHaveLength(tenants.n);
+  });
+
+  it('writes class_fill_rate as a ratio with four decimals', () => {
+    const { header, rows } = readCsv('tenant-health.csv');
+    const column = header.indexOf('class_fill_rate');
+    for (const row of rows) expect(row[column]).toMatch(/^\d\.\d{4}$/);
   });
 
   it('writes one access-sync row per site', () => {

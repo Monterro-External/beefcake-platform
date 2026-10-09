@@ -10,7 +10,7 @@ unmarked, attended and no-show. Fill rate is places taken ÷ capacity; no-show
 rate is no-shows ÷ (attended + no-shows), and a site that marked nothing has no
 no-show rate, shown as "–". The reports page (`/app/reports`) class fill table
 reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. This plan
-covers AS-1 and AS-2 (BCPLA-21). Upcoming against unmarked, waitlisted and
+covers AS-1 and AS-2 (BCPLA-21) and AS-6 (BCPLA-25). Upcoming against unmarked, waitlisted and
 cancelled bookings, cancelled classes and tenant isolation are unit tests on
 the report (`tests/unit/class-fill.test.ts`).
 
@@ -47,3 +47,16 @@ and members when the test ends. The fixture is `hornstull` in
 
 **Expected:**
 - Unmarked 3, and No-show reads "–", not 0 %.
+
+#### 1.6 AS-6 The dashboard class fill tile agrees with the class fill report
+
+**Steps:**
+1. Add Hornstull to Puls Träning with one class of 10 places and 3 bookings still `booked`, none marked.
+2. Sign in as the owner of Puls Träning and open `/app`.
+3. Read the "Class fill, 30 days" tile: its fill and "N of M places".
+4. Export the class fill report for the last 30 days (`/app/reports/export/classes?days=30`) and total `booked` and `capacity` over every site.
+
+**Expected:**
+- The export's Hornstull row has capacity 10 and booked 3: unmarked bookings hold places.
+- The tile's places equal the export's totals, and its fill is booked ÷ capacity rounded to a whole percent.
+- Tenant health's class fill is the same total; that is a unit test on `tenantHealth` (`tests/unit/class-fill.test.ts`).
