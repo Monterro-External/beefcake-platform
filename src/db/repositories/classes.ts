@@ -294,7 +294,7 @@ export function classFillInputs(scope: TenantScope, window: { from: string; to: 
       .select({
         tenantId: bookings.tenantId,
         classId: bookings.classId,
-        booked: sql<number>`sum(case when ${bookings.status} = 'booked' then 1 else 0 end)`,
+        stillBooked: sql<number>`sum(case when ${bookings.status} = 'booked' then 1 else 0 end)`,
         attended: sql<number>`sum(case when ${bookings.status} = 'attended' then 1 else 0 end)`,
         noShow: sql<number>`sum(case when ${bookings.status} = 'no_show' then 1 else 0 end)`,
         waitlisted: sql<number>`sum(case when ${bookings.status} = 'waitlisted' then 1 else 0 end)`,
@@ -321,7 +321,7 @@ export function classFillInputs(scope: TenantScope, window: { from: string; to: 
       siteName: row.siteName,
       startsAt: row.startsAt,
       capacity: row.capacity,
-      booked: counts?.booked ?? 0,
+      stillBooked: counts?.stillBooked ?? 0,
       attended: counts?.attended ?? 0,
       noShow: counts?.noShow ?? 0,
       waitlisted: counts?.waitlisted ?? 0,

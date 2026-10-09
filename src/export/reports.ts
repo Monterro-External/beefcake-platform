@@ -292,13 +292,11 @@ export function churnWithPaymentLag(scope: TenantScope, window: ReportWindow): C
 // Classes
 // ---------------------------------------------------------------------------
 
-export type ClassFillRow = ClassFill;
-
 /**
  * Class fill per site over the window, with bookings on classes that have
  * started by `now` and were never marked counted as unmarked, not as no-shows.
  */
-export function classFillBySite(scope: TenantScope, window: ReportWindow, now: Date): ClassFillRow[] {
+export function classFillBySite(scope: TenantScope, window: ReportWindow, now: Date): ClassFill[] {
   const inputs = classesRepo.classFillInputs(scope, {
     from: `${window.from}T00:00:00.000Z`,
     to: `${addDays(window.to, 1)}T00:00:00.000Z`,
@@ -497,7 +495,8 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
 
   const thirtyDays = windowOfDays(today, 30);
   // Health reads only places taken and capacity, and neither depends on which
-  // classes have started, so the instant here is the start of the day after.
+  // classes have started, so any instant will do: here UTC midnight after today.
+  // Health takes the clock's instant once its signature changes (BCPLA-25).
   const fill = classFillBySite(scope, thirtyDays, new Date(Date.parse(addDays(today, 1))));
   const totalCapacity = fill.reduce((acc, row) => acc + row.capacity, 0);
   const totalBooked = fill.reduce((acc, row) => acc + row.booked, 0);

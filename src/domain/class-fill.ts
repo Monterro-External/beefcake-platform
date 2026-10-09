@@ -15,8 +15,8 @@ export interface ClassFillInput {
   readonly siteName: string;
   readonly startsAt: string;
   readonly capacity: number;
-  /** Bookings by status on this class. */
-  readonly booked: number;
+  /** Bookings by status on this class. Still `booked` is upcoming or unmarked, by `now`. */
+  readonly stillBooked: number;
   readonly attended: number;
   readonly noShow: number;
   readonly waitlisted: number;
@@ -72,8 +72,8 @@ export function classFill(inputs: readonly ClassFillInput[], now: Date): ClassFi
     totals.attended += input.attended;
     totals.noShow += input.noShow;
     totals.waitlisted += input.waitlisted;
-    if (started) totals.unmarked += input.booked;
-    else totals.upcoming += input.booked;
+    if (started) totals.unmarked += input.stillBooked;
+    else totals.upcoming += input.stillBooked;
     bySite.set(input.siteId, totals);
   }
 

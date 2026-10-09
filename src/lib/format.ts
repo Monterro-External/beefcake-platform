@@ -53,12 +53,12 @@ const MONTHS: Record<Locale, string[]> = {
   en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 };
 
-/** A plain date, human form: '26 aug 2026'. Never reinterpreted as an instant. */
 /** A no-show rate, or "–" for a site that marked no attendance (docs/domain-glossary.md). */
 export function noShowPercent(rate: number | null, locale: Locale = 'sv-SE'): string {
   return rate === null ? '–' : percent(rate, 0, locale);
 }
 
+/** A plain date, human form: '26 aug 2026'. Never reinterpreted as an instant. */
 export function date(day: PlainDate, locale: Locale = 'sv-SE'): string {
   const [year, month, dayOfMonth] = day.split('-') as [string, string, string];
   const monthName = MONTHS[locale][Number.parseInt(month, 10) - 1] ?? month;
