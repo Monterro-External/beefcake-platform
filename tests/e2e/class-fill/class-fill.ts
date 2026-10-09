@@ -31,3 +31,22 @@ export async function classFillRow(page: Page, siteName: string): Promise<Record
   const cells = await row.getByRole('cell').allTextContents();
   return Object.fromEntries(headers.map((header, i) => [header.trim(), (cells[i] ?? '').replace(/\s+/g, ' ').trim()]));
 }
+
+/** Act as the site manager of this tenant and open the classes page for one site. */
+export async function openClassesPage(
+  page: Page,
+  context: BrowserContext,
+  tenantName: string,
+  siteId: string,
+): Promise<void> {
+  const siteManager = personaFor('site_manager', tenantName);
+  await context.clearCookies();
+  await signIn(context, siteManager.userId);
+  await page.goto(`/app/classes?site=${encodeURIComponent(siteId)}`);
+  await expect(siteFillTile(page)).toBeVisible();
+}
+
+/** The "Site fill, 30 days" tile on the classes page: its label, value and hint. */
+export function siteFillTile(page: Page) {
+  return page.getByText('Site fill, 30 days', { exact: true }).locator('..');
+}
