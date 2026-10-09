@@ -3,10 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "engines": {
-    "node": ">=20.11"
+    "node": ">=22"
   },
   "scripts": {
-    "dev": "next dev",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "dev": "mkdir -p data && bash -o pipefail -c 'next dev \"$@\" 2>&1 | tee \"${DEV_LOG:-data/dev.log}\"' --",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
