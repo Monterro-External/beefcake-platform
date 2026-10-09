@@ -25,7 +25,7 @@ import {
 import { DayPicker } from './day-picker';
 import { activeTenant, getSession, tenantScopeFor } from '@/lib/session';
 import { clock } from '@/lib/clock';
-import { date as formatDate, humanise, integer, percent, timeOfDay } from '@/lib/format';
+import { date as formatDate, humanise, integer, optionalPercent, percent, timeOfDay } from '@/lib/format';
 import * as classesRepo from '@/db/repositories/classes';
 import * as tenantsRepo from '@/db/repositories/tenants';
 import * as reports from '@/export/reports';
@@ -66,7 +66,7 @@ export default async function ClassesPage({
     dayClasses.map((klass) => klass.id),
   );
 
-  const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30));
+  const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const siteFill = fill.find((row) => row.siteId === site?.id);
 
   const dayCapacity = dayClasses
@@ -130,7 +130,7 @@ export default async function ClassesPage({
           hint={
             siteFill === undefined
               ? undefined
-              : `${percent(siteFill.noShowRate, 0, locale)} no-show over ${integer(siteFill.classes, locale)} classes`
+              : `${optionalPercent(siteFill.noShowRate, 0, locale)} no-show over ${integer(siteFill.classes, locale)} classes`
           }
         />
       </div>
@@ -242,7 +242,7 @@ export default async function ClassesPage({
                         tone={row.fillRate > 0.85 ? 'good' : row.fillRate < 0.5 ? 'warn' : 'info'}
                       />
                     </TD>
-                    <TD align="right">{percent(row.noShowRate, 0, locale)}</TD>
+                    <TD align="right">{optionalPercent(row.noShowRate, 0, locale)}</TD>
                     <TD align="right">{integer(row.waitlisted, locale)}</TD>
                   </TR>
                 ))}

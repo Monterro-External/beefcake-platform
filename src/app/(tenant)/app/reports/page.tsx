@@ -36,6 +36,7 @@ import {
   amountCompact,
   humanise,
   integer,
+  optionalPercent,
   percent,
   period as formatPeriod,
 } from '@/lib/format';
@@ -93,7 +94,7 @@ export default async function ReportsPage({
   }
   const revenue = reports.revenueByPeriod(scope, 18);
   const codes = reports.failedPaymentsByCode(scope, addBillingPeriods(periodForRunDay(today), -5));
-  const fill = reports.classFillBySite(scope, window);
+  const fill = reports.classFillBySite(scope, window, time.now);
   const health = reports.tenantHealth(scope, today);
 
   const paymentDrivenLags = churnDetail
@@ -406,7 +407,9 @@ export default async function ReportsPage({
                 <TR>
                   <TH>Site</TH>
                   <TH align="right">Classes</TH>
+                  <TH align="right">Booked</TH>
                   <TH>Fill</TH>
+                  <TH align="right">Unmarked</TH>
                   <TH align="right">No-show</TH>
                   <TH align="right">Waitlisted</TH>
                 </TR>
@@ -416,6 +419,7 @@ export default async function ReportsPage({
                   <TR key={row.siteId}>
                     <TD>{row.siteName}</TD>
                     <TD align="right">{integer(row.classes, locale)}</TD>
+                    <TD align="right">{integer(row.booked, locale)}</TD>
                     <TD className="w-32">
                       <div className="flex items-center gap-2">
                         <Meter value={row.fillRate} tone={row.fillRate > 0.85 ? 'good' : 'info'} />
@@ -424,7 +428,8 @@ export default async function ReportsPage({
                         </span>
                       </div>
                     </TD>
-                    <TD align="right">{percent(row.noShowRate, 0, locale)}</TD>
+                    <TD align="right">{integer(row.unmarked, locale)}</TD>
+                    <TD align="right">{optionalPercent(row.noShowRate, 0, locale)}</TD>
                     <TD align="right">{integer(row.waitlisted, locale)}</TD>
                   </TR>
                 ))}

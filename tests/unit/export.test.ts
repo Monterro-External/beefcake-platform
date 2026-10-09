@@ -26,6 +26,8 @@ let connection: Connection;
 let outDir: string;
 let keyAccountId: string;
 
+const PINNED_NOW = new Date(`${PINNED_TODAY}T12:00:00.000Z`);
+
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'beefcake-export-'));
   const path = join(dir, 'export.db');
@@ -187,17 +189,20 @@ describe('class fill', () => {
   it('never reports a fill rate above a plausible ceiling', () => {
     // Counting capacity and bookings in one joined query multiplies capacity by
     // the booking count. This is the assertion that catches that.
-    for (const row of reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30))) {
+    for (const row of reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30), PINNED_NOW)) {
       expect(row.fillRate).toBeGreaterThan(0);
       expect(row.fillRate).toBeLessThanOrEqual(1.05);
-      expect(row.noShowRate).toBeGreaterThanOrEqual(0);
-      expect(row.noShowRate).toBeLessThanOrEqual(1);
+      // A site that marked nothing in the window has no no-show rate.
+      if (row.noShowRate !== null) {
+        expect(row.noShowRate).toBeGreaterThanOrEqual(0);
+        expect(row.noShowRate).toBeLessThanOrEqual(1);
+      }
       expect(row.booked).toBeLessThanOrEqual(row.capacity);
     }
   });
 
   it('reports one row per site with a name', () => {
-    const rows = reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30));
+    const rows = reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30), PINNED_NOW);
     expect(rows.length).toBeGreaterThan(1);
     for (const row of rows) expect(row.siteName.length).toBeGreaterThan(0);
   });
