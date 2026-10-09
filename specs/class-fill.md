@@ -9,10 +9,12 @@ The class fill report splits the bookings that hold a place into upcoming,
 unmarked, attended and no-show. Fill rate is places taken ÷ capacity; no-show
 rate is no-shows ÷ (attended + no-shows), and a site that marked nothing has no
 no-show rate, shown as "–". The reports page (`/app/reports`) class fill table
-reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. This plan
-covers AS-1 and AS-2 (BCPLA-21), and AS-3 (BCPLA-23): the classes page
-(`/app/classes`) site fill tile reads "No attendance marked · N classes" when
-the site has no no-show rate. Upcoming against unmarked, waitlisted and
+reads Site, Classes, Booked, Fill, Unmarked, No-show, Waitlisted. The class fill
+CSV export keeps its columns in order and adds `no_show`, `unmarked` and
+`upcoming` at the end. This plan covers AS-1 and AS-2 (BCPLA-21), AS-3
+(BCPLA-23): the classes page (`/app/classes`) site fill tile reads "No
+attendance marked · N classes" when the site has no no-show rate, and AS-5
+(BCPLA-24). Upcoming against unmarked, waitlisted and
 cancelled bookings, cancelled classes and tenant isolation are unit tests on
 the report (`tests/unit/class-fill.test.ts`).
 
@@ -59,3 +61,14 @@ and members when the test ends. The fixture is `hornstull` in
 
 **Expected:**
 - The tile reads "No attendance marked · 2 classes", not a no-show percentage.
+
+#### 1.4 AS-5 The class fill export keeps its columns and adds the new counts at the end
+
+**Steps:**
+1. Add Hornstull to Puls Träning with one class of 10 places and 3 bookings still `booked`, none marked.
+2. Sign in as the owner of Puls Träning and open `/app/reports?days=30`.
+3. Press "CSV" on "Class fill by site" and read the downloaded file.
+
+**Expected:**
+- The header is `site_id, site_name, classes, capacity, booked, attended, waitlisted, fill_rate, no_show_rate, no_show, unmarked, upcoming`, in that order.
+- Hornstull's row has an empty `no_show_rate` cell and `unmarked` 3.

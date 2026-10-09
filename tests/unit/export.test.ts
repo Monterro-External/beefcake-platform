@@ -206,6 +206,62 @@ describe('class fill', () => {
     expect(rows.length).toBeGreaterThan(1);
     for (const row of rows) expect(row.siteName.length).toBeGreaterThan(0);
   });
+
+  // An owner's spreadsheet refers to the export's columns by position, so the
+  // existing columns keep their order and the new counts go at the end.
+  it('keeps the class fill export columns and adds no_show, unmarked and upcoming at the end', () => {
+    expect(reports.classFillCsv([]).header).toEqual([
+      'site_id',
+      'site_name',
+      'classes',
+      'capacity',
+      'booked',
+      'attended',
+      'waitlisted',
+      'fill_rate',
+      'no_show_rate',
+      'no_show',
+      'unmarked',
+      'upcoming',
+    ]);
+  });
+
+  it('writes a site that marked nothing with an empty no-show rate and the other rate to four decimals', () => {
+    const csv = reports.classFillCsv([
+      {
+        siteId: 'sit_hornstull',
+        siteName: 'Hornstull',
+        classes: 2,
+        capacity: 30,
+        booked: 7,
+        attended: 0,
+        noShow: 0,
+        unmarked: 5,
+        upcoming: 2,
+        waitlisted: 1,
+        fillRate: 7 / 30,
+        noShowRate: null,
+      },
+      {
+        siteId: 'sit_sodermalm',
+        siteName: 'Södermalm',
+        classes: 1,
+        capacity: 10,
+        booked: 8,
+        attended: 4,
+        noShow: 1,
+        unmarked: 3,
+        upcoming: 0,
+        waitlisted: 0,
+        fillRate: 0.8,
+        noShowRate: 0.2,
+      },
+    ]);
+    expect(csv.rows.map((row) => row.map(csvCell).join(','))).toEqual([
+      'sit_hornstull,Hornstull,2,30,7,0,1,0.2333,,0,5,2',
+      'sit_sodermalm,Södermalm,1,10,8,4,0,0.8000,0.2000,1,3,0',
+    ]);
+  });
 });
 
 describe('access', () => {
