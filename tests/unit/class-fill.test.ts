@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { bookings, classes, members, sites, tenants } from '@/db/schema';
 import { tenantScope } from '@/db/repositories/scope';
 import * as reports from '@/export/reports';
-import { plainDate } from '@/domain/dates';
+import { type Timezone, plainDate } from '@/domain/dates';
 import { createTestDb, type TestDb } from '../helpers/test-db';
 
 const CREATED = '2026-01-01T00:00:00.000Z';
@@ -48,14 +48,14 @@ function tenant(id: string): void {
     .run();
 }
 
-function site(tenantId: string, id: string, name: string): void {
+function site(tenantId: string, id: string, name: string, timezone: Timezone = 'Europe/Stockholm'): void {
   testDb.db
     .insert(sites)
     .values({
       id,
       tenantId,
       name,
-      timezone: 'Europe/Stockholm',
+      timezone,
       addressLine: 'Hornsgatan 1',
       city: 'Stockholm',
       accessProvider: 'access-provider-a',
@@ -123,8 +123,8 @@ function klass(
 
 const times = (n: number, status: BookingStatus): BookingStatus[] => Array.from({ length: n }, () => status);
 
-function report(tenantId: string, now: Date = NOW) {
-  return reports.classFillBySite(tenantScope(tenantId, { db: testDb.db }), WINDOW, now);
+function report(tenantId: string, now: Date = NOW, window: reports.ReportWindow = WINDOW) {
+  return reports.classFillBySite(tenantScope(tenantId, { db: testDb.db }), window, now);
 }
 
 describe('class fill report', () => {
@@ -218,5 +218,59 @@ describe('class fill report', () => {
 
     expect(report('ten_a').map((row) => [row.siteId, row.capacity, row.booked])).toEqual([['sit_a', 10, 2]]);
     expect(report('ten_b').map((row) => [row.siteId, row.capacity, row.booked])).toEqual([['sit_b', 30, 6]]);
+  });
+
+  it('counts a class at 00:30 local time on the first day of the window, and not one at 23:30 the night before', () => {
+    tenant('ten_a');
+    site('ten_a', 'sit_a', 'Hornstull', 'Europe/Stockholm');
+    // 00:30 on 1 September in Stockholm (CEST, UTC+2) is 22:30 UTC on 31 August.
+    klass('ten_a', 'sit_a', '2026-08-31T22:30:00.000Z', 10, times(2, 'attended'));
+    // 23:30 on 31 August in Stockholm is 21:30 UTC on 31 August.
+    klass('ten_a', 'sit_a', '2026-08-31T21:30:00.000Z', 20, times(5, 'attended'));
+
+    expect(report('ten_a')[0]).toMatchObject({ classes: 1, capacity: 10, booked: 2, attended: 2 });
+  });
+
+  it('ends the window at local midnight after the last day at a Stockholm site and at a Helsinki site', () => {
+    tenant('ten_a');
+    site('ten_a', 'sit_s', 'Hornstull', 'Europe/Stockholm');
+    site('ten_a', 'sit_h', 'Kallio', 'Europe/Helsinki');
+    // Stockholm (UTC+2): 23:30 on 30 September counts; 00:30 on 1 October does not.
+    klass('ten_a', 'sit_s', '2026-09-30T21:30:00.000Z', 10, ['attended']);
+    klass('ten_a', 'sit_s', '2026-09-30T22:30:00.000Z', 20, ['attended']);
+    // Helsinki (UTC+3): 23:30 on 30 September counts; 02:30 on 1 October does
+    // not, though it is still 30 September in UTC.
+    klass('ten_a', 'sit_h', '2026-09-30T20:30:00.000Z', 12, ['attended']);
+    klass('ten_a', 'sit_h', '2026-09-30T23:30:00.000Z', 30, ['attended']);
+
+    const rows = report('ten_a', new Date('2026-10-02T00:00:00.000Z'));
+    expect(rows.map((row) => [row.siteName, row.classes, row.capacity])).toEqual([
+      ['Hornstull', 1, 10],
+      ['Kallio', 1, 12],
+    ]);
+  });
+
+  it('puts a class at 00:30 local time on 1 March in March, after 29 February in a leap year', () => {
+    tenant('ten_a');
+    site('ten_a', 'sit_h', 'Kallio', 'Europe/Helsinki');
+    // Helsinki in winter is UTC+2: 23:30 on 29 February is 21:30 UTC, and
+    // 00:30 on 1 March is 22:30 UTC on 29 February.
+    klass('ten_a', 'sit_h', '2028-02-29T21:30:00.000Z', 20, ['attended']);
+    klass('ten_a', 'sit_h', '2028-02-29T22:30:00.000Z', 10, ['attended']);
+
+    const now = new Date('2028-04-01T00:00:00.000Z');
+    const february = { from: plainDate(2028, 2, 1), to: plainDate(2028, 2, 29) };
+    const march = { from: plainDate(2028, 3, 1), to: plainDate(2028, 3, 31) };
+    expect(report('ten_a', now, february)[0]).toMatchObject({ classes: 1, capacity: 20 });
+    expect(report('ten_a', now, march)[0]).toMatchObject({ classes: 1, capacity: 10 });
+  });
+
+  it("counts bookings on a class at 23:30 local time on the window's last day as upcoming, not unmarked", () => {
+    tenant('ten_a');
+    site('ten_a', 'sit_a', 'Hornstull', 'Europe/Stockholm');
+    // 23:30 on 30 September in Stockholm is 21:30 UTC; now is 14:00 local.
+    klass('ten_a', 'sit_a', '2026-09-30T21:30:00.000Z', 10, times(4, 'booked'));
+
+    expect(report('ten_a')[0]).toMatchObject({ classes: 1, booked: 4, upcoming: 4, unmarked: 0 });
   });
 });
