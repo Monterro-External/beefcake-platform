@@ -104,7 +104,13 @@ Feature: Class fill by site with unmarked bookings reported on their own
 | AC9 | | two tenants |
 | AC10 | | timing on a full-scale db, by hand |
 
-Implementation tickets: none yet. Mapping happens in `/to-tickets BCPLA-19`.
+Implementation tickets (sub-issues of BCPLA-19):
+
+- BCPLA-21 `Covers: AS-1, AS-2`: builds the Hornstull fixture; blocks the rest
+- BCPLA-22 `Covers: AS-4`: site-local day, the AC10 timing check
+- BCPLA-23 `Covers: AS-3`
+- BCPLA-24 `Covers: AS-5`
+- BCPLA-25 `Covers: AS-6`
 
 Environment, checked 2026-10-09:
 
