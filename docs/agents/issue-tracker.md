@@ -21,6 +21,10 @@ ToolSearch (e.g. `select:mcp__claude_ai_Linear__get_issue,...`) before calling.
   `list_issue_labels` `team: "Beefcake-platform"` before applying, so you reuse an
   existing label instead of creating a near-duplicate.
 - **Close**: `save_issue` with a terminal state (`Done`, `Canceled`).
+- **Edit a long issue**: one `save_issue` call with every change in a single
+  `patch`; each write returns the whole description.
+- **A 5xx on create**: `list_issues` with `createdAt: "-PT1H"` first; the issue may
+  exist already. Retry only when it does not.
 - Tickets are referred to by identifier (`BCPLA-123`) everywhere, in commits too.
 
 ## Existing vocabulary

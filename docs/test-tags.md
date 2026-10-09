@@ -18,7 +18,9 @@ Tags go on Gherkin scenarios and, with the same spelling, on Playwright tests:
 | `@wip` | Run | Written but not built yet; never run in CI. |
 
 Every scenario has exactly one type tag. Every Spec has at least one `@happy`,
-one `@error` and one `@regression` scenario.
+one `@error` and one `@regression` scenario. On a read-only view such as a report,
+`@error` is what the reader sees when the data is missing: no rows, or a figure
+that cannot be computed.
 
 ```bash
 npx playwright test --grep @smoke                           # quick check
