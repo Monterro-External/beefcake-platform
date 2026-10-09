@@ -28,6 +28,7 @@ export default async function FleetErrors() {
   const time = clock();
   const since = addDays(time.today(timezoneForCountry('SE')), -30);
 
+  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: error rollup starts at UTC midnight
   const rollup = errorRollup(admin, `${since}T00:00:00.000Z`);
   const tenantNames = new Map(tenantsRepo.listTenants(admin).map((tenant) => [tenant.id, tenant.name]));
 

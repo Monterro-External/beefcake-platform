@@ -58,6 +58,7 @@ export default async function AdminTenantPage({
   const lag = reports.syncLagBySite(scope);
   const churn = reports.churnByWeek(scope, reports.windowOfDays(today, 84));
   const dunning = reports.openDunning(scope, 25);
+  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: 30-day error window starts at UTC midnight
   const errors = listErrors(scope, { since: `${reports.windowOfDays(today, 30).from}T00:00:00.000Z`, limit: 20 });
 
   const lastRun = revenue[revenue.length - 1] ?? null;

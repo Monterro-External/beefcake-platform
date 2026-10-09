@@ -241,6 +241,7 @@ function writeAccess(sqlite: Sqlite, input: ActivityInput, counts: TableCounts):
 
           const hour = pickHour(rng, lateTail);
           const at = atLocalTime(day, site.timezone, hour, rng.int(0, 59), rng.int(0, 59));
+          // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: seed cut-off at end of the UTC day
           if (at.getTime() > Date.parse(`${anchors.today}T23:59:59.000Z`)) continue;
 
           const source = rng.chance(member.usesApp ? 0.32 : 0.06)
@@ -381,6 +382,7 @@ function writeEvents(
   let eventSeq = 0;
   let errorSeq = 0;
   let outboxSeq = 0;
+  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: outbox window starts at UTC midnight
   const outboxFrom = `${addDays(anchors.today, -OUTBOX_DAYS)}T00:00:00.000Z`;
 
   const event = (
