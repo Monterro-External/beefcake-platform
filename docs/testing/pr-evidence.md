@@ -82,7 +82,8 @@ implementation tickets).
 1. Run `/spec-to-scenarios <spec-id>`. It adds the Gherkin to the Spec, with
    exactly one type tag per scenario (`@happy`, `@edge`, `@error`, `@negative`,
    `@regression`; at least one `@happy`, `@error` and `@regression`), and saves
-   the planner brief.
+   the planner brief. `npm run spec:check -- <brief | spec-id>` runs CI's parser
+   on it.
 2. Run `/to-tickets <spec-id>`. Each ticket gets its `Covers:` line, or
    `Covers: none` when it makes no scenario pass.
 3. Build the ticket. Once its screens run locally, ask the

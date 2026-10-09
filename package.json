@@ -21,6 +21,7 @@
     "jobs:access-sync": "tsx src/jobs/cli.ts access-sync",
     "jobs:waitlist-promote": "tsx src/jobs/cli.ts waitlist-promote",
     "export:signals": "tsx src/export/cli.ts",
+    "spec:check": "node .github/scripts/spec-check.cjs",
     "aspire:start": "npm --prefix aspire-apphost run aspire:start",
     "aspire:build": "npm --prefix aspire-apphost run aspire:build",
     "aspire:dev": "npm --prefix aspire-apphost run aspire:dev"
