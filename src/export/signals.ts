@@ -106,6 +106,7 @@ function eventRows(db: Db, since: PlainDate): Record<string, unknown>[] {
     .from(events)
     .where(
       and(
+        // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: signal window starts at UTC midnight
         gte(events.at, `${since}T00:00:00.000Z`),
         sql`${events.action} in (${sql.join(
           EXPORTED_ACTIONS.map((action) => sql`${action}`),
@@ -152,6 +153,7 @@ function errorRows(db: Db, since: PlainDate): Record<string, unknown>[] {
       sample: sql<string>`min(${errors.message})`,
     })
     .from(errors)
+    // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: signal window starts at UTC midnight
     .where(gte(errors.at, `${since}T00:00:00.000Z`))
     .groupBy(errors.tenantId, errors.where, errors.severity)
     .orderBy(sql`count(*) desc`)
@@ -414,6 +416,7 @@ function tenantHealthRows(scope: AdminScope, today: PlainDate): CsvTable {
 
 function accessSyncRows(scope: AdminScope, today: PlainDate): CsvTable {
   const rows: CsvValue[][] = [];
+  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: end of today in UTC
   const endOfToday = Date.parse(`${today}T23:59:59.999Z`);
 
   for (const tenant of scope.db.select().from(tenants).orderBy(asc(tenants.name)).all()) {
