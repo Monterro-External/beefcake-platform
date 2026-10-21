@@ -25,7 +25,7 @@ import {
 } from '@/components/ui';
 import { activeTenant, can, getSession, tenantScopeFor } from '@/lib/session';
 import { clock } from '@/lib/clock';
-import { amountCompact, humanise, integer, percent, period as formatPeriod, ago } from '@/lib/format';
+import { amountCompact, humanise, integer, optionalPercent, percent, period as formatPeriod, ago } from '@/lib/format';
 import * as reports from '@/export/reports';
 import * as paymentsRepo from '@/db/repositories/payments';
 import { timezoneForCountry } from '@/jobs/runner';
@@ -65,9 +65,9 @@ export default async function Overview() {
   const nextRunOverdue = nextRunOn <= today;
   const dunning = seesPayments ? reports.openDunning(scope, 8) : [];
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
-  const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30));
+  const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const lag = reports.syncLagBySite(scope);
-  const health = reports.tenantHealth(scope, today);
+  const health = reports.tenantHealth(scope, today, time.now);
 
   const totalCapacity = fill.reduce((acc, row) => acc + row.capacity, 0);
   const totalBooked = fill.reduce((acc, row) => acc + row.booked, 0);
@@ -287,7 +287,7 @@ export default async function Overview() {
                     <span>{row.siteName}</span>
                     <span className="tabular-nums text-ink-muted">
                       {percent(row.fillRate, 0, locale)} · {integer(row.classes, locale)} classes ·{' '}
-                      {percent(row.noShowRate, 0, locale)} no-show
+                      {optionalPercent(row.noShowRate, 0, locale)} no-show
                     </span>
                   </div>
                   <div className="mt-1">

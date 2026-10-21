@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { closeConnection, connection } from '@/db/client';
 import { adminScope } from '@/db/repositories/scope';
 import { type PlainDate, addDays, assertPlainDate } from '@/domain/dates';
+import { defaultNow } from '@/jobs/runner';
 import { type ExportResult, exportSignals, seededToday } from './signals';
 
 const HELP = `
@@ -95,10 +96,13 @@ export function main(argv: readonly string[]): number {
   const { db } = connection();
   const today = args.today ?? seededToday(db);
   const since = args.since ?? addDays(today, -365);
+  // Tenant health is read at an instant: the clock's time of day, on `today`.
+  const now = new Date(`${today}T${defaultNow(db).toISOString().slice(11)}`);
 
   const result = exportSignals(adminScope({ db }), {
     since,
     today,
+    now,
     outDir: resolve(args.outDir),
   });
 

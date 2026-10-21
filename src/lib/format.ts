@@ -45,6 +45,11 @@ export function percent(fraction: number, digits = 1, locale: Locale = 'sv-SE'):
   }).format(fraction);
 }
 
+/** A rate that may not exist, such as a no-show rate where nothing was marked: "–", never 0%. */
+export function optionalPercent(fraction: number | null, digits = 1, locale: Locale = 'sv-SE'): string {
+  return fraction === null ? '–' : percent(fraction, digits, locale);
+}
+
 const MONTHS: Record<Locale, string[]> = {
   'sv-SE': ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
   'nb-NO': ['jan', 'feb', 'mar', 'apr', 'mai', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'des'],

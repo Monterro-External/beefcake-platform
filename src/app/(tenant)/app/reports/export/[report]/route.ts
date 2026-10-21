@@ -52,7 +52,7 @@ export async function GET(
 
   let csv: Csv;
   try {
-    csv = build(report as ReportName, scope, window, today);
+    csv = build(report as ReportName, scope, window, today, time.now);
   } catch (error) {
     if (!(error instanceof reports.ReportTimeoutError)) throw error;
     recordError(scope, {
@@ -95,6 +95,7 @@ function build(
   scope: ReturnType<typeof tenantScopeFor>,
   window: reports.ReportWindow,
   today: string,
+  now: Date,
 ): Csv {
   switch (report) {
     case 'churn': {
@@ -154,33 +155,8 @@ function build(
       };
     }
 
-    case 'classes': {
-      const rows = reports.classFillBySite(scope, window);
-      return {
-        header: [
-          'site_id',
-          'site_name',
-          'classes',
-          'capacity',
-          'booked',
-          'attended',
-          'waitlisted',
-          'fill_rate',
-          'no_show_rate',
-        ],
-        rows: rows.map((row) => [
-          row.siteId,
-          row.siteName,
-          row.classes,
-          row.capacity,
-          row.booked,
-          row.attended,
-          row.waitlisted,
-          row.fillRate.toFixed(4),
-          row.noShowRate.toFixed(4),
-        ]),
-      };
-    }
+    case 'classes':
+      return reports.classFillCsv(reports.classFillBySite(scope, window, now));
 
     case 'members': {
       const summary = reports.membershipSummary(scope, window);

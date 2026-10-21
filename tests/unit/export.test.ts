@@ -26,6 +26,8 @@ let connection: Connection;
 let outDir: string;
 let keyAccountId: string;
 
+const PINNED_NOW = new Date(`${PINNED_TODAY}T12:00:00.000Z`);
+
 beforeAll(() => {
   dir = mkdtempSync(join(tmpdir(), 'beefcake-export-'));
   const path = join(dir, 'export.db');
@@ -187,19 +189,78 @@ describe('class fill', () => {
   it('never reports a fill rate above a plausible ceiling', () => {
     // Counting capacity and bookings in one joined query multiplies capacity by
     // the booking count. This is the assertion that catches that.
-    for (const row of reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30))) {
+    for (const row of reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30), PINNED_NOW)) {
       expect(row.fillRate).toBeGreaterThan(0);
       expect(row.fillRate).toBeLessThanOrEqual(1.05);
-      expect(row.noShowRate).toBeGreaterThanOrEqual(0);
-      expect(row.noShowRate).toBeLessThanOrEqual(1);
+      // A site that marked nothing in the window has no no-show rate.
+      if (row.noShowRate !== null) {
+        expect(row.noShowRate).toBeGreaterThanOrEqual(0);
+        expect(row.noShowRate).toBeLessThanOrEqual(1);
+      }
       expect(row.booked).toBeLessThanOrEqual(row.capacity);
     }
   });
 
   it('reports one row per site with a name', () => {
-    const rows = reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30));
+    const rows = reports.classFillBySite(scopeFor(), reports.windowOfDays(PINNED_TODAY, 30), PINNED_NOW);
     expect(rows.length).toBeGreaterThan(1);
     for (const row of rows) expect(row.siteName.length).toBeGreaterThan(0);
+  });
+
+  // An owner's spreadsheet refers to the export's columns by position, so the
+  // existing columns keep their order and the new counts go at the end.
+  it('keeps the class fill export columns and adds no_show, unmarked and upcoming at the end', () => {
+    expect(reports.classFillCsv([]).header).toEqual([
+      'site_id',
+      'site_name',
+      'classes',
+      'capacity',
+      'booked',
+      'attended',
+      'waitlisted',
+      'fill_rate',
+      'no_show_rate',
+      'no_show',
+      'unmarked',
+      'upcoming',
+    ]);
+  });
+
+  it('writes a site that marked nothing with an empty no-show rate and the other rate to four decimals', () => {
+    const csv = reports.classFillCsv([
+      {
+        siteId: 'sit_hornstull',
+        siteName: 'Hornstull',
+        classes: 2,
+        capacity: 30,
+        booked: 7,
+        attended: 0,
+        noShow: 0,
+        unmarked: 5,
+        upcoming: 2,
+        waitlisted: 1,
+        fillRate: 7 / 30,
+        noShowRate: null,
+      },
+      {
+        siteId: 'sit_sodermalm',
+        siteName: 'Södermalm',
+        classes: 1,
+        capacity: 10,
+        booked: 8,
+        attended: 4,
+        noShow: 1,
+        unmarked: 3,
+        upcoming: 0,
+        waitlisted: 0,
+        fillRate: 0.8,
+        noShowRate: 0.2,
+      },
+    ]);
+    expect(csv.rows.map((row) => row.map(csvCell).join(','))).toEqual([
+      'sit_hornstull,Hornstull,2,30,7,0,1,0.2333,,0,5,2',
+      'sit_sodermalm,Södermalm,1,10,8,4,0,0.8000,0.2000,1,3,0',
+    ]);
   });
 });
 
@@ -222,12 +283,13 @@ describe('access', () => {
 
 describe('tenant health', () => {
   it('scores every tenant and shows its inputs', () => {
-    const tenants = connection.sqlite.prepare('select id, name from tenants').all() as {
+    const tenants = connection.sqlite.prepare('select id, name, country from tenants').all() as {
       id: string;
       name: string;
+      country: string;
     }[];
     for (const tenant of tenants) {
-      const health = reports.tenantHealth(scopeFor(tenant.id), PINNED_TODAY);
+      const health = reports.tenantHealth(scopeFor(tenant.id), PINNED_TODAY, PINNED_NOW);
       expect(health.score.score).toBeGreaterThanOrEqual(0);
       expect(health.score.score).toBeLessThanOrEqual(100);
       expect(health.inputs.failedPaymentRate).toBeGreaterThanOrEqual(0);
@@ -240,8 +302,8 @@ describe('tenant health', () => {
     const quiet = connection.sqlite
       .prepare("select id from tenants where name = 'Bodyfokus Umeå'")
       .get() as { id: string };
-    const stressed = reports.tenantHealth(scopeFor(keyAccountId), PINNED_TODAY);
-    const calm = reports.tenantHealth(scopeFor(quiet.id), PINNED_TODAY);
+    const stressed = reports.tenantHealth(scopeFor(keyAccountId), PINNED_TODAY, PINNED_NOW);
+    const calm = reports.tenantHealth(scopeFor(quiet.id), PINNED_TODAY, PINNED_NOW);
     expect(stressed.inputs.failedPaymentRate).toBeGreaterThan(calm.inputs.failedPaymentRate);
   });
 });
@@ -251,6 +313,7 @@ describe('the export files', () => {
     exportSignals(adminScope({ db: connection.db }), {
       since: plainDate(2026, 1, 1),
       today: PINNED_TODAY,
+      now: PINNED_NOW,
       outDir,
     });
   });
@@ -342,6 +405,12 @@ describe('the export files', () => {
       n: number;
     };
     expect(readCsv('tenant-health.csv').rows).toHaveLength(tenants.n);
+  });
+
+  it('writes class_fill_rate as a ratio with four decimals', () => {
+    const { header, rows } = readCsv('tenant-health.csv');
+    const column = header.indexOf('class_fill_rate');
+    for (const row of rows) expect(row[column]).toMatch(/^\d\.\d{4}$/);
   });
 
   it('writes one access-sync row per site', () => {

@@ -16,23 +16,26 @@ import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizz
 import {
   accessEvents,
   accessSyncState,
-  bookings,
   charges,
-  classes,
   members,
   paymentRuns,
   sites,
   subscriptions,
 } from '@/db/schema';
 import { type TenantScope, guard } from '@/db/repositories/scope';
+import * as classesRepo from '@/db/repositories/classes';
 import {
   type BillingPeriod,
   type PlainDate,
+  TIMEZONES,
   addDays,
   billingPeriodOf,
   differenceInDays,
+  endOfDayExclusive,
+  startOfDay,
 } from '@/domain/dates';
 import type { Currency, Money } from '@/domain/money';
+import { type SiteClassFill, tallyClassFill } from '@/domain/class-fill';
 import { type HealthInputs, type HealthScore, scoreTenantHealth } from '@/domain/health';
 
 export interface ReportWindow {
@@ -292,85 +295,67 @@ export function churnWithPaymentLag(scope: TenantScope, window: ReportWindow): C
 // Classes
 // ---------------------------------------------------------------------------
 
-export interface ClassFillRow {
-  readonly siteId: string;
-  readonly siteName: string;
-  readonly classes: number;
-  readonly capacity: number;
-  readonly booked: number;
-  readonly attended: number;
-  readonly waitlisted: number;
-  readonly fillRate: number;
-  readonly noShowRate: number;
+export type ClassFillRow = SiteClassFill;
+
+/**
+ * Class fill per site over a window of days, as it stands at `now`. A class
+ * counts on its site-local day, in its own site's timezone. A class has
+ * started when it starts at or before `now`; bookings on a class that has not
+ * started are upcoming, and bookings on one that has but were never marked are
+ * unmarked. Callers pass `now` from the application clock.
+ */
+export function classFillBySite(scope: TenantScope, window: ReportWindow, now: Date): ClassFillRow[] {
+  // Fetch from the earliest start of the first day to the latest end of the
+  // last day across the Nordic timezones; the domain function keeps the classes
+  // whose site-local day, in their own site's timezone, is in the window.
+  const starts = TIMEZONES.map((timezone) => startOfDay(window.from, timezone).getTime());
+  const ends = TIMEZONES.map((timezone) => endOfDayExclusive(window.to, timezone).getTime());
+  const rows = classesRepo.classFillRows(scope, {
+    from: new Date(Math.min(...starts)).toISOString(),
+    to: new Date(Math.max(...ends)).toISOString(),
+  });
+  return tallyClassFill(rows.classes, rows.bookings, window, now);
 }
 
-export function classFillBySite(scope: TenantScope, window: ReportWindow): ClassFillRow[] {
-  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: class fill UTC window, fixed by BCPLA-22
-  const from = `${window.from}T00:00:00.000Z`;
-  // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: class fill UTC window, fixed by BCPLA-22
-  const to = `${window.to}T23:59:59.999Z`;
-
-  // Capacity and bookings are counted separately on purpose: joining them and
-  // summing capacity in one statement multiplies capacity by the booking count,
-  // which is how the old version of this report managed to show 340% fill.
-  const capacityRows = scope.db
-    .select({
-      siteId: classes.siteId,
-      siteName: sites.name,
-      classes: count(),
-      capacity: sql<number>`coalesce(sum(${classes.capacity}), 0)`,
-    })
-    .from(classes)
-    .innerJoin(sites, eq(sites.id, classes.siteId))
-    .where(
-      and(
-        eq(classes.tenantId, scope.tenantId),
-        eq(classes.cancelled, false),
-        gte(classes.startsAt, from),
-        lte(classes.startsAt, to),
-      ),
-    )
-    .groupBy(classes.siteId, sites.name)
-    .orderBy(asc(sites.name))
-    .all();
-
-  const bookingRows = scope.db
-    .select({
-      siteId: classes.siteId,
-      booked: sql<number>`sum(case when ${bookings.status} in ('booked','attended','no_show') then 1 else 0 end)`,
-      attended: sql<number>`sum(case when ${bookings.status} = 'attended' then 1 else 0 end)`,
-      waitlisted: sql<number>`sum(case when ${bookings.status} = 'waitlisted' then 1 else 0 end)`,
-    })
-    .from(bookings)
-    .innerJoin(classes, eq(classes.id, bookings.classId))
-    .where(
-      and(
-        eq(bookings.tenantId, scope.tenantId),
-        eq(classes.cancelled, false),
-        gte(classes.startsAt, from),
-        lte(classes.startsAt, to),
-      ),
-    )
-    .groupBy(classes.siteId)
-    .all();
-
-  const byBookings = new Map(bookingRows.map((row) => [row.siteId, row]));
-  return capacityRows.map((row) => {
-    const counts = byBookings.get(row.siteId);
-    const booked = counts?.booked ?? 0;
-    const attended = counts?.attended ?? 0;
-    return {
-      siteId: row.siteId,
-      siteName: row.siteName,
-      classes: row.classes,
-      capacity: row.capacity,
-      booked,
-      attended,
-      waitlisted: counts?.waitlisted ?? 0,
-      fillRate: row.capacity === 0 ? 0 : booked / row.capacity,
-      noShowRate: booked === 0 ? 0 : Math.max(0, booked - attended) / booked,
-    };
-  });
+/**
+ * The class fill report as CSV columns and cells. Owners' spreadsheets refer to
+ * the columns by position, so new columns go at the end and existing ones never
+ * move. A site with no no-show rate gets an empty cell, never 0.
+ */
+export function classFillCsv(rows: readonly ClassFillRow[]): {
+  header: string[];
+  rows: (string | number | null)[][];
+} {
+  return {
+    header: [
+      'site_id',
+      'site_name',
+      'classes',
+      'capacity',
+      'booked',
+      'attended',
+      'waitlisted',
+      'fill_rate',
+      'no_show_rate',
+      'no_show',
+      'unmarked',
+      'upcoming',
+    ],
+    rows: rows.map((row) => [
+      row.siteId,
+      row.siteName,
+      row.classes,
+      row.capacity,
+      row.booked,
+      row.attended,
+      row.waitlisted,
+      row.fillRate.toFixed(4),
+      row.noShowRate === null ? null : row.noShowRate.toFixed(4),
+      row.noShow,
+      row.unmarked,
+      row.upcoming,
+    ]),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -531,8 +516,15 @@ export interface HealthReport {
  * The inputs behind a tenant's health score, computed from platform data only.
  * Support tickets and NPS live in other systems and are joined in downstream, so
  * they are deliberately absent.
+ *
+ * Health is for the tenant's report day `today`, as it stands at `now`. Callers
+ * pass both from the application clock (`time.today(timezone)` and `time.now`)
+ * or the export's `--today`: the windows come from `today`, never from `now`,
+ * because a pinned clock or an explicit `--today` can put `now` on the next
+ * local day near Nordic midnight. `now` only splits upcoming from unmarked
+ * bookings. Class fill is the class fill report's total over the same 30 days.
  */
-export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport {
+export function tenantHealth(scope: TenantScope, today: PlainDate, now: Date): HealthReport {
   const lastRun = scope.db
     .select({ attempted: paymentRuns.chargesAttempted, failed: paymentRuns.chargesFailed })
     .from(paymentRuns)
@@ -563,7 +555,7 @@ export function tenantHealth(scope: TenantScope, today: PlainDate): HealthReport
       .get()?.n ?? 0;
 
   const thirtyDays = windowOfDays(today, 30);
-  const fill = classFillBySite(scope, thirtyDays);
+  const fill = classFillBySite(scope, thirtyDays, now);
   const totalCapacity = fill.reduce((acc, row) => acc + row.capacity, 0);
   const totalBooked = fill.reduce((acc, row) => acc + row.booked, 0);
 
