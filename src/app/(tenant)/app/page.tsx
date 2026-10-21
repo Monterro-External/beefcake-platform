@@ -32,10 +32,26 @@ import { timezoneForCountry } from '@/jobs/runner';
 import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { addBillingPeriods } from '@/domain/dates';
 import { date as formatDate } from '@/lib/format';
+// PROTOTYPE (BCPLA-34): search and filter variants for "In dunning now". Throwaway.
+import * as tenantsRepo from '@/db/repositories/tenants';
+import { PrototypeSwitcher } from '@/components/ui/prototype-switcher';
+import { facetCounts, filteredDunning, isFiltered, readFilter } from './_prototype-dunning/query';
+import { VariantA, VariantB, VariantC } from './_prototype-dunning/variants';
+
+const PROTOTYPE_VARIANTS = [
+  { key: 'A', name: 'Toolbar' },
+  { key: 'B', name: 'Column headers' },
+  { key: 'C', name: 'Search first' },
+];
 
 export const dynamic = 'force-dynamic';
 
-export default async function Overview() {
+export default async function Overview({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const params = await searchParams;
   const session = await getSession();
   const tenant = activeTenant(session);
   if (tenant === null) return null;
@@ -64,6 +80,15 @@ export default async function Overview() {
   const nextRunOn = runDayFor(nextPeriod);
   const nextRunOverdue = nextRunOn <= today;
   const dunning = seesPayments ? reports.openDunning(scope, 8) : [];
+  // PROTOTYPE: front desk stands in for the new `dunning.read` (BCPLA-30).
+  const variant = PROTOTYPE_VARIANTS.some((v) => v.key === params.variant) ? (params.variant ?? null) : null;
+  const seesDunning = seesPayments || session.user.role === 'front_desk';
+  const dunningFilter = readFilter(params);
+  const dunningFiltered = isFiltered(dunningFilter);
+  const dunningPage =
+    variant !== null && seesDunning
+      ? filteredDunning(scope, dunningFilter, dunningFiltered ? 50 : 8)
+      : null;
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30));
   const lag = reports.syncLagBySite(scope);
@@ -303,7 +328,26 @@ export default async function Overview() {
         </Card>
       </div>
 
-      {seesPayments && (
+      {variant !== null && dunningPage !== null && (
+        <div className="mt-4">
+          {(() => {
+            const props = {
+              variant,
+              filter: dunningFilter,
+              filtered: dunningFiltered,
+              page: dunningPage,
+              sites: tenantsRepo.listSites(scope),
+              facets: facetCounts(scope, dunningFilter),
+              seesPayments,
+              now: time.now,
+              locale,
+            };
+            return variant === 'A' ? <VariantA {...props} /> : variant === 'B' ? <VariantB {...props} /> : <VariantC {...props} />;
+          })()}
+        </div>
+      )}
+      {variant !== null && <PrototypeSwitcher variants={PROTOTYPE_VARIANTS} current={variant} />}
+      {variant === null && seesPayments && (
       <div className="mt-4">
         <Card
           title="In dunning now"
