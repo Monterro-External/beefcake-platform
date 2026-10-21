@@ -344,3 +344,125 @@ export function VariantC(props: VariantProps) {
     </Card>
   );
 }
+
+// ---------------------------------------------------------------------------
+// D: the winner. A's toolbar and table, C's chips; a chip that would match
+// nothing is greyed out and not clickable.
+// ---------------------------------------------------------------------------
+
+function FacetChip({
+  href,
+  active,
+  count,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  count: number;
+  children: ReactNode;
+}) {
+  if (count === 0 && !active) {
+    return (
+      <span
+        aria-disabled="true"
+        title="No charges in dunning now match this together with the other filters"
+        className="cursor-not-allowed rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-muted opacity-40"
+      >
+        {children} 0
+      </span>
+    );
+  }
+  return (
+    <Chip href={href} active={active}>
+      {children} {count}
+    </Chip>
+  );
+}
+
+export function VariantD(props: VariantProps) {
+  const { filter, page, sites, facets, now, locale, variant } = props;
+  const n = (list: { key: string | null; n: number }[], key: string) => list.find((row) => row.key === key)?.n ?? 0;
+  return (
+    <Card
+      title="In dunning now"
+      actions={props.seesPayments ? <Link href="/app/payments" className="text-accent">All payments</Link> : undefined}
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <SearchBox value={filter.q} />
+        <FilterSelect
+          param="site"
+          label="Sites"
+          value={filter.site}
+          options={sites.map((site) => ({ value: site.id, label: site.name }))}
+        />
+      </div>
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <Chip href={chipHref(filter, variant, 'status', '')} active={filter.status === ''}>
+          Any status
+        </Chip>
+        {STATUS_OPTIONS.map((option) => (
+          <FacetChip
+            key={option.value}
+            href={chipHref(filter, variant, 'status', filter.status === option.value ? '' : option.value)}
+            active={filter.status === option.value}
+            count={n(facets.byStatus, option.value)}
+          >
+            {option.label}
+          </FacetChip>
+        ))}
+        <span className="mx-1 text-line">|</span>
+        <Chip href={chipHref(filter, variant, 'reason', '')} active={filter.reason === ''}>
+          Any reason
+        </Chip>
+        {REASON_OPTIONS.map((option) => (
+          <FacetChip
+            key={option.value}
+            href={chipHref(filter, variant, 'reason', filter.reason === option.value ? '' : option.value)}
+            active={filter.reason === option.value}
+            count={n(facets.byReason, option.value)}
+          >
+            {option.label}
+          </FacetChip>
+        ))}
+      </div>
+      {props.filtered && page.rows.length > 0 && (
+        <div className="mb-2 flex items-center justify-between text-ink-muted">
+          <span>{countLine(props)}</span>
+          {paymentsLink(props)}
+        </div>
+      )}
+      <Body props={props}>
+        <Table>
+          <THead>
+            <TR>
+              <TH>Member</TH>
+              <TH align="right">Amount</TH>
+              <TH>Reason</TH>
+              <TH align="right">Attempt</TH>
+              <TH>Next attempt</TH>
+              <TH>Status</TH>
+            </TR>
+          </THead>
+          <tbody>
+            {page.rows.map((row) => (
+              <TR key={`${row.memberId}-${row.attemptedAt}`}>
+                <TD>
+                  <Link href={`/app/members/${row.memberId}`} className="text-accent">
+                    {row.memberName}
+                  </Link>
+                </TD>
+                <TD align="right" mono>
+                  {amountCompact(row.amountMinor, row.currency, locale)}
+                </TD>
+                <TD>{humanise(row.failureCode)}</TD>
+                <TD align="right">{row.attempt}</TD>
+                <TD className="text-ink-muted">{nextAttempt(row, now)}</TD>
+                <TD>{statusBadge(row.status)}</TD>
+              </TR>
+            ))}
+          </tbody>
+        </Table>
+      </Body>
+    </Card>
+  );
+}

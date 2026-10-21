@@ -36,12 +36,13 @@ import { date as formatDate } from '@/lib/format';
 import * as tenantsRepo from '@/db/repositories/tenants';
 import { PrototypeSwitcher } from '@/components/ui/prototype-switcher';
 import { facetCounts, filteredDunning, isFiltered, readFilter } from './_prototype-dunning/query';
-import { VariantA, VariantB, VariantC } from './_prototype-dunning/variants';
+import { VariantA, VariantB, VariantC, VariantD } from './_prototype-dunning/variants';
 
 const PROTOTYPE_VARIANTS = [
   { key: 'A', name: 'Toolbar' },
   { key: 'B', name: 'Column headers' },
   { key: 'C', name: 'Search first' },
+  { key: 'D', name: 'Toolbar + chips (chosen)' },
 ];
 
 export const dynamic = 'force-dynamic';
@@ -342,7 +343,7 @@ export default async function Overview({
               now: time.now,
               locale,
             };
-            return variant === 'A' ? <VariantA {...props} /> : variant === 'B' ? <VariantB {...props} /> : <VariantC {...props} />;
+            return variant === 'A' ? <VariantA {...props} /> : variant === 'B' ? <VariantB {...props} /> : variant === 'C' ? <VariantC {...props} /> : <VariantD {...props} />;
           })()}
         </div>
       )}
