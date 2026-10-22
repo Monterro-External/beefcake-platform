@@ -49,6 +49,7 @@ export default async function Overview() {
   // Front desk sees the day job. Money and reports are the owner's and the site
   // manager's, and the tiles below follow the same permissions as the pages.
   const seesPayments = can(session, 'payments.read');
+  const seesDunning = can(session, 'dunning.read');
   const seesReports = can(session, 'reports.read');
 
   const membership = reports.membershipSummary(scope, reports.windowOfDays(today, 30));
@@ -63,7 +64,7 @@ export default async function Overview() {
       : addBillingPeriods(currentPeriod, 1);
   const nextRunOn = runDayFor(nextPeriod);
   const nextRunOverdue = nextRunOn <= today;
-  const dunning = seesPayments ? reports.openDunning(scope, 8) : [];
+  const dunning = seesDunning ? reports.openDunning(scope, 8) : [];
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const lag = reports.syncLagBySite(scope);
@@ -303,11 +304,15 @@ export default async function Overview() {
         </Card>
       </div>
 
-      {seesPayments && (
+      {seesDunning && (
       <div className="mt-4">
         <Card
           title="In dunning now"
-          actions={<Link href="/app/payments" className="text-accent">All payments</Link>}
+          actions={
+            seesPayments ? (
+              <Link href="/app/payments" className="text-accent">All payments</Link>
+            ) : undefined
+          }
         >
           {dunning.length === 0 ? (
             <p className="py-4 text-center text-ink-muted">Nothing outstanding.</p>
