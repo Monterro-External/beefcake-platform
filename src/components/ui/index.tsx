@@ -439,12 +439,15 @@ export function Pagination({
   pageSize,
   total,
   query = {},
+  anchor,
 }: {
   basePath: string;
   page: number;
   pageSize: number;
   total: number;
   query?: Record<string, string | undefined>;
+  /** An element id the links jump to, for a paged list further down the page. */
+  anchor?: string;
 }) {
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const href = (target: number): string => {
@@ -454,7 +457,8 @@ export function Pagination({
     }
     if (target > 1) params.set('page', String(target));
     const search = params.toString();
-    return search === '' ? basePath : `${basePath}?${search}`;
+    const hash = anchor === undefined ? '' : `#${anchor}`;
+    return `${search === '' ? basePath : `${basePath}?${search}`}${hash}`;
   };
 
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;

@@ -63,6 +63,11 @@ export function countLine(shown: number, charges: number, members: number, local
   return shown < charges ? `Showing ${integer(shown, locale)} of ${matching}` : matching;
 }
 
+/** The heading of the filtered Payments list: "In dunning (1,204 matching · 612 members)". */
+export function matchingHeading(charges: number, members: number, locale: Locale): string {
+  return `In dunning (${integer(charges, locale)} matching · ${plural(members, 'member', 'members', locale)})`;
+}
+
 /** What an empty filtered list says. It never suggests the member has paid. */
 export function noMatch(filter: AppliedDunningFilter): string {
   return filter.q !== undefined

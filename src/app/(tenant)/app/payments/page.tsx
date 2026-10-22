@@ -4,6 +4,11 @@
  * Two questions, in this order: did the last run collect what it should have,
  * and who is behind. The dunning list is the actionable half and is anchored so
  * the overview can link straight to it.
+ *
+ * The dunning list carries the same search and filters as the overview card
+ * "In dunning now". Unfiltered it lists the 100 newest charges in open dunning,
+ * as it always has; filtered it pages through every match 50 at a time. The
+ * Outstanding tile and the abandoned callout always read the unfiltered list.
  */
 
 import Link from 'next/link';
@@ -14,6 +19,7 @@ import {
   Card,
   EmptyState,
   PageHeader,
+  Pagination,
   StatTile,
   TD,
   TH,
@@ -36,14 +42,26 @@ import {
   period as formatPeriod,
 } from '@/lib/format';
 import * as paymentsRepo from '@/db/repositories/payments';
+import * as tenantsRepo from '@/db/repositories/tenants';
 import * as reports from '@/export/reports';
 import { addBillingPeriods } from '@/domain/dates';
 import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { timezoneForCountry } from '@/jobs/runner';
+import { type DunningSearchParams, isFiltered, matchingHeading, noMatch, readDunningFilter } from '../_dunning/filter';
+import { DunningFilters } from '../_dunning/filters';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PaymentsPage() {
+/** Matching charges per page of the filtered dunning list. */
+const DUNNING_PAGE_SIZE = 50;
+
+function pageNumber(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return Math.max(1, Number.parseInt(raw ?? '', 10) || 1);
+}
+
+export default async function PaymentsPage({ searchParams }: { searchParams: Promise<DunningSearchParams> }) {
+  const params = await searchParams;
   const session = await getSession();
   const tenant = activeTenant(session);
   if (tenant === null) return null;
@@ -59,7 +77,26 @@ export default async function PaymentsPage() {
   const runs = paymentsRepo.listRuns(scope, 18);
   const lastRun = paymentsRepo.lastCompletedRun(scope);
   const revenue = reports.revenueByPeriod(scope, 12);
+  // Unfiltered: the 100 newest charges in open dunning. They also feed the
+  // Outstanding tile and the abandoned callout, whatever the list is filtered by.
   const dunning = reports.openDunning(scope, 100);
+  const requestedDunning = readDunningFilter(params);
+  const requestedPage = pageNumber(params.page);
+  const pageOf = (page: number) =>
+    reports.openDunning(scope, {
+      ...requestedDunning,
+      limit: DUNNING_PAGE_SIZE,
+      offset: (page - 1) * DUNNING_PAGE_SIZE,
+    });
+  let matching = pageOf(requestedPage);
+  // A page past the last match shows the last page rather than an empty list.
+  const lastPage = Math.max(1, Math.ceil(matching.chargeCount / DUNNING_PAGE_SIZE));
+  const dunningPage = Math.min(requestedPage, lastPage);
+  if (dunningPage !== requestedPage) matching = pageOf(dunningPage);
+  const dunningFilter = matching.filter;
+  const dunningFiltered = isFiltered(dunningFilter);
+  const dunningSites = tenantsRepo.listSites(scope).map((site) => ({ id: site.id, name: site.name }));
+  const listed = dunningFiltered ? matching.rows : dunning;
   const codes = reports.failedPaymentsByCode(scope, addBillingPeriods(periodForRunDay(today), -5));
 
   const currentPeriod = periodForRunDay(today);
@@ -240,8 +277,29 @@ export default async function PaymentsPage() {
       </div>
 
       <div className="mt-4" id="dunning">
-        <Card title={`In dunning (${dunning.length})`}>
-          {dunning.length === 0 ? (
+        <Card
+          title={
+            dunningFiltered
+              ? matchingHeading(matching.chargeCount, matching.memberCount, locale)
+              : `In dunning (${dunning.length})`
+          }
+        >
+          <DunningFilters
+            basePath="/app/payments"
+            filter={dunningFilter}
+            statusCounts={matching.statusCounts}
+            reasonCounts={matching.reasonCounts}
+            sites={dunningSites}
+            locale={locale}
+          />
+          {dunningFiltered && listed.length === 0 ? (
+            <div className="py-4 text-center">
+              <p>{noMatch(dunningFilter)}</p>
+              <Link href="/app/payments#dunning" scroll={false} className="text-accent">
+                Clear search and filters
+              </Link>
+            </div>
+          ) : listed.length === 0 ? (
             <EmptyState title="Everyone is paid up" />
           ) : (
             <Table>
@@ -257,7 +315,7 @@ export default async function PaymentsPage() {
                 </TR>
               </THead>
               <tbody>
-                {dunning.map((row) => (
+                {listed.map((row) => (
                   <TR key={row.chargeId}>
                     <TD>
                       <Link href={`/app/members/${row.memberId}`} className="text-accent">
@@ -284,6 +342,18 @@ export default async function PaymentsPage() {
                 ))}
               </tbody>
             </Table>
+          )}
+          {dunningFiltered && matching.chargeCount > DUNNING_PAGE_SIZE && (
+            <div className="mt-3">
+              <Pagination
+                basePath="/app/payments"
+                page={dunningPage}
+                pageSize={DUNNING_PAGE_SIZE}
+                total={matching.chargeCount}
+                query={{ ...dunningFilter }}
+                anchor="dunning"
+              />
+            </div>
           )}
         </Card>
       </div>
