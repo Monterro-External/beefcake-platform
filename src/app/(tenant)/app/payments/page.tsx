@@ -258,7 +258,7 @@ export default async function PaymentsPage() {
               </THead>
               <tbody>
                 {dunning.map((row) => (
-                  <TR key={`${row.memberId}-${row.attemptedAt}`}>
+                  <TR key={row.chargeId}>
                     <TD>
                       <Link href={`/app/members/${row.memberId}`} className="text-accent">
                         {row.memberName}

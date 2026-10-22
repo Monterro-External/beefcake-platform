@@ -32,13 +32,14 @@ import { timezoneForCountry } from '@/jobs/runner';
 import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { addBillingPeriods } from '@/domain/dates';
 import { date as formatDate } from '@/lib/format';
+import * as tenantsRepo from '@/db/repositories/tenants';
 import { type DunningSearchParams, countLine, isFiltered, noMatch, readDunningFilter } from './_dunning/filter';
-import { DunningSearch } from './_dunning/search';
+import { DunningFilters } from './_dunning/filters';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Overview({ searchParams }: { searchParams: Promise<DunningSearchParams> }) {
-  const dunningFilter = readDunningFilter(await searchParams);
+  const requestedDunning = readDunningFilter(await searchParams);
   const session = await getSession();
   const tenant = activeTenant(session);
   if (tenant === null) return null;
@@ -68,13 +69,16 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   const nextRunOn = runDayFor(nextPeriod);
   const nextRunOverdue = nextRunOn <= today;
   // Unfiltered, the card shows the 8 newest charges in open dunning, as the
-  // payments summary's "In dunning" figure does. A search shows up to 50 matches
-  // with their counts, and the summary keeps its own unfiltered figure.
-  const dunningFiltered = isFiltered(dunningFilter);
+  // payments summary's "In dunning" figure does. A search or filter shows up to
+  // 50 matches with their counts, and the summary keeps its own unfiltered
+  // figure. The chips need their counts either way.
   const newestDunning = seesDunning || seesPayments ? reports.openDunning(scope, 8) : [];
-  const matchingDunning =
-    seesDunning && dunningFiltered ? reports.openDunning(scope, { ...dunningFilter, limit: 50 }) : null;
+  const openDunning = seesDunning ? reports.openDunning(scope, { ...requestedDunning, limit: 50 }) : null;
+  const dunningFilter = openDunning?.filter ?? {};
+  const dunningFiltered = isFiltered(dunningFilter);
+  const matchingDunning = dunningFiltered ? openDunning : null;
   const dunning = matchingDunning?.rows ?? (seesDunning ? newestDunning : []);
+  const dunningSites = seesDunning ? tenantsRepo.listSites(scope) : [];
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const lag = reports.syncLagBySite(scope);
@@ -324,7 +328,16 @@ export default async function Overview({ searchParams }: { searchParams: Promise
             ) : undefined
           }
         >
-          <DunningSearch key={dunningFilter.q ?? ''} q={dunningFilter.q ?? ''} />
+          {openDunning !== null && (
+            <DunningFilters
+              basePath="/app"
+              filter={dunningFilter}
+              statusCounts={openDunning.statusCounts}
+              reasonCounts={openDunning.reasonCounts}
+              sites={dunningSites.map((site) => ({ id: site.id, name: site.name }))}
+              locale={locale}
+            />
+          )}
           {matchingDunning !== null && matchingDunning.rows.length > 0 && (
             <p className="mb-2 text-ink-muted">
               {countLine(matchingDunning.rows.length, matchingDunning.chargeCount, matchingDunning.memberCount, locale)}
@@ -353,7 +366,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
               </THead>
               <tbody>
                 {dunning.map((row) => (
-                  <TR key={`${row.memberId}-${row.attemptedAt}`}>
+                  <TR key={row.chargeId}>
                     <TD>
                       <Link href={`/app/members/${row.memberId}`} className="text-accent">
                         {row.memberName}

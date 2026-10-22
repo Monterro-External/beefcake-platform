@@ -138,3 +138,107 @@ export function memberWithOldAbandonedCharge(tenantName: string): DunningMember 
     return row;
   });
 }
+
+export interface OpenDunningCharge {
+  readonly memberId: string;
+  readonly email: string;
+  readonly status: 'retrying' | 'abandoned';
+  readonly failureCode: string | null;
+  readonly siteId: string;
+}
+
+/** Every charge in open dunning at the tenant, with reason and home site, newest attempt first. */
+export function openDunningCharges(tenantName: string): OpenDunningCharge[] {
+  return withDb(
+    (db) =>
+      db
+        .prepare(
+          `select c.member_id as memberId, m.email, c.status, c.failure_code as failureCode, m.home_site_id as siteId
+             from charges c
+             join members m on m.id = c.member_id
+             join tenants t on t.id = c.tenant_id
+            where t.name = ? and c.status in ('retrying', 'abandoned')
+            order by c.attempted_at desc, c.id desc`,
+        )
+        .all(tenantName) as OpenDunningCharge[],
+  );
+}
+
+/** The reasons a charge can fail for, as the chips label them. */
+export const REASON_CHIPS = {
+  insufficient_funds: 'Insufficient funds',
+  mandate_cancelled: 'Mandate cancelled',
+  account_closed: 'Account closed',
+  technical: 'Technical error',
+  rejected_by_bank: 'Rejected by bank',
+} as const;
+
+/**
+ * A chip in the Status or Reason row of "In dunning now": a link, or a greyed
+ * out label when it would leave nothing.
+ */
+export function dunningChip(page: Page, row: 'Status' | 'Reason', label: string) {
+  return dunningCard(page)
+    .getByRole('group', { name: row, exact: true })
+    .locator('a, [aria-disabled="true"]')
+    .filter({ hasText: new RegExp(`^${label}(\\s|$)`) });
+}
+
+/** The count a chip shows, digits only since the tenant locale groups thousands with a space. */
+export async function chipCount(page: Page, row: 'Status' | 'Reason', label: string): Promise<number> {
+  const text = (await dunningChip(page, row, label).textContent()) ?? '';
+  return Number(text.slice(label.length).replace(/\D/g, ''));
+}
+
+/** Choose a chip and wait for the address to carry it. */
+export async function chooseChip(page: Page, row: 'Status' | 'Reason', label: string, param: string): Promise<void> {
+  await dunningChip(page, row, label).click();
+  await expect(page).toHaveURL(new RegExp(`[?&]${row.toLowerCase()}=${param}(&|$)`));
+  await expect(dunningChip(page, row, label)).toHaveAttribute('aria-current', 'true');
+}
+
+/** The status badges of the rows in "In dunning now", top to bottom. */
+export async function dunningCardStatuses(page: Page): Promise<string[]> {
+  const cells = await dunningCardRows(page).locator('td:last-child').allTextContents();
+  return cells.map((cell) => cell.trim());
+}
+
+/** The tenant's site with the most charges in open dunning, by its members' home site. */
+export function busiestDunningSite(tenantName: string): { id: string; name: string } {
+  return withDb((db) => {
+    const row = db
+      .prepare(
+        `select s.id, s.name from charges c
+           join members m on m.id = c.member_id
+           join sites s on s.id = m.home_site_id
+           join tenants t on t.id = c.tenant_id
+          where t.name = ? and c.status in ('retrying', 'abandoned')
+          group by s.id order by count(*) desc limit 1`,
+      )
+      .get(tenantName) as { id: string; name: string } | undefined;
+    if (row === undefined) throw new Error(`Nobody at ${tenantName} is in open dunning`);
+    return row;
+  });
+}
+
+/** The home site of each member, for checking the listed rows. */
+export function homeSites(memberIds: readonly string[]): Map<string, string> {
+  return withDb((db) => {
+    const lookup = db.prepare('select home_site_id as siteId from members where id = ?');
+    return new Map(memberIds.map((id) => [id, (lookup.get(id) as { siteId: string }).siteId]));
+  });
+}
+
+/** A second user of this role at the tenant: the colleague a link is pasted to. */
+export function colleagueOf(role: string, tenantName: string): { userId: string } {
+  return withDb((db) => {
+    const row = db
+      .prepare(
+        `select u.id as userId from users u join tenants t on t.id = u.tenant_id
+          where u.role = ? and t.name = ? order by u.id limit 1 offset 1`,
+      )
+      .get(role, tenantName) as { userId: string } | undefined;
+    if (row === undefined) throw new Error(`Only one ${role} at ${tenantName}`);
+    return row;
+  });
+}
