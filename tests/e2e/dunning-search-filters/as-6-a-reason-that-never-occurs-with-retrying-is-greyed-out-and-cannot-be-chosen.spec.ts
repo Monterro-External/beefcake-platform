@@ -44,9 +44,8 @@ test.describe('Search and filter in "In dunning now"', { tag: ['@acceptance', '@
       const address = page.url();
       const members = await dunningCardMemberIds(page);
       await dunningChip(page, 'Reason', 'Account closed').click();
-      await page.waitForTimeout(500);
-      expect(page.url()).toBe(address);
-      expect(await dunningCardMemberIds(page)).toEqual(members);
+      await expect(page).toHaveURL(address);
+      await expect.poll(() => dunningCardMemberIds(page)).toEqual(members);
     });
   });
 });
