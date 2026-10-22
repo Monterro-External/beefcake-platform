@@ -33,7 +33,15 @@ import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { addBillingPeriods } from '@/domain/dates';
 import { date as formatDate } from '@/lib/format';
 import * as tenantsRepo from '@/db/repositories/tenants';
-import { type DunningSearchParams, countLine, dunningHref, isFiltered, noMatch, readDunningFilter } from './_dunning/filter';
+import {
+  type DunningSearchParams,
+  countLine,
+  dunningHref,
+  isFiltered,
+  noMatch,
+  readDunningFilter,
+  siteOptions,
+} from './_dunning/filter';
 import { DunningFilters } from './_dunning/filters';
 
 export const dynamic = 'force-dynamic';
@@ -86,7 +94,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
         ? reports.openDunning(scope, 8)
         : [];
   const dunning = matchingDunning?.rows ?? newestDunning;
-  const dunningSites = seesDunning ? tenantsRepo.listSites(scope) : [];
+  const dunningSites = seesDunning ? siteOptions(tenantsRepo.listSites(scope)) : [];
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const lag = reports.syncLagBySite(scope);
@@ -342,7 +350,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
               filter={dunningFilter}
               statusCounts={openDunning.statusCounts}
               reasonCounts={openDunning.reasonCounts}
-              sites={dunningSites.map((site) => ({ id: site.id, name: site.name }))}
+              sites={dunningSites}
               locale={locale}
             />
           )}

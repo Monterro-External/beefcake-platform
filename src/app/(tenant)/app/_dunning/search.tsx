@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Input, Select } from '@/components/ui';
 import type { AppliedDunningFilter } from '@/export/reports';
-import { dunningHref } from './filter';
+import { type SiteOption, dunningHref } from './filter';
 
 export function DunningSearch({ basePath, filter }: { basePath: string; filter: AppliedDunningFilter }) {
   const router = useRouter();
@@ -45,7 +45,7 @@ export function DunningSiteSelect({
 }: {
   basePath: string;
   filter: AppliedDunningFilter;
-  sites: readonly { id: string; name: string }[];
+  sites: readonly SiteOption[];
 }) {
   const router = useRouter();
   return (

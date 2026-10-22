@@ -14,7 +14,7 @@ import { cn } from '@/lib/cn';
 import type { AppliedDunningFilter, DunningStatus } from '@/export/reports';
 import type { FailureCode } from '@/domain/retry-policy';
 import { type Locale, humanise, integer } from '@/lib/format';
-import { dunningHref } from './filter';
+import { type SiteOption, dunningHref } from './filter';
 import { DunningSearch, DunningSiteSelect } from './search';
 
 export interface DunningFiltersProps {
@@ -25,7 +25,7 @@ export interface DunningFiltersProps {
   readonly statusCounts: Record<DunningStatus, number>;
   readonly reasonCounts: Record<FailureCode, number>;
   /** The tenant's sites, for the Site dropdown. */
-  readonly sites: readonly { id: string; name: string }[];
+  readonly sites: readonly SiteOption[];
   readonly locale: Locale;
 }
 
@@ -76,7 +76,7 @@ function CountChip({
 }
 
 export function DunningFilters({ basePath, filter, statusCounts, reasonCounts, sites, locale }: DunningFiltersProps) {
-  const status = Object.keys(STATUS_LABELS) as DunningStatus[];
+  const statuses = Object.keys(STATUS_LABELS) as DunningStatus[];
   const reasons = Object.keys(reasonCounts) as FailureCode[];
   return (
     <div className="mb-2 space-y-2">
@@ -89,7 +89,7 @@ export function DunningFilters({ basePath, filter, statusCounts, reasonCounts, s
           <Chip href={dunningHref(basePath, filter, { status: undefined })} chosen={filter.status === undefined}>
             Any status
           </Chip>
-          {status.map((value) => (
+          {statuses.map((value) => (
             <CountChip
               key={value}
               label={STATUS_LABELS[value]}
