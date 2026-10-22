@@ -20,8 +20,8 @@ and "All payments", Payments 100 rows under "In dunning (100)", and neither
 shows a count line. Filtered, the card shows up to 50 rows and a count line,
 and Payments pages the matches 50 at a time.
 
-Built so far: AS-11 and AS-13 (BCPLA-37); AS-1 to AS-4 (BCPLA-38); AS-5 to AS-9 (BCPLA-39). The other scenarios are listed as
-the plan and are filled in by the tickets that build them. The search rule,
+Built so far: AS-11 and AS-13 (BCPLA-37); AS-1 to AS-4 (BCPLA-38); AS-5 to AS-9 (BCPLA-39); AS-10 and AS-12 (BCPLA-40), so
+every scenario in the plan is built. The search rule,
 chip counts, distinct member count, unknown values, tenant isolation and the
 500 ms limit at full scale are unit tests on the open-dunning report
 (`tests/unit/`).
@@ -132,7 +132,7 @@ thousands with a space. The table's status badge still says "Given up" for
 
 **Expected:**
 - Payments is headed "In dunning (N matching · M members)" and the "Abandoned" chip is still chosen.
-- The next page lists the next 50 matching charges.
+- The next page lists the next 50 matching charges, and a chip there links back to page 1.
 
 #### 1.11 AS-11 Without a search or filter the overview card is as it is today
 
@@ -152,7 +152,7 @@ thousands with a space. The table's status badge still says "Given up" for
 2. Open `/app/payments`.
 
 **Expected:**
-- The dunning list is headed "In dunning (100)" and lists the 100 newest charges in open dunning.
+- The dunning list is headed "In dunning (100)" and lists the 100 newest charges in open dunning, with no count line and no paging.
 
 #### 1.13 AS-13 Front desk still cannot reach payments
 

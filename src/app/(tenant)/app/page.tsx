@@ -33,7 +33,7 @@ import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { addBillingPeriods } from '@/domain/dates';
 import { date as formatDate } from '@/lib/format';
 import * as tenantsRepo from '@/db/repositories/tenants';
-import { type DunningSearchParams, countLine, isFiltered, noMatch, readDunningFilter } from './_dunning/filter';
+import { type DunningSearchParams, countLine, dunningHref, isFiltered, noMatch, readDunningFilter } from './_dunning/filter';
 import { DunningFilters } from './_dunning/filters';
 
 export const dynamic = 'force-dynamic';
@@ -339,9 +339,16 @@ export default async function Overview({ searchParams }: { searchParams: Promise
             />
           )}
           {matchingDunning !== null && matchingDunning.rows.length > 0 && (
-            <p className="mb-2 text-ink-muted">
-              {countLine(matchingDunning.rows.length, matchingDunning.chargeCount, matchingDunning.memberCount, locale)}
-            </p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-ink-muted">
+              <p>
+                {countLine(matchingDunning.rows.length, matchingDunning.chargeCount, matchingDunning.memberCount, locale)}
+              </p>
+              {seesPayments && (
+                <Link href={`${dunningHref('/app/payments', dunningFilter)}#dunning`} className="text-accent">
+                  See all on Payments
+                </Link>
+              )}
+            </div>
           )}
           {matchingDunning !== null && matchingDunning.rows.length === 0 ? (
             <div className="py-4 text-center">

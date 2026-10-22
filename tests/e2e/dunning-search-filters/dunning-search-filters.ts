@@ -1,4 +1,4 @@
-import type { BrowserContext, Page } from '@playwright/test';
+import type { BrowserContext, Locator, Page } from '@playwright/test';
 import { expect } from '../evidence';
 import { personaFor, signIn, withDb } from '../helpers';
 
@@ -174,11 +174,12 @@ export const REASON_CHIPS = {
 } as const;
 
 /**
- * A chip in the Status or Reason row of "In dunning now": a link, or a greyed
- * out label when it would leave nothing.
+ * A chip in the Status or Reason row of "In dunning now" (or of another list,
+ * such as the one on Payments): a link, or a greyed out label when it would
+ * leave nothing.
  */
-export function dunningChip(page: Page, row: 'Status' | 'Reason', label: string) {
-  return dunningCard(page)
+export function dunningChip(page: Page, row: 'Status' | 'Reason', label: string, list: Locator = dunningCard(page)) {
+  return list
     .getByRole('group', { name: row, exact: true })
     .locator('a, [aria-disabled="true"]')
     .filter({ hasText: new RegExp(`^${label}(\\s|$)`) });
@@ -241,4 +242,25 @@ export function colleagueOf(role: string, tenantName: string): { userId: string 
     if (row === undefined) throw new Error(`Only one ${role} at ${tenantName}`);
     return row;
   });
+}
+
+/** The Payments list "In dunning (…)". */
+export function paymentsDunningList(page: Page) {
+  return page.locator('section').filter({ has: page.getByRole('heading', { name: /^In dunning \(/ }) });
+}
+
+/** The heading of the Payments list, e.g. "In dunning (100)". */
+export function paymentsDunningHeading(page: Page) {
+  return paymentsDunningList(page).getByRole('heading', { name: /^In dunning \(/ });
+}
+
+/** The member ids the rows of the Payments list link to, top to bottom. */
+export async function paymentsDunningMemberIds(page: Page): Promise<string[]> {
+  const hrefs = await paymentsDunningList(page)
+    .getByRole('table')
+    .locator('tbody')
+    .getByRole('row')
+    .locator('td:first-child a')
+    .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''));
+  return hrefs.map((href) => href.replace('/app/members/', ''));
 }

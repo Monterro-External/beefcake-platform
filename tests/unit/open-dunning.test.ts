@@ -336,3 +336,23 @@ describe('unknown filter values in the open-dunning report', () => {
     expect(result.statusCounts).toEqual(tally(theirs.map((row) => row.status), STATUSES));
   });
 });
+
+describe('paging through the open-dunning report', () => {
+  it('returns the next matching charges in order when skipping beyond the first page, with the same counts', () => {
+    const expected = openChargesWithFacets().filter((row) => row.status === 'abandoned');
+    expect(expected.length).toBeGreaterThan(50);
+    const first = reports.openDunning(scopeFor(), { status: 'abandoned', limit: 50 });
+    const second = reports.openDunning(scopeFor(), { status: 'abandoned', limit: 50, offset: 50 });
+    expect(first.rows.map((row) => row.chargeId)).toEqual(expected.slice(0, 50).map((row) => row.chargeId));
+    expect(second.rows.map((row) => row.chargeId)).toEqual(expected.slice(50, 100).map((row) => row.chargeId));
+    expect(second.chargeCount).toBe(expected.length);
+    expect(second.memberCount).toBe(first.memberCount);
+  });
+
+  it('returns no rows past the last match, but still counts every match', () => {
+    const expected = openChargesWithFacets().filter((row) => row.status === 'abandoned');
+    const result = reports.openDunning(scopeFor(), { status: 'abandoned', limit: 50, offset: expected.length });
+    expect(result.rows).toEqual([]);
+    expect(result.chargeCount).toBe(expected.length);
+  });
+});
