@@ -8,10 +8,18 @@ export const expect = baseExpect.configure({ timeout: 15_000 });
  * Recording for acceptance scenarios (see docs/testing/pr-evidence.md): video and trace on
  * every run, including passing ones, so the PR evidence job can build a
  * timeline from the named `test.step` blocks. Use with `test.use(recordEvidence)`.
+ *
+ * `BDD_RECORDING=off` runs the same scenarios at full speed without video or
+ * trace: the e2e job uses it to run every Spec's scenarios on every PR.
  */
-export const recordEvidence: Partial<PlaywrightTestOptions & PlaywrightWorkerOptions> = {
+const shared: Partial<PlaywrightTestOptions & PlaywrightWorkerOptions> = {
   actionTimeout: 15_000,
   viewport: { width: 1280, height: 720 },
+};
+
+export const recordEvidence: Partial<PlaywrightTestOptions & PlaywrightWorkerOptions> =
+  process.env.BDD_RECORDING === 'off' ? shared : {
+  ...shared,
   video: {
     mode: 'on',
     size: { width: 1280, height: 720 },

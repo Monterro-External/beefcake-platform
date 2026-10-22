@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const {
-  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, renderReport, upsertComment,
+  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, specGrep, renderReport, upsertComment,
+  findLinkedSpecs,
 } = require('../../.github/scripts/bdd-pr-comment.cjs');
 const { chaptersFromTrace, timestamp, renderTimeline } = require('../../.github/scripts/bdd-timeline.cjs');
 
@@ -82,6 +83,54 @@ describe('finding the Spec a PR comes from', () => {
     expect(url).toBe('https://api.linear.app/graphql');
     expect(init.headers.Authorization).toBe('key');
     expect(JSON.parse(init.body).query).toContain('parent { identifier title description url }');
+  });
+});
+
+describe('choosing which scenarios to record', () => {
+  const tagged = (...tags: string[]) => `Some scenario ${tags.join(' ')}`;
+
+  it('records only the @acceptance tests of the linked Specs', () => {
+    const grep = new RegExp(specGrep(resolveSpecs([ticket('BCPLA-143', 'AS-1')]).specs));
+    expect(grep.test(tagged('@acceptance', '@registration', '@BCPLA-142'))).toBe(true);
+    expect(grep.test(tagged('@acceptance', '@booking', '@BCPLA-10'))).toBe(false);
+    expect(grep.test(tagged('@registration', '@BCPLA-142'))).toBe(false);
+  });
+
+  it('does not take a longer Spec id for a linked one', () => {
+    const grep = new RegExp(specGrep([{ id: 'BCPLA-1' }]));
+    expect(grep.test(tagged('@acceptance', '@BCPLA-1'))).toBe(true);
+    expect(grep.test(tagged('@acceptance', '@BCPLA-10'))).toBe(false);
+  });
+
+  it('records several linked Specs in one run', () => {
+    const grep = new RegExp(specGrep([{ id: 'BCPLA-10' }, { id: 'BCPLA-36' }]));
+    expect(grep.test(tagged('@acceptance', '@BCPLA-10'))).toBe(true);
+    expect(grep.test(tagged('@acceptance', '@BCPLA-36'))).toBe(true);
+  });
+
+  it('records nothing when the PR links no Spec', async () => {
+    expect(specGrep([])).toBe('');
+    const outputs: Record<string, string> = {};
+    const core = { info: vi.fn(), warning: vi.fn(), setOutput: (key: string, value: string) => { outputs[key] = value; } };
+    const context = { repo: { owner: 'o', repo: 'r' }, payload: {} };
+    await findLinkedSpecs({ github: {}, context, core });
+    expect(outputs).toEqual({ specs: '', grep: '' });
+  });
+
+  it('reads the linked Specs from Linear for the PR it runs on', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { issue: ticket('BCPLA-143', 'AS-1') } }) });
+      const pr = { number: 7, head: { ref: 'per/bcpla-143-registration' }, title: 'Registration', body: '' };
+      const github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: pr }) } } };
+      const outputs: Record<string, string> = {};
+      const core = { info: vi.fn(), warning: vi.fn(), setOutput: (key: string, value: string) => { outputs[key] = value; } };
+      await findLinkedSpecs({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } }, core, fetchImpl });
+      expect(outputs.specs).toBe('BCPLA-142');
+      expect(new RegExp(outputs.grep!).test('x @acceptance @BCPLA-142')).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

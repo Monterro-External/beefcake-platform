@@ -239,7 +239,12 @@ async function upsertComment({ github, context, body }) {
   return 'created';
 }
 
-async function publish({ github, context, core, fetchImpl = fetch }) {
+/**
+ * The Specs this PR links, read from Linear: PR → linked BCPLA tickets → the Spec
+ * that holds their Gherkin. Shared by the step that picks which scenarios to run
+ * and the step that publishes their evidence.
+ */
+async function readLinkedSpecs({ github, context, core, fetchImpl = fetch }) {
   const pr = context.payload.pull_request;
   // Read the PR as it is now: editing the description does not start a run, but a
   // re-run should still see a ticket added since.
@@ -263,7 +268,30 @@ async function publish({ github, context, core, fetchImpl = fetch }) {
       }
     }
   }
-  const resolved = resolveSpecs(issues);
+  return { pr, linkedIds, notes, resolved: resolveSpecs(issues) };
+}
+
+/**
+ * A Playwright --grep for the @acceptance tests of these Specs, or '' when there
+ * are none. The lookahead stops @BCPLA-1 from matching @BCPLA-10.
+ */
+function specGrep(specs) {
+  if (specs.length === 0) return '';
+  return `(?=.*@acceptance)(?=.*@(${specs.map((spec) => spec.id).join('|')})(?![0-9]))`;
+}
+
+/** Sets the `grep` and `specs` outputs the acceptance job runs its tests with. */
+async function findLinkedSpecs({ github, context, core, fetchImpl = fetch }) {
+  const { resolved, notes } = await readLinkedSpecs({ github, context, core, fetchImpl });
+  for (const note of [...notes, ...resolved.notes]) core.info(note);
+  const ids = resolved.specs.map((spec) => spec.id);
+  core.info(ids.length ? `Running the @acceptance scenarios of ${ids.join(', ')}.` : 'No linked Spec: no @acceptance scenarios to record.');
+  core.setOutput('specs', ids.join(' '));
+  core.setOutput('grep', specGrep(resolved.specs));
+}
+
+async function publish({ github, context, core, fetchImpl = fetch }) {
+  const { pr, linkedIds, notes, resolved } = await readLinkedSpecs({ github, context, core, fetchImpl });
   const reportPath = 'test-results/bdd-results.json';
   const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : undefined;
   const timelinePath = 'test-results/bdd-evidence/chapters.json';
@@ -285,5 +313,6 @@ async function publish({ github, context, core, fetchImpl = fetch }) {
 }
 
 module.exports = {
-  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, renderReport, upsertComment, publish,
+  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, specGrep, renderReport, upsertComment,
+  findLinkedSpecs, publish,
 };

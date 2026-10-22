@@ -65,8 +65,10 @@ jobs:
       - name: Build
         run: npm run build
 
-  # Records the @acceptance scenarios and posts them on the PR: PR → linked BCPLA
-  # ticket → parent Spec → the scenarios the ticket covers. See docs/testing/pr-evidence.md.
+  # Records the @acceptance scenarios of the Specs this PR links and posts them on
+  # the PR: PR → linked BCPLA ticket → parent Spec → the scenarios the ticket
+  # covers. Every other Spec's scenarios run, unrecorded, in the e2e job.
+  # See docs/testing/pr-evidence.md.
   acceptance:
     name: Playwright acceptance scenarios
     runs-on: ubuntu-latest
@@ -90,11 +92,24 @@ jobs:
       - name: Seed
         run: npm run db:reset -- --scale small --quiet
 
-      - name: Run the @acceptance scenarios
-        id: bdd-tests
+      - name: Find the Specs this PR links
+        id: linked
+        uses: actions/github-script@v9
         env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        with:
+          script: |
+            const { findLinkedSpecs } = require('./.github/scripts/bdd-pr-comment.cjs');
+            await findLinkedSpecs({ github, context, core });
+
+      # A Spec linked before its tests exist passes with nothing to run.
+      - name: Run the linked Specs' @acceptance scenarios
+        id: bdd-tests
+        if: ${{ steps.linked.outputs.grep != '' }}
+        env:
+          BDD_GREP: ${{ steps.linked.outputs.grep }}
           PLAYWRIGHT_JSON_OUTPUT_FILE: test-results/bdd-results.json
-        run: npm run test:e2e -- --grep @acceptance --grep-invert @wip --project=chromium --reporter=list,html,json
+        run: npm run test:e2e -- --grep "$BDD_GREP" --grep-invert @wip --pass-with-no-tests --project=chromium --reporter=list,html,json
 
       # Playwright's server writes to data/e2e-dev.log, not to Playwright's output.
       - name: Server log
@@ -102,12 +117,12 @@ jobs:
         run: tail -n 300 data/e2e-dev.log || true
 
       - name: Build video timelines from recorded test steps
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.bdd-tests.outcome != 'skipped' }}
         run: node .github/scripts/bdd-timeline.cjs
 
       - uses: actions/upload-artifact@v7
         id: bdd-artifact
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && steps.bdd-tests.outcome != 'skipped' }}
         with:
           name: playwright-acceptance-report
           path: |
@@ -149,8 +164,11 @@ jobs:
       - name: Seed
         run: npm run db:reset -- --scale small --quiet
 
-      # @acceptance scenarios run, recorded, in the acceptance job.
-      - run: npm run test:e2e -- --grep-invert "@acceptance|@wip"
+      # Every Spec's @acceptance scenarios run here too, unrecorded, so a PR cannot
+      # break another Spec unnoticed. The acceptance job records the linked ones.
+      - run: npm run test:e2e -- --grep-invert @wip
+        env:
+          BDD_RECORDING: 'off'
 
       # Playwright's server writes to data/e2e-dev.log, not to Playwright's output.
       - name: Server log
