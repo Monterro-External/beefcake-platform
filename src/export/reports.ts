@@ -12,7 +12,7 @@
  * Fitness Group before you check it against a single-site gym.
  */
 
-import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, countDistinct, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import {
   accessEvents,
   accessSyncState,
@@ -24,6 +24,7 @@ import {
 } from '@/db/schema';
 import { type TenantScope, guard } from '@/db/repositories/scope';
 import * as classesRepo from '@/db/repositories/classes';
+import { memberSearchCondition } from '@/db/repositories/members';
 import {
   type BillingPeriod,
   type PlainDate,
@@ -125,8 +126,48 @@ export interface DunningRow {
   readonly status: string;
 }
 
-/** The list a front desk works through: who is behind, and what happens next. */
-export function openDunning(scope: TenantScope, limit = 200): DunningRow[] {
+/**
+ * What narrows open dunning. Every field is optional and an empty filter is all
+ * of open dunning. BCPLA-39 adds status, reason and site here.
+ */
+export interface DunningFilter {
+  /** The member search rule (name, email, phone, card number); trimmed, spaces only is no search. */
+  readonly q?: string;
+}
+
+/** A filter plus the window of matching rows to return. */
+export interface DunningQuery extends DunningFilter {
+  /** Rows to return; the counts always cover every match. Defaults to 200. */
+  readonly limit?: number;
+  /** Matching rows to skip, for paging. Defaults to 0. */
+  readonly offset?: number;
+}
+
+export interface OpenDunning {
+  /** The window of matching rows, newest attempt first. */
+  readonly rows: DunningRow[];
+  /** Every matching charge, not just the rows returned. */
+  readonly chargeCount: number;
+  /** The distinct members those charges belong to. */
+  readonly memberCount: number;
+}
+
+/**
+ * The conditions that pick open dunning out of charges joined to members,
+ * built once and used by both the rows and the counts so the count line never
+ * disagrees with the list.
+ */
+function openDunningConditions(scope: TenantScope, filter: DunningFilter) {
+  const conditions = [
+    eq(charges.tenantId, scope.tenantId),
+    inArray(charges.status, ['retrying', 'abandoned']),
+  ];
+  const match = memberSearchCondition(filter.q);
+  if (match !== undefined) conditions.push(match);
+  return conditions;
+}
+
+function openDunningRows(scope: TenantScope, filter: DunningFilter, limit: number, offset: number): DunningRow[] {
   const rows = scope.db
     .select({
       tenantId: charges.tenantId,
@@ -142,12 +183,38 @@ export function openDunning(scope: TenantScope, limit = 200): DunningRow[] {
     })
     .from(charges)
     .innerJoin(members, eq(members.id, charges.memberId))
-    .where(and(eq(charges.tenantId, scope.tenantId), inArray(charges.status, ['retrying', 'abandoned'])))
-    .orderBy(desc(charges.attemptedAt))
+    .where(and(...openDunningConditions(scope, filter)))
+    // The charge id breaks ties between attempts in the same second, so a page
+    // boundary never moves.
+    .orderBy(desc(charges.attemptedAt), desc(charges.id))
     .limit(limit)
+    .offset(offset)
     .all();
   guard(scope, 'charges', rows);
   return rows as DunningRow[];
+}
+
+/**
+ * Open dunning: every `retrying` and `abandoned` charge of the tenant, newest
+ * attempt first, one row per charge. The list a front desk works through: who
+ * is behind, and what happens next.
+ *
+ * Called with a row limit it returns the newest rows, as the admin tenant page
+ * uses it. Called with a query it returns the matching rows together with the
+ * number of matching charges and members, counted over all of open dunning.
+ */
+export function openDunning(scope: TenantScope, limit?: number): DunningRow[];
+export function openDunning(scope: TenantScope, query: DunningQuery): OpenDunning;
+export function openDunning(scope: TenantScope, arg: number | DunningQuery = 200): DunningRow[] | OpenDunning {
+  if (typeof arg === 'number') return openDunningRows(scope, {}, arg, 0);
+  const rows = openDunningRows(scope, arg, arg.limit ?? 200, arg.offset ?? 0);
+  const totals = scope.db
+    .select({ chargeCount: count(), memberCount: countDistinct(charges.memberId) })
+    .from(charges)
+    .innerJoin(members, eq(members.id, charges.memberId))
+    .where(and(...openDunningConditions(scope, arg)))
+    .get();
+  return { rows, chargeCount: totals?.chargeCount ?? 0, memberCount: totals?.memberCount ?? 0 };
 }
 
 // ---------------------------------------------------------------------------

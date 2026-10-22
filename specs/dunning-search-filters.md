@@ -20,7 +20,7 @@ and "All payments", Payments 100 rows under "In dunning (100)", and neither
 shows a count line. Filtered, the card shows up to 50 rows and a count line,
 and Payments pages the matches 50 at a time.
 
-Built so far: AS-11 and AS-13 (BCPLA-37). The other scenarios are listed as
+Built so far: AS-11 and AS-13 (BCPLA-37); AS-1 to AS-4 (BCPLA-38). The other scenarios are listed as
 the plan and are filled in by the tickets that build them. The search rule,
 chip counts, distinct member count, unknown values, tenant isolation and the
 500 ms limit at full scale are unit tests on the open-dunning report
