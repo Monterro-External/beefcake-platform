@@ -246,7 +246,7 @@ export default async function AdminTenantPage({
               </THead>
               <tbody>
                 {dunning.map((row) => (
-                  <TR key={`${row.memberId}-${row.attemptedAt}`}>
+                  <TR key={row.chargeId}>
                     <TD>{row.memberName}</TD>
                     <TD align="right" mono>
                       {amount(row.amountMinor, row.currency, locale)}
