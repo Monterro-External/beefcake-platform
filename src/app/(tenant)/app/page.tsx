@@ -32,10 +32,13 @@ import { timezoneForCountry } from '@/jobs/runner';
 import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { addBillingPeriods } from '@/domain/dates';
 import { date as formatDate } from '@/lib/format';
+import { type DunningSearchParams, countLine, isFiltered, noMatch, readDunningFilter } from './_dunning/filter';
+import { DunningSearch } from './_dunning/search';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Overview() {
+export default async function Overview({ searchParams }: { searchParams: Promise<DunningSearchParams> }) {
+  const dunningFilter = readDunningFilter(await searchParams);
   const session = await getSession();
   const tenant = activeTenant(session);
   if (tenant === null) return null;
@@ -64,7 +67,14 @@ export default async function Overview() {
       : addBillingPeriods(currentPeriod, 1);
   const nextRunOn = runDayFor(nextPeriod);
   const nextRunOverdue = nextRunOn <= today;
-  const dunning = seesDunning ? reports.openDunning(scope, 8) : [];
+  // Unfiltered, the card shows the 8 newest charges in open dunning, as the
+  // payments summary's "In dunning" figure does. A search shows up to 50 matches
+  // with their counts, and the summary keeps its own unfiltered figure.
+  const dunningFiltered = isFiltered(dunningFilter);
+  const newestDunning = seesDunning || seesPayments ? reports.openDunning(scope, 8) : [];
+  const matchingDunning =
+    seesDunning && dunningFiltered ? reports.openDunning(scope, { ...dunningFilter, limit: 50 }) : null;
+  const dunning = matchingDunning?.rows ?? (seesDunning ? newestDunning : []);
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const lag = reports.syncLagBySite(scope);
@@ -214,8 +224,8 @@ export default async function Overview() {
                 label: 'In dunning',
                 value: (
                   <Link href="/app/payments#dunning" className="text-accent">
-                    {integer(dunning.length, locale)}
-                    {dunning.length === 8 ? '+' : ''}
+                    {integer(newestDunning.length, locale)}
+                    {newestDunning.length === 8 ? '+' : ''}
                   </Link>
                 ),
               },
@@ -314,7 +324,20 @@ export default async function Overview() {
             ) : undefined
           }
         >
-          {dunning.length === 0 ? (
+          <DunningSearch key={dunningFilter.q ?? ''} q={dunningFilter.q ?? ''} />
+          {matchingDunning !== null && matchingDunning.rows.length > 0 && (
+            <p className="mb-2 text-ink-muted">
+              {countLine(matchingDunning.rows.length, matchingDunning.chargeCount, matchingDunning.memberCount, locale)}
+            </p>
+          )}
+          {matchingDunning !== null && matchingDunning.rows.length === 0 ? (
+            <div className="py-4 text-center">
+              <p>{noMatch(dunningFilter)}</p>
+              <Link href="/app" scroll={false} className="text-accent">
+                Clear search and filters
+              </Link>
+            </div>
+          ) : dunning.length === 0 ? (
             <p className="py-4 text-center text-ink-muted">Nothing outstanding.</p>
           ) : (
             <Table>
