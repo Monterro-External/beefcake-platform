@@ -24,6 +24,7 @@ import {
 } from '@/db/schema';
 import { type TenantScope, guard } from '@/db/repositories/scope';
 import * as classesRepo from '@/db/repositories/classes';
+import * as tenantsRepo from '@/db/repositories/tenants';
 import { memberSearchCondition } from '@/db/repositories/members';
 import {
   type BillingPeriod,
@@ -189,6 +190,7 @@ export interface OpenDunning {
 function openDunningConditions(scope: TenantScope, filter: AppliedDunningFilter) {
   const conditions = [
     eq(charges.tenantId, scope.tenantId),
+    eq(members.tenantId, scope.tenantId),
     filter.status === undefined
       ? inArray(charges.status, [...DUNNING_STATUSES])
       : eq(charges.status, filter.status),
@@ -273,13 +275,7 @@ function isOneOf<T extends string>(values: readonly T[], value: string | undefin
 function applicableDunningFilter(scope: TenantScope, filter: DunningFilter): AppliedDunningFilter {
   const q = filter.q?.trim() ?? '';
   const site =
-    filter.site === undefined || filter.site === ''
-      ? undefined
-      : scope.db
-          .select({ id: sites.id })
-          .from(sites)
-          .where(and(eq(sites.tenantId, scope.tenantId), eq(sites.id, filter.site)))
-          .get()?.id;
+    filter.site === undefined || filter.site === '' ? undefined : tenantsRepo.getSite(scope, filter.site)?.id;
   return {
     ...(q === '' ? {} : { q }),
     ...(isOneOf(DUNNING_STATUSES, filter.status) ? { status: filter.status } : {}),
