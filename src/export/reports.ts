@@ -24,6 +24,7 @@ import {
 } from '@/db/schema';
 import { type TenantScope, guard } from '@/db/repositories/scope';
 import * as classesRepo from '@/db/repositories/classes';
+import * as tenantsRepo from '@/db/repositories/tenants';
 import { memberSearchCondition } from '@/db/repositories/members';
 import {
   type BillingPeriod,
@@ -125,7 +126,7 @@ export interface DunningRow {
   readonly attempt: number;
   readonly attemptedAt: string;
   readonly nextAttemptAt: string | null;
-  readonly status: string;
+  readonly status: DunningStatus;
 }
 
 /** The two states of a charge in open dunning. */
@@ -189,6 +190,7 @@ export interface OpenDunning {
 function openDunningConditions(scope: TenantScope, filter: AppliedDunningFilter) {
   const conditions = [
     eq(charges.tenantId, scope.tenantId),
+    eq(members.tenantId, scope.tenantId),
     filter.status === undefined
       ? inArray(charges.status, [...DUNNING_STATUSES])
       : eq(charges.status, filter.status),
@@ -200,8 +202,12 @@ function openDunningConditions(scope: TenantScope, filter: AppliedDunningFilter)
   return conditions;
 }
 
-function openDunningRows(scope: TenantScope, filter: AppliedDunningFilter, limit: number, offset: number): DunningRow[] {
-  const rows = scope.db
+/**
+ * The charges in open dunning that match the filter, joined to their members:
+ * the one query the rows, the totals and the chip counts all read from.
+ */
+function openDunningCharges(scope: TenantScope, filter: AppliedDunningFilter) {
+  return scope.db
     .select({
       tenantId: charges.tenantId,
       chargeId: charges.id,
@@ -218,9 +224,17 @@ function openDunningRows(scope: TenantScope, filter: AppliedDunningFilter, limit
     .from(charges)
     .innerJoin(members, eq(members.id, charges.memberId))
     .where(and(...openDunningConditions(scope, filter)))
+    .as('open_dunning');
+}
+
+function openDunningRows(scope: TenantScope, filter: AppliedDunningFilter, limit: number, offset: number): DunningRow[] {
+  const open = openDunningCharges(scope, filter);
+  const rows = scope.db
+    .select()
+    .from(open)
     // The charge id breaks ties between attempts in the same second, so a page
     // boundary never moves.
-    .orderBy(desc(charges.attemptedAt), desc(charges.id))
+    .orderBy(desc(open.attemptedAt), desc(open.chargeId))
     .limit(limit)
     .offset(offset)
     .all();
@@ -243,11 +257,10 @@ export function openDunning(scope: TenantScope, arg: number | DunningQuery = 200
   if (typeof arg === 'number') return openDunningRows(scope, {}, arg, 0);
   const filter = applicableDunningFilter(scope, arg);
   const rows = openDunningRows(scope, filter, arg.limit ?? 200, arg.offset ?? 0);
+  const open = openDunningCharges(scope, filter);
   const totals = scope.db
-    .select({ chargeCount: count(), memberCount: countDistinct(charges.memberId) })
-    .from(charges)
-    .innerJoin(members, eq(members.id, charges.memberId))
-    .where(and(...openDunningConditions(scope, filter)))
+    .select({ chargeCount: count(), memberCount: countDistinct(open.memberId) })
+    .from(open)
     .get();
   const { status: _status, ...withoutStatus } = filter;
   const { reason: _reason, ...withoutReason } = filter;
@@ -256,8 +269,8 @@ export function openDunning(scope: TenantScope, arg: number | DunningQuery = 200
     rows,
     chargeCount: totals?.chargeCount ?? 0,
     memberCount: totals?.memberCount ?? 0,
-    statusCounts: chipCounts(scope, withoutStatus, charges.status, DUNNING_STATUSES),
-    reasonCounts: chipCounts(scope, withoutReason, charges.failureCode, FAILURE_CODES),
+    statusCounts: chipCounts(scope, withoutStatus, 'status', DUNNING_STATUSES),
+    reasonCounts: chipCounts(scope, withoutReason, 'failureCode', FAILURE_CODES),
   };
 }
 
@@ -273,13 +286,7 @@ function isOneOf<T extends string>(values: readonly T[], value: string | undefin
 function applicableDunningFilter(scope: TenantScope, filter: DunningFilter): AppliedDunningFilter {
   const q = filter.q?.trim() ?? '';
   const site =
-    filter.site === undefined || filter.site === ''
-      ? undefined
-      : scope.db
-          .select({ id: sites.id })
-          .from(sites)
-          .where(and(eq(sites.tenantId, scope.tenantId), eq(sites.id, filter.site)))
-          .get()?.id;
+    filter.site === undefined || filter.site === '' ? undefined : tenantsRepo.getSite(scope, filter.site)?.id;
   return {
     ...(q === '' ? {} : { q }),
     ...(isOneOf(DUNNING_STATUSES, filter.status) ? { status: filter.status } : {}),
@@ -292,15 +299,14 @@ function applicableDunningFilter(scope: TenantScope, filter: DunningFilter): App
 function chipCounts<T extends string>(
   scope: TenantScope,
   filter: AppliedDunningFilter,
-  column: typeof charges.status | typeof charges.failureCode,
+  column: 'status' | 'failureCode',
   values: readonly T[],
 ): Record<T, number> {
+  const open = openDunningCharges(scope, filter);
   const groups = scope.db
-    .select({ value: column, charges: count() })
-    .from(charges)
-    .innerJoin(members, eq(members.id, charges.memberId))
-    .where(and(...openDunningConditions(scope, filter)))
-    .groupBy(column)
+    .select({ value: open[column], charges: count() })
+    .from(open)
+    .groupBy(open[column])
     .all();
   return Object.fromEntries(
     values.map((value) => [value, groups.find((group) => group.value === value)?.charges ?? 0]),

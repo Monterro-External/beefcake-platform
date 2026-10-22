@@ -1,4 +1,4 @@
-import { type SQL, and, asc, count, desc, eq, like, or, sql } from 'drizzle-orm';
+import { type SQL, and, asc, count, desc, eq, or, sql } from 'drizzle-orm';
 import { type Member, members, sites, subscriptions } from '../schema';
 import { type TenantScope, guard, guardOne } from './scope';
 
@@ -32,12 +32,14 @@ function memberConditions(scope: TenantScope, filter: MemberFilter) {
  */
 export function memberSearchCondition(search: string | undefined): SQL | undefined {
   if (search === undefined || search.trim().length === 0) return undefined;
-  const term = `%${search.trim().toLowerCase()}%`;
+  // `%`, `_` and `\` are matched as themselves, never as LIKE wildcards.
+  const term = `%${search.trim().toLowerCase().replace(/[\\%_]/g, '\\$&')}%`;
+  const contains = (value: SQL | typeof members.phone) => sql`${value} like ${term} escape '\\'`;
   return or(
-    like(sql`lower(${members.name})`, term),
-    like(sql`lower(${members.email})`, term),
-    like(members.phone, term),
-    like(sql`lower(coalesce(${members.cardId}, ''))`, term),
+    contains(sql`lower(${members.name})`),
+    contains(sql`lower(${members.email})`),
+    contains(members.phone),
+    contains(sql`lower(coalesce(${members.cardId}, ''))`),
   );
 }
 

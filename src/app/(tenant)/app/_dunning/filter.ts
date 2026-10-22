@@ -13,15 +13,27 @@ import { integer } from '@/lib/format';
 
 export type DunningSearchParams = Record<string, string | string[] | undefined>;
 
-function first(value: string | string[] | undefined): string | undefined {
+/** The value of one address parameter; a parameter given twice counts once, the first time. */
+export function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+/** One entry of the Site dropdown. */
+export interface SiteOption {
+  readonly id: string;
+  readonly name: string;
+}
+
+/** The tenant's sites as Site dropdown options. */
+export function siteOptions(sites: readonly SiteOption[]): SiteOption[] {
+  return sites.map((site) => ({ id: site.id, name: site.name }));
 }
 
 /** The filter as the address gives it. The report decides which values it knows. */
 export function readDunningFilter(params: DunningSearchParams): DunningFilter {
   const filter: { q?: string; status?: string; reason?: string; site?: string } = {};
   for (const key of DUNNING_PARAMS) {
-    const value = first(params[key])?.trim() ?? '';
+    const value = firstParam(params[key])?.trim() ?? '';
     if (value !== '') filter[key] = value;
   }
   return filter;
@@ -49,7 +61,7 @@ export function dunningHref(
 }
 
 /** True when anything narrows open dunning, which switches on the count line and the 50-row cap. */
-export function isFiltered(filter: AppliedDunningFilter): boolean {
+export function isFiltered(filter: DunningFilter): boolean {
   return DUNNING_PARAMS.some((key) => filter[key] !== undefined);
 }
 

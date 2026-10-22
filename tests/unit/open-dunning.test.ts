@@ -176,6 +176,22 @@ describe('the open-dunning report with a search', () => {
     expect(result).toEqual({ ...NOTHING_MATCHES, filter: { q: 'zz-not-a-member' } });
   });
 
+  // Each term would match the oldest member's email if its character were a
+  // wildcard; taken as itself it matches nobody.
+  it.each([
+    ['%', (email: string) => email.replace('@', '%')],
+    ['_', (email: string) => email.replace('.', '_')],
+    ['\\', () => '\\'],
+  ] as const)('treats %s in a search as itself, not a wildcard', (_char, termOf) => {
+    const term = termOf(oldest().email);
+    const literal = openCharges().filter((row) =>
+      [row.name, row.email, row.phone, row.cardId ?? ''].some((value) => value.toLowerCase().includes(term)),
+    );
+    expect(literal).toEqual([]);
+    const result = reports.openDunning(scopeFor(), { q: term });
+    expect(result).toEqual({ ...NOTHING_MATCHES, filter: { q: term } });
+  });
+
   it("never returns or counts another tenant's charges", () => {
     const other = tenantId('Puls Träning');
     const target = oldest();

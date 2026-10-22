@@ -47,7 +47,15 @@ import * as reports from '@/export/reports';
 import { addBillingPeriods } from '@/domain/dates';
 import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { timezoneForCountry } from '@/jobs/runner';
-import { type DunningSearchParams, isFiltered, matchingHeading, noMatch, readDunningFilter } from '../_dunning/filter';
+import {
+  type DunningSearchParams,
+  firstParam,
+  isFiltered,
+  matchingHeading,
+  noMatch,
+  readDunningFilter,
+  siteOptions,
+} from '../_dunning/filter';
 import { DunningFilters } from '../_dunning/filters';
 
 export const dynamic = 'force-dynamic';
@@ -56,8 +64,7 @@ export const dynamic = 'force-dynamic';
 const DUNNING_PAGE_SIZE = 50;
 
 function pageNumber(value: string | string[] | undefined): number {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return Math.max(1, Number.parseInt(raw ?? '', 10) || 1);
+  return Math.max(1, Number.parseInt(firstParam(value) ?? '', 10) || 1);
 }
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<DunningSearchParams> }) {
@@ -95,7 +102,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   if (dunningPage !== requestedPage) matching = pageOf(dunningPage);
   const dunningFilter = matching.filter;
   const dunningFiltered = isFiltered(dunningFilter);
-  const dunningSites = tenantsRepo.listSites(scope).map((site) => ({ id: site.id, name: site.name }));
+  const dunningSites = siteOptions(tenantsRepo.listSites(scope));
   const listed = dunningFiltered ? matching.rows : dunning;
   const codes = reports.failedPaymentsByCode(scope, addBillingPeriods(periodForRunDay(today), -5));
 
