@@ -143,6 +143,20 @@ describe('the open-dunning report with a search', () => {
     expect(new Set(result.rows.map((row) => row.memberId))).toEqual(new Set([target.memberId]));
   });
 
+  it('finds a member whose name starts with a Nordic letter, by the lowercase and the uppercase form', () => {
+    const target = openCharges().find((row) => /(^| )[ÅÄÖØÆ]/.test(row.name));
+    const word = target?.name.split(' ').find((part) => /^[ÅÄÖØÆ]/.test(part));
+    if (target === undefined || word === undefined) throw new Error('need a member in open dunning named with Å, Ä, Ö, Ø or Æ');
+    const expected = openCharges().filter((row) => row.memberId === target.memberId);
+    for (const q of [word.toLowerCase(), word.toUpperCase()]) {
+      const result = reports.openDunning(scopeFor(), { q, limit: 1000 });
+      expect(result.rows.map((row) => row.memberId), q).toContain(target.memberId);
+      expect(result.rows.filter((row) => row.memberId === target.memberId).map((row) => row.chargeId), q).toEqual(
+        expected.map((row) => row.chargeId),
+      );
+    }
+  });
+
   it('finds charges older than the 8 and 100 newest, and returns every charge of the member it found', () => {
     const target = oldest();
     const expected = openCharges().filter((row) => row.memberId === target.memberId);
