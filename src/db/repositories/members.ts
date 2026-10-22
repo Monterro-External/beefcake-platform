@@ -28,7 +28,9 @@ function memberConditions(scope: TenantScope, filter: MemberFilter) {
  * The member search rule: a case-insensitive substring of the name, email,
  * phone or card number. The term is trimmed; a term of only spaces is no
  * search and gives `undefined`. Shared by the member list and the open-dunning
- * report so "found" means the same on both screens.
+ * report so "found" means the same on both screens. Case is folded with
+ * `fold_case()` (see `openDatabase()`), not SQLite's ASCII-only `lower()`, so
+ * Å, Ä, Ö, Ø and Æ match in either case.
  */
 export function memberSearchCondition(search: string | undefined): SQL | undefined {
   if (search === undefined || search.trim().length === 0) return undefined;
@@ -36,10 +38,10 @@ export function memberSearchCondition(search: string | undefined): SQL | undefin
   const term = `%${search.trim().toLowerCase().replace(/[\\%_]/g, '\\$&')}%`;
   const contains = (value: SQL | typeof members.phone) => sql`${value} like ${term} escape '\\'`;
   return or(
-    contains(sql`lower(${members.name})`),
-    contains(sql`lower(${members.email})`),
+    contains(sql`fold_case(${members.name})`),
+    contains(sql`fold_case(${members.email})`),
     contains(members.phone),
-    contains(sql`lower(coalesce(${members.cardId}, ''))`),
+    contains(sql`fold_case(coalesce(${members.cardId}, ''))`),
   );
 }
 
