@@ -71,13 +71,21 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   // Unfiltered, the card shows the 8 newest charges in open dunning, as the
   // payments summary's "In dunning" figure does. A search or filter shows up to
   // 50 matches with their counts, and the summary keeps its own unfiltered
-  // figure. The chips need their counts either way.
-  const newestDunning = seesDunning || seesPayments ? reports.openDunning(scope, 8) : [];
-  const openDunning = seesDunning ? reports.openDunning(scope, { ...requestedDunning, limit: 50 }) : null;
+  // figure. The chips need their counts either way. Unfiltered, one query gives
+  // the card and the figure their 8 rows.
+  const openDunning = seesDunning
+    ? reports.openDunning(scope, { ...requestedDunning, limit: isFiltered(requestedDunning) ? 50 : 8 })
+    : null;
   const dunningFilter = openDunning?.filter ?? {};
   const dunningFiltered = isFiltered(dunningFilter);
   const matchingDunning = dunningFiltered ? openDunning : null;
-  const dunning = matchingDunning?.rows ?? (seesDunning ? newestDunning : []);
+  const newestDunning =
+    openDunning !== null && !dunningFiltered
+      ? openDunning.rows.slice(0, 8)
+      : seesPayments
+        ? reports.openDunning(scope, 8)
+        : [];
+  const dunning = matchingDunning?.rows ?? newestDunning;
   const dunningSites = seesDunning ? tenantsRepo.listSites(scope) : [];
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
@@ -338,13 +346,15 @@ export default async function Overview({ searchParams }: { searchParams: Promise
               locale={locale}
             />
           )}
-          {matchingDunning !== null && matchingDunning.rows.length > 0 && (
+          {matchingDunning !== null && (matchingDunning.rows.length > 0 || seesPayments) && (
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-ink-muted">
-              <p>
-                {countLine(matchingDunning.rows.length, matchingDunning.chargeCount, matchingDunning.memberCount, locale)}
-              </p>
+              {matchingDunning.rows.length > 0 && (
+                <p>
+                  {countLine(matchingDunning.rows.length, matchingDunning.chargeCount, matchingDunning.memberCount, locale)}
+                </p>
+              )}
               {seesPayments && (
-                <Link href={`${dunningHref('/app/payments', dunningFilter)}#dunning`} className="text-accent">
+                <Link href={`${dunningHref('/app/payments', dunningFilter)}#dunning`} className="ml-auto text-accent">
                   See all on Payments
                 </Link>
               )}

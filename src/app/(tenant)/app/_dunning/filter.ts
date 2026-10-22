@@ -49,7 +49,7 @@ export function dunningHref(
 }
 
 /** True when anything narrows open dunning, which switches on the count line and the 50-row cap. */
-export function isFiltered(filter: AppliedDunningFilter): boolean {
+export function isFiltered(filter: DunningFilter): boolean {
   return DUNNING_PARAMS.some((key) => filter[key] !== undefined);
 }
 
