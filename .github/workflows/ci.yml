@@ -79,19 +79,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - name: Install Chromium
-        run: npx playwright install --with-deps chromium
-
-      - name: Seed
-        run: npm run db:reset -- --scale small --quiet
-
+      # Before any install: a PR that links no Spec has nothing to record, and
+      # installing Chromium alone can take minutes.
       - name: Find the Specs this PR links
         id: linked
         uses: actions/github-script@v9
@@ -101,6 +90,23 @@ jobs:
           script: |
             const { findLinkedSpecs } = require('./.github/scripts/bdd-pr-comment.cjs');
             await findLinkedSpecs({ github, context, core });
+
+      - uses: actions/setup-node@v7
+        if: ${{ steps.linked.outputs.grep != '' }}
+        with:
+          node-version: 22
+          cache: npm
+
+      - if: ${{ steps.linked.outputs.grep != '' }}
+        run: npm ci
+
+      - name: Install Chromium
+        if: ${{ steps.linked.outputs.grep != '' }}
+        run: npx playwright install --with-deps chromium
+
+      - name: Seed
+        if: ${{ steps.linked.outputs.grep != '' }}
+        run: npm run db:reset -- --scale small --quiet
 
       # A Spec linked before its tests exist passes with nothing to run.
       - name: Run the linked Specs' @acceptance scenarios
