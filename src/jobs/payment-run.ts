@@ -134,7 +134,7 @@ export const paymentRunJob: Job<PaymentRunSummary> = {
 function discardPartialRun(context: TenantJobContext, runId: string): number {
   const { scope, tenant } = context;
   const doomed = scope.db
-    .select({ id: charges.id, tenantId: charges.tenantId })
+    .select({ id: charges.id })
     .from(charges)
     .where(and(eq(charges.tenantId, tenant.id), eq(charges.paymentRunId, runId)))
     .all();

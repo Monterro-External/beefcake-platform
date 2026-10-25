@@ -18,6 +18,8 @@ import { seedDatabase } from '@/db/seed';
 import { SCALES } from '@/db/seed/blueprint';
 import { PINNED_TODAY } from '@/db/seed/options';
 import { bookings, charges, classes, paymentRuns, receipts, accessSyncState } from '@/db/schema';
+import * as paymentsRepo from '@/db/repositories/payments';
+import { tenantScope } from '@/db/repositories/scope';
 import { runJob } from '@/jobs/runner';
 import { paymentRunJob, periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { accessSyncJob } from '@/jobs/access-sync';
@@ -51,17 +53,17 @@ const countRows = (table: 'charges' | 'payment_runs' | 'bookings' | 'receipts'):
 
 /**
  * Simulate a killed process: a run row for 2026-09 still marked running, with
- * one of its charges and that charge's receipt written.
+ * one of its charges and that charge's receipt written. `nth` picks the tenant.
  */
-function leaveRunHalfFinished(): { tenantId: string } {
-  const tenant = connection.sqlite.prepare('select id, currency from tenants limit 1').get() as {
-    id: string;
-    currency: 'SEK';
-  };
+function leaveRunHalfFinished(nth = 0): { tenantId: string; runId: string } {
+  const tenant = connection.sqlite
+    .prepare('select id, currency from tenants order by id limit 1 offset ?')
+    .get(nth) as { id: string; currency: 'SEK' };
+  const suffix = nth === 0 ? '' : `_${nth}`;
   connection.db
     .insert(paymentRuns)
     .values({
-      id: 'run_partial',
+      id: `run_partial${suffix}`,
       tenantId: tenant.id,
       period: '2026-09',
       startedAt: '2026-09-25T03:00:00.000Z',
@@ -80,9 +82,9 @@ function leaveRunHalfFinished(): { tenantId: string } {
   connection.db
     .insert(charges)
     .values({
-      id: 'chg_partial',
+      id: `chg_partial${suffix}`,
       tenantId: tenant.id,
-      paymentRunId: 'run_partial',
+      paymentRunId: `run_partial${suffix}`,
       memberId: victim.memberId,
       subscriptionId: victim.subscriptionId,
       amountMinor: 1,
@@ -96,18 +98,18 @@ function leaveRunHalfFinished(): { tenantId: string } {
   connection.db
     .insert(receipts)
     .values({
-      id: 'rcp_partial',
+      id: `rcp_partial${suffix}`,
       tenantId: tenant.id,
-      chargeId: 'chg_partial',
+      chargeId: `chg_partial${suffix}`,
       memberId: victim.memberId,
-      number: '202609-999999',
+      number: `202609-99999${nth}`,
       issuedAt: '2026-09-25T03:00:00.000Z',
       currency: tenant.currency,
       totalMinor: 1,
       linesJson: '[]',
     })
     .run();
-  return { tenantId: tenant.id };
+  return { tenantId: tenant.id, runId: `run_partial${suffix}` };
 }
 
 describe('which period a run bills', () => {
@@ -187,6 +189,9 @@ describe('payment run', () => {
     // The partial attempt is gone, replaced by a completed run for that period.
     expect(
       connection.sqlite.prepare("select count(*) as n from charges where id = 'chg_partial'").get(),
+    ).toEqual({ n: 0 });
+    expect(
+      connection.sqlite.prepare("select count(*) as n from receipts where id = 'rcp_partial'").get(),
     ).toEqual({ n: 0 });
     const replacement = connection.db
       .select()
@@ -318,6 +323,32 @@ describe('payment run', () => {
     expect(() =>
       runJob(paymentRunJob, { now: NEXT_RUN, tenantId: 'ten_nope', quiet: true, db: connection.db }),
     ).toThrow(/No such tenant/);
+  });
+});
+
+describe('a partial run footprint', () => {
+  it("counts the charges and receipts of the run", () => {
+    const { tenantId, runId } = leaveRunHalfFinished(0);
+    leaveRunHalfFinished(1);
+
+    const footprint = paymentsRepo.partialRunFootprint(
+      tenantScope(tenantId, { db: connection.db }),
+      runId,
+    );
+
+    expect(footprint).toEqual({ charges: 1, receipts: 1 });
+  });
+
+  it("counts nothing for another tenant's run", () => {
+    const { tenantId } = leaveRunHalfFinished(0);
+    const other = leaveRunHalfFinished(1);
+
+    const footprint = paymentsRepo.partialRunFootprint(
+      tenantScope(tenantId, { db: connection.db }),
+      other.runId,
+    );
+
+    expect(footprint).toEqual({ charges: 0, receipts: 0 });
   });
 });
 
