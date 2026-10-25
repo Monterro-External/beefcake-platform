@@ -14,19 +14,18 @@ This skill builds on Matt Pocock's skills. Use them instead of re-implementing t
 - `to-questionnaire` when a decision belongs to someone who is not present
 - `to-tickets` for optional cleanup work after a decision
 
+The rules themselves go where his `code-review` reads them and his `retro` adds to them: a root `CODING_STANDARDS.md`.
+
 If `setup-matt-pocock-skills` has not been run in this repo, say so and offer to run it first, since it defines where the domain docs live.
 
 ## Where things are saved
 
-Everything this skill produces lives in one folder, `docs/coding-standards/`. If the repo already has a coding standards document or folder, use that location instead and keep its structure. Ask before creating a new one.
-
-Resolve the location once, in Phase 0, and use it in every phase: wherever this file says `docs/coding-standards/`, read the resolved location.
+The rules live in `CODING_STANDARDS.md` at the repo root; everything else this skill produces lives in `docs/coding-standards/`. If the repo keeps its rules somewhere else already (a `CONTRIBUTING.md`, a standards folder), ask before moving them; never create a second rules file beside an existing one.
 
 ```
+CODING_STANDARDS.md    Approved rules, one ## section per area (Server actions, Data access, Testing ...)
 docs/coding-standards/
-  README.md            Index of what applies, one line per area with a link
-  <area>.md            Approved rules for one area (errors.md, testing.md, api.md ...)
-  decisions.md         Decision log, append-only
+  decisions.md         Decision log, newest first
   open-questions.md    Parked and delegated questions
   sessions/
     <YYYY-MM-DD>/
@@ -36,7 +35,7 @@ docs/coding-standards/
 
 Three layers with different readers:
 
-- **Rules** (`README.md` and `<area>.md`) are what agents and `code-review` follow. Only current, approved rules. No history, no rationale beyond one line. AGENTS.md gets a single line pointing to `docs/coding-standards/README.md`, never the rules themselves.
+- **Rules** (`CODING_STANDARDS.md`) are what agents, `code-review` and `retro` follow and extend. Only current, approved rules. No history, no rationale beyond one line. Mechanical rules become lint or analyzer rules instead; the file holds judgement calls. AGENTS.md gets a single line pointing to `CODING_STANDARDS.md`, never the rules themselves. Past about 1,000 lines, `retro`'s guidance applies: add navigation pointers to docs folders.
 - **Decision log** (`decisions.md`) is for humans. One entry per decision, newest first: date, who decided, the variants considered, the outcome, a short why, and a link to the session. Record rejected and "neither" outcomes too, so later runs do not propose them again. Large architectural decisions are written as ADRs via `domain-modeling` and the log entry links to the ADR.
 - **Sessions** (`sessions/<date>/`) are evidence. Never edit an old session. `findings.json` holds one object per finding:
 
@@ -52,7 +51,7 @@ Three layers with different readers:
   "recommendation": "B",
   "outcome": "B | A | both | neither | delegated | parked | confirmed | rejected",
   "decided_by": "name",
-  "rule_ref": "docs/coding-standards/errors.md#service-errors"
+  "rule_ref": "CODING_STANDARDS.md#errors"
 }
 ```
 
@@ -72,7 +71,7 @@ The finding `id` must be stable across runs (area plus a short slug) so the next
 Before scanning, read:
 - AGENTS.md, CLAUDE.md and any nested ones
 - The domain docs configured by `setup-matt-pocock-skills` (glossary, ADRs)
-- The repo's coding standards document if one exists (the one `code-review` checks against)
+- `CODING_STANDARDS.md`, the rules `code-review` checks against, if it exists
 - Linter, formatter and analyzer config (eslint, prettier, .editorconfig, ruff, Roslyn analyzers, etc.)
 - `docs/coding-standards/decisions.md`, `open-questions.md` and the latest `sessions/*/findings.json` if they exist
 
@@ -190,9 +189,9 @@ Route each approved decision to where it belongs:
 |---|---|
 | Domain term, synonym resolved | Glossary via `domain-modeling` |
 | Architectural choice with real trade-offs | ADR via `domain-modeling` |
-| Coding convention | `docs/coding-standards/<area>.md`, scoped by path where possible, and listed in `README.md` |
+| Coding convention | The area's section of `CODING_STANDARDS.md`, scoped by path where possible |
 | Could be enforced by a tool | Propose a lint or analyzer rule instead of prose, ask before adding |
-| Must be known on every task | Nothing new in AGENTS.md. It already points to `docs/coding-standards/README.md`. Add or adjust that single pointer via `writing-for-agents` if it is missing |
+| Must be known on every task | Nothing new in AGENTS.md. It already points to `CODING_STANDARDS.md`. Add or adjust that single pointer via `writing-for-agents` if it is missing |
 
 Every outcome, including rejected, neither, delegated and parked, gets an entry in `decisions.md`.
 
@@ -208,7 +207,7 @@ Do not refactor code to match the new standards. If the developer wants cleanup,
 
 ## Phase 5: Hand back to the team
 
-Put all changes under `docs/coding-standards/` (rules, decision log, open questions and the session folder), plus any AGENTS.md pointer and ADRs, on one branch and summarize:
+Put all changes (`CODING_STANDARDS.md`, and the decision log, open questions and session folder under `docs/coding-standards/`, plus any AGENTS.md pointer and ADRs) on one branch and summarize:
 - Decisions recorded and where
 - Questions parked or sent to others
 - Proposed tool rules

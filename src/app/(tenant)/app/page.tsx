@@ -32,10 +32,22 @@ import { timezoneForCountry } from '@/jobs/runner';
 import { periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { addBillingPeriods } from '@/domain/dates';
 import { date as formatDate } from '@/lib/format';
+import * as tenantsRepo from '@/db/repositories/tenants';
+import {
+  type DunningSearchParams,
+  countLine,
+  dunningHref,
+  isFiltered,
+  noMatch,
+  readDunningFilter,
+  siteOptions,
+} from './_dunning/filter';
+import { DunningFilters } from './_dunning/filters';
 
 export const dynamic = 'force-dynamic';
 
-export default async function Overview() {
+export default async function Overview({ searchParams }: { searchParams: Promise<DunningSearchParams> }) {
+  const requestedDunning = readDunningFilter(await searchParams);
   const session = await getSession();
   const tenant = activeTenant(session);
   if (tenant === null) return null;
@@ -49,6 +61,7 @@ export default async function Overview() {
   // Front desk sees the day job. Money and reports are the owner's and the site
   // manager's, and the tiles below follow the same permissions as the pages.
   const seesPayments = can(session, 'payments.read');
+  const seesDunning = can(session, 'dunning.read');
   const seesReports = can(session, 'reports.read');
 
   const membership = reports.membershipSummary(scope, reports.windowOfDays(today, 30));
@@ -63,7 +76,25 @@ export default async function Overview() {
       : addBillingPeriods(currentPeriod, 1);
   const nextRunOn = runDayFor(nextPeriod);
   const nextRunOverdue = nextRunOn <= today;
-  const dunning = seesPayments ? reports.openDunning(scope, 8) : [];
+  // Unfiltered, the card shows the 8 newest charges in open dunning, as the
+  // payments summary's "In dunning" figure does. A search or filter shows up to
+  // 50 matches with their counts, and the summary keeps its own unfiltered
+  // figure. The chips need their counts either way. Unfiltered, one query gives
+  // the card and the figure their 8 rows.
+  const openDunning = seesDunning
+    ? paymentsRepo.openDunning(scope, { ...requestedDunning, limit: isFiltered(requestedDunning) ? 50 : 8 })
+    : null;
+  const dunningFilter = openDunning?.filter ?? {};
+  const dunningFiltered = isFiltered(dunningFilter);
+  const matchingDunning = dunningFiltered ? openDunning : null;
+  const newestDunning =
+    openDunning !== null && !dunningFiltered
+      ? openDunning.rows.slice(0, 8)
+      : seesPayments
+        ? paymentsRepo.listOpenDunning(scope, { limit: 8 })
+        : [];
+  const dunning = matchingDunning?.rows ?? newestDunning;
+  const dunningSites = seesDunning ? siteOptions(tenantsRepo.listSites(scope)) : [];
   const churn = seesReports ? reports.churnByWeek(scope, reports.windowOfDays(today, 84)) : [];
   const fill = reports.classFillBySite(scope, reports.windowOfDays(today, 30), time.now);
   const lag = reports.syncLagBySite(scope);
@@ -213,8 +244,8 @@ export default async function Overview() {
                 label: 'In dunning',
                 value: (
                   <Link href="/app/payments#dunning" className="text-accent">
-                    {integer(dunning.length, locale)}
-                    {dunning.length === 8 ? '+' : ''}
+                    {integer(newestDunning.length, locale)}
+                    {newestDunning.length === 8 ? '+' : ''}
                   </Link>
                 ),
               },
@@ -303,13 +334,48 @@ export default async function Overview() {
         </Card>
       </div>
 
-      {seesPayments && (
+      {seesDunning && (
       <div className="mt-4">
         <Card
           title="In dunning now"
-          actions={<Link href="/app/payments" className="text-accent">All payments</Link>}
+          actions={
+            seesPayments ? (
+              <Link href="/app/payments" className="text-accent">All payments</Link>
+            ) : undefined
+          }
         >
-          {dunning.length === 0 ? (
+          {openDunning !== null && (
+            <DunningFilters
+              basePath="/app"
+              filter={dunningFilter}
+              statusCounts={openDunning.statusCounts}
+              reasonCounts={openDunning.reasonCounts}
+              sites={dunningSites}
+              locale={locale}
+            />
+          )}
+          {matchingDunning !== null && (matchingDunning.rows.length > 0 || seesPayments) && (
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-ink-muted">
+              {matchingDunning.rows.length > 0 && (
+                <p>
+                  {countLine(matchingDunning.rows.length, matchingDunning.chargeCount, matchingDunning.memberCount, locale)}
+                </p>
+              )}
+              {seesPayments && (
+                <Link href={`${dunningHref('/app/payments', dunningFilter)}#dunning`} className="ml-auto text-accent">
+                  See all on Payments
+                </Link>
+              )}
+            </div>
+          )}
+          {matchingDunning !== null && matchingDunning.rows.length === 0 ? (
+            <div className="py-4 text-center">
+              <p>{noMatch(dunningFilter)}</p>
+              <Link href="/app" scroll={false} className="text-accent">
+                Clear search and filters
+              </Link>
+            </div>
+          ) : dunning.length === 0 ? (
             <p className="py-4 text-center text-ink-muted">Nothing outstanding.</p>
           ) : (
             <Table>
@@ -325,7 +391,7 @@ export default async function Overview() {
               </THead>
               <tbody>
                 {dunning.map((row) => (
-                  <TR key={`${row.memberId}-${row.attemptedAt}`}>
+                  <TR key={row.chargeId}>
                     <TD>
                       <Link href={`/app/members/${row.memberId}`} className="text-accent">
                         {row.memberName}
