@@ -11,7 +11,7 @@
 
 import Link from 'next/link';
 import { cn } from '@/lib/cn';
-import type { AppliedDunningFilter, DunningStatus } from '@/export/reports';
+import type { AppliedDunningFilter, DunningStatus } from '@/db/repositories/payments';
 import type { FailureCode } from '@/domain/retry-policy';
 import { type Locale, humanise, integer } from '@/lib/format';
 import { type SiteOption, dunningHref } from './filter';

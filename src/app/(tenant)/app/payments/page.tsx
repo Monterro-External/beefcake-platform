@@ -86,11 +86,11 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
   const revenue = reports.revenueByPeriod(scope, 12);
   // Unfiltered: the 100 newest charges in open dunning. They also feed the
   // Outstanding tile and the abandoned callout, whatever the list is filtered by.
-  const dunning = reports.openDunning(scope, 100);
+  const dunning = paymentsRepo.listOpenDunning(scope, { limit: 100 });
   const requestedDunning = readDunningFilter(params);
   const requestedPage = pageNumber(params.page);
   const pageOf = (page: number) =>
-    reports.openDunning(scope, {
+    paymentsRepo.openDunning(scope, {
       ...requestedDunning,
       limit: DUNNING_PAGE_SIZE,
       offset: (page - 1) * DUNNING_PAGE_SIZE,

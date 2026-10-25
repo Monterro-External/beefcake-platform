@@ -12,7 +12,7 @@
  * Fitness Group before you check it against a single-site gym.
  */
 
-import { and, asc, count, countDistinct, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, gte, inArray, lt, lte, or, sql } from 'drizzle-orm';
 import {
   accessEvents,
   accessSyncState,
@@ -24,8 +24,6 @@ import {
 } from '@/db/schema';
 import { type TenantScope, guard } from '@/db/repositories/scope';
 import * as classesRepo from '@/db/repositories/classes';
-import * as tenantsRepo from '@/db/repositories/tenants';
-import { memberSearchCondition } from '@/db/repositories/members';
 import {
   type BillingPeriod,
   type PlainDate,
@@ -39,7 +37,6 @@ import {
 import type { Currency, Money } from '@/domain/money';
 import { type SiteClassFill, tallyClassFill } from '@/domain/class-fill';
 import { type HealthInputs, type HealthScore, scoreTenantHealth } from '@/domain/health';
-import { FAILURE_CODES, type FailureCode } from '@/domain/retry-policy';
 
 export interface ReportWindow {
   readonly from: PlainDate;
@@ -114,203 +111,6 @@ export function failedPaymentsByCode(scope: TenantScope, sincePeriod: BillingPer
     .groupBy(paymentRuns.period, charges.failureCode)
     .orderBy(asc(paymentRuns.period), desc(count()))
     .all() as FailedPaymentRow[];
-}
-
-export interface DunningRow {
-  readonly chargeId: string;
-  readonly memberId: string;
-  readonly memberName: string;
-  readonly amountMinor: number;
-  readonly currency: Currency;
-  readonly failureCode: string | null;
-  readonly attempt: number;
-  readonly attemptedAt: string;
-  readonly nextAttemptAt: string | null;
-  readonly status: DunningStatus;
-}
-
-/** The two states of a charge in open dunning. */
-export const DUNNING_STATUSES = ['retrying', 'abandoned'] as const;
-export type DunningStatus = (typeof DUNNING_STATUSES)[number];
-
-/**
- * What narrows open dunning. Every field is optional and an empty filter is all
- * of open dunning.
- */
-export interface DunningFilter {
-  /** The member search rule (name, email, phone, card number); trimmed, spaces only is no search. */
-  readonly q?: string;
-  /** `retrying` or `abandoned`. */
-  readonly status?: string;
-  /** A failure code, see `FAILURE_CODES`. */
-  readonly reason?: string;
-  /** A site id: the member's home site. */
-  readonly site?: string;
-}
-
-/** The filter the report applied: the known values of the one it was given, the search trimmed. */
-export interface AppliedDunningFilter {
-  readonly q?: string;
-  readonly status?: DunningStatus;
-  readonly reason?: FailureCode;
-  readonly site?: string;
-}
-
-/** A filter plus the window of matching rows to return. */
-export interface DunningQuery extends DunningFilter {
-  /** Rows to return; the counts always cover every match. Defaults to 200. */
-  readonly limit?: number;
-  /** Matching rows to skip, for paging. Defaults to 0. */
-  readonly offset?: number;
-}
-
-export interface OpenDunning {
-  /** What narrowed the list. Values the report did not know are left out, as if not given. */
-  readonly filter: AppliedDunningFilter;
-  /** The window of matching rows, newest attempt first. */
-  readonly rows: DunningRow[];
-  /** Every matching charge, not just the rows returned. */
-  readonly chargeCount: number;
-  /** The distinct members those charges belong to. */
-  readonly memberCount: number;
-  /**
-   * Charges each status chip would leave: every other active filter and the
-   * search apply, the status filter does not.
-   */
-  readonly statusCounts: Record<DunningStatus, number>;
-  /** Charges each reason chip would leave: every other filter applies, the reason filter does not. */
-  readonly reasonCounts: Record<FailureCode, number>;
-}
-
-/**
- * The conditions that pick open dunning out of charges joined to members,
- * built once and used by both the rows and the counts so the count line never
- * disagrees with the list.
- */
-function openDunningConditions(scope: TenantScope, filter: AppliedDunningFilter) {
-  const conditions = [
-    eq(charges.tenantId, scope.tenantId),
-    eq(members.tenantId, scope.tenantId),
-    filter.status === undefined
-      ? inArray(charges.status, [...DUNNING_STATUSES])
-      : eq(charges.status, filter.status),
-  ];
-  if (filter.reason !== undefined) conditions.push(eq(charges.failureCode, filter.reason));
-  if (filter.site !== undefined) conditions.push(eq(members.homeSiteId, filter.site));
-  const match = memberSearchCondition(filter.q);
-  if (match !== undefined) conditions.push(match);
-  return conditions;
-}
-
-/**
- * The charges in open dunning that match the filter, joined to their members:
- * the one query the rows, the totals and the chip counts all read from.
- */
-function openDunningCharges(scope: TenantScope, filter: AppliedDunningFilter) {
-  return scope.db
-    .select({
-      tenantId: charges.tenantId,
-      chargeId: charges.id,
-      memberId: charges.memberId,
-      memberName: members.name,
-      amountMinor: charges.amountMinor,
-      currency: charges.currency,
-      failureCode: charges.failureCode,
-      attempt: charges.attempt,
-      attemptedAt: charges.attemptedAt,
-      nextAttemptAt: charges.nextAttemptAt,
-      status: charges.status,
-    })
-    .from(charges)
-    .innerJoin(members, eq(members.id, charges.memberId))
-    .where(and(...openDunningConditions(scope, filter)))
-    .as('open_dunning');
-}
-
-function openDunningRows(scope: TenantScope, filter: AppliedDunningFilter, limit: number, offset: number): DunningRow[] {
-  const open = openDunningCharges(scope, filter);
-  const rows = scope.db
-    .select()
-    .from(open)
-    // The charge id breaks ties between attempts in the same second, so a page
-    // boundary never moves.
-    .orderBy(desc(open.attemptedAt), desc(open.chargeId))
-    .limit(limit)
-    .offset(offset)
-    .all();
-  guard(scope, 'charges', rows);
-  return rows as DunningRow[];
-}
-
-/**
- * Open dunning: every `retrying` and `abandoned` charge of the tenant, newest
- * attempt first, one row per charge. The list a front desk works through: who
- * is behind, and what happens next.
- *
- * Called with a row limit it returns the newest rows, as the admin tenant page
- * uses it. Called with a query it returns the matching rows together with the
- * number of matching charges and members, counted over all of open dunning.
- */
-export function openDunning(scope: TenantScope, limit?: number): DunningRow[];
-export function openDunning(scope: TenantScope, query: DunningQuery): OpenDunning;
-export function openDunning(scope: TenantScope, arg: number | DunningQuery = 200): DunningRow[] | OpenDunning {
-  if (typeof arg === 'number') return openDunningRows(scope, {}, arg, 0);
-  const filter = applicableDunningFilter(scope, arg);
-  const rows = openDunningRows(scope, filter, arg.limit ?? 200, arg.offset ?? 0);
-  const open = openDunningCharges(scope, filter);
-  const totals = scope.db
-    .select({ chargeCount: count(), memberCount: countDistinct(open.memberId) })
-    .from(open)
-    .get();
-  const { status: _status, ...withoutStatus } = filter;
-  const { reason: _reason, ...withoutReason } = filter;
-  return {
-    filter,
-    rows,
-    chargeCount: totals?.chargeCount ?? 0,
-    memberCount: totals?.memberCount ?? 0,
-    statusCounts: chipCounts(scope, withoutStatus, 'status', DUNNING_STATUSES),
-    reasonCounts: chipCounts(scope, withoutReason, 'failureCode', FAILURE_CODES),
-  };
-}
-
-function isOneOf<T extends string>(values: readonly T[], value: string | undefined): value is T {
-  return value !== undefined && (values as readonly string[]).includes(value);
-}
-
-/**
- * Keeps the values the report knows and drops the rest, so a mistyped or stale
- * link shows a wider list rather than an empty one. A site counts only if it is
- * one of this tenant's.
- */
-function applicableDunningFilter(scope: TenantScope, filter: DunningFilter): AppliedDunningFilter {
-  const q = filter.q?.trim() ?? '';
-  const site =
-    filter.site === undefined || filter.site === '' ? undefined : tenantsRepo.getSite(scope, filter.site)?.id;
-  return {
-    ...(q === '' ? {} : { q }),
-    ...(isOneOf(DUNNING_STATUSES, filter.status) ? { status: filter.status } : {}),
-    ...(isOneOf(FAILURE_CODES, filter.reason) ? { reason: filter.reason } : {}),
-    ...(site === undefined ? {} : { site }),
-  };
-}
-
-/** Matching charges per value of one column, with a 0 for every value that has none. */
-function chipCounts<T extends string>(
-  scope: TenantScope,
-  filter: AppliedDunningFilter,
-  column: 'status' | 'failureCode',
-  values: readonly T[],
-): Record<T, number> {
-  const open = openDunningCharges(scope, filter);
-  const groups = scope.db
-    .select({ value: open[column], charges: count() })
-    .from(open)
-    .groupBy(open[column])
-    .all();
-  return Object.fromEntries(
-    values.map((value) => [value, groups.find((group) => group.value === value)?.charges ?? 0]),
-  ) as Record<T, number>;
 }
 
 // ---------------------------------------------------------------------------

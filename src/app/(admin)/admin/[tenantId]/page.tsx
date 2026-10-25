@@ -14,6 +14,7 @@ import { ImpersonateButton } from './impersonate-button';
 import { AdminFlagToggles } from './admin-flags';
 import { getDb } from '@/db/client';
 import { adminScope, tenantScope } from '@/db/repositories/scope';
+import * as paymentsRepo from '@/db/repositories/payments';
 import * as tenantsRepo from '@/db/repositories/tenants';
 import { listErrors } from '@/db/repositories/observability';
 import * as reports from '@/export/reports';
@@ -57,7 +58,7 @@ export default async function AdminTenantPage({
   const revenue = reports.revenueByPeriod(scope, 6);
   const lag = reports.syncLagBySite(scope);
   const churn = reports.churnByWeek(scope, reports.windowOfDays(today, 84));
-  const dunning = reports.openDunning(scope, 25);
+  const dunning = paymentsRepo.listOpenDunning(scope, { limit: 25 });
   // eslint-disable-next-line no-restricted-syntax -- BCPLA-26: 30-day error window starts at UTC midnight
   const errors = listErrors(scope, { since: `${reports.windowOfDays(today, 30).from}T00:00:00.000Z`, limit: 20 });
 

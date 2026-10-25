@@ -21,7 +21,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { openDatabase, type Connection } from '@/db/client';
 import { tenantScope } from '@/db/repositories/scope';
 import { FAILURE_CODES } from '@/domain/retry-policy';
-import { openDunning, type DunningFilter } from '@/export/reports';
+import { openDunning, type DunningFilter } from '@/db/repositories/payments';
 
 const PERF_DB = process.env.BEEFCAKE_PERF_DB;
 const LIMIT_MS = 500;

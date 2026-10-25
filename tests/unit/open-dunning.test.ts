@@ -20,7 +20,7 @@ import { seedDatabase } from '@/db/seed';
 import { SCALES } from '@/db/seed/blueprint';
 import { PINNED_TODAY } from '@/db/seed/options';
 import { tenantScope } from '@/db/repositories/scope';
-import * as reports from '@/export/reports';
+import * as paymentsRepo from '@/db/repositories/payments';
 
 let dir: string;
 let connection: Connection;
@@ -91,8 +91,8 @@ describe('the open-dunning report without a search', () => {
     expect(all.length).toBeGreaterThan(100);
 
     for (const limit of [8, 100]) {
-      const result = reports.openDunning(scopeFor(), { limit });
-      expect(result.rows).toEqual(reports.openDunning(scopeFor(), limit));
+      const result = paymentsRepo.openDunning(scopeFor(), { limit });
+      expect(result.rows).toEqual(paymentsRepo.listOpenDunning(scopeFor(), { limit }));
       expect(result.rows.map((row) => [row.memberId, row.attemptedAt])).toEqual(
         all.slice(0, limit).map((row) => [row.memberId, row.attemptedAt]),
       );
@@ -103,7 +103,7 @@ describe('the open-dunning report without a search', () => {
 
   it('treats a search of only spaces as no search', () => {
     const all = openCharges();
-    const result = reports.openDunning(scopeFor(), { q: '   ', limit: 8 });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: '   ', limit: 8 });
     expect(result.rows.map((row) => row.attemptedAt)).toEqual(all.slice(0, 8).map((row) => row.attemptedAt));
     expect(result.chargeCount).toBe(all.length);
   });
@@ -131,7 +131,7 @@ describe('the open-dunning report with a search', () => {
     ['phone', (row: OpenCharge) => row.phone],
   ] as const)('finds a member by part of their %s, ignoring case', (_key, valueOf) => {
     const target = oldest();
-    const result = reports.openDunning(scopeFor(), { q: partOf(valueOf(target)), limit: 1000 });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: partOf(valueOf(target)), limit: 1000 });
     expect(result.rows.map((row) => row.memberId)).toContain(target.memberId);
     expect(result.rows.length).toBeLessThan(openCharges().length);
   });
@@ -139,7 +139,7 @@ describe('the open-dunning report with a search', () => {
   it('finds a member by part of their card number, ignoring case', () => {
     const target = [...openCharges()].reverse().find((row) => row.cardId !== null);
     if (target?.cardId == null) throw new Error('need a member in open dunning with a card');
-    const result = reports.openDunning(scopeFor(), { q: `  ${target.cardId.toUpperCase().slice(2)} `, limit: 1000 });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: `  ${target.cardId.toUpperCase().slice(2)} `, limit: 1000 });
     expect(new Set(result.rows.map((row) => row.memberId))).toEqual(new Set([target.memberId]));
   });
 
@@ -149,7 +149,7 @@ describe('the open-dunning report with a search', () => {
     if (target === undefined || word === undefined) throw new Error('need a member in open dunning named with Å, Ä, Ö, Ø or Æ');
     const expected = openCharges().filter((row) => row.memberId === target.memberId);
     for (const q of [word.toLowerCase(), word.toUpperCase()]) {
-      const result = reports.openDunning(scopeFor(), { q, limit: 1000 });
+      const result = paymentsRepo.openDunning(scopeFor(), { q, limit: 1000 });
       expect(result.rows.map((row) => row.memberId), q).toContain(target.memberId);
       expect(result.rows.filter((row) => row.memberId === target.memberId).map((row) => row.chargeId), q).toEqual(
         expected.map((row) => row.chargeId),
@@ -160,7 +160,7 @@ describe('the open-dunning report with a search', () => {
   it('finds charges older than the 8 and 100 newest, and returns every charge of the member it found', () => {
     const target = oldest();
     const expected = openCharges().filter((row) => row.memberId === target.memberId);
-    const result = reports.openDunning(scopeFor(), { q: target.email, limit: 50 });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: target.email, limit: 50 });
     expect(result.rows.map((row) => row.attemptedAt)).toEqual(expected.map((row) => row.attemptedAt));
     expect(result.chargeCount).toBe(expected.length);
     expect(result.memberCount).toBe(1);
@@ -179,14 +179,14 @@ describe('the open-dunning report with a search', () => {
       [row.name, row.email, row.phone, row.cardId ?? ''].some((value) => value.toLowerCase().includes(term)),
     );
     expect(expected.length).toBeGreaterThan(distinctMembers(expected));
-    const result = reports.openDunning(scopeFor(), { q: term, limit: 5 });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: term, limit: 5 });
     expect(result.rows).toHaveLength(5);
     expect(result.chargeCount).toBe(expected.length);
     expect(result.memberCount).toBe(distinctMembers(expected));
   });
 
   it('returns no rows and zero counts when nobody in open dunning matches', () => {
-    const result = reports.openDunning(scopeFor(), { q: 'zz-not-a-member' });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: 'zz-not-a-member' });
     expect(result).toEqual({ ...NOTHING_MATCHES, filter: { q: 'zz-not-a-member' } });
   });
 
@@ -202,14 +202,14 @@ describe('the open-dunning report with a search', () => {
       [row.name, row.email, row.phone, row.cardId ?? ''].some((value) => value.toLowerCase().includes(term)),
     );
     expect(literal).toEqual([]);
-    const result = reports.openDunning(scopeFor(), { q: term });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: term });
     expect(result).toEqual({ ...NOTHING_MATCHES, filter: { q: term } });
   });
 
   it("never returns or counts another tenant's charges", () => {
     const other = tenantId('Puls Träning');
     const target = oldest();
-    const result = reports.openDunning(scopeFor(other), { q: target.email });
+    const result = paymentsRepo.openDunning(scopeFor(other), { q: target.email });
     expect(result).toEqual({ ...NOTHING_MATCHES, filter: { q: target.email } });
   });
 });
@@ -236,7 +236,7 @@ describe('the open-dunning report with filters', () => {
   it.each(['retrying', 'abandoned'] as const)('keeps only %s charges when filtered by that status', (status) => {
     const expected = openChargesWithFacets().filter((row) => row.status === status);
     expect(expected.length).toBeGreaterThan(0);
-    const result = reports.openDunning(scopeFor(), { status, limit: 1000 });
+    const result = paymentsRepo.openDunning(scopeFor(), { status, limit: 1000 });
     expect(result.rows.map((row) => row.chargeId)).toEqual(expected.map((row) => row.chargeId));
     expect(result.chargeCount).toBe(expected.length);
     expect(result.memberCount).toBe(distinctMembers(expected));
@@ -245,7 +245,7 @@ describe('the open-dunning report with filters', () => {
   it('keeps only charges that failed for the chosen reason', () => {
     const expected = openChargesWithFacets().filter((row) => row.failureCode === 'insufficient_funds');
     expect(expected.length).toBeGreaterThan(0);
-    const result = reports.openDunning(scopeFor(), { reason: 'insufficient_funds', limit: 1000 });
+    const result = paymentsRepo.openDunning(scopeFor(), { reason: 'insufficient_funds', limit: 1000 });
     expect(result.rows.map((row) => row.chargeId)).toEqual(expected.map((row) => row.chargeId));
     expect(result.chargeCount).toBe(expected.length);
   });
@@ -256,7 +256,7 @@ describe('the open-dunning report with filters', () => {
     if (site === undefined) throw new Error('need open dunning');
     const expected = all.filter((row) => row.siteId === site);
     expect(expected.length).toBeLessThan(all.length);
-    const result = reports.openDunning(scopeFor(), { site, limit: 1000 });
+    const result = paymentsRepo.openDunning(scopeFor(), { site, limit: 1000 });
     expect(result.rows.map((row) => row.chargeId)).toEqual(expected.map((row) => row.chargeId));
     expect(result.chargeCount).toBe(expected.length);
     expect(result.memberCount).toBe(distinctMembers(expected));
@@ -274,7 +274,7 @@ describe('the open-dunning report with filters', () => {
         row.siteId === target.siteId &&
         [row.name, row.email, row.phone, row.cardId ?? ''].some((value) => value.toLowerCase().includes(q)),
     );
-    const result = reports.openDunning(scopeFor(), {
+    const result = paymentsRepo.openDunning(scopeFor(), {
       q,
       status: 'abandoned',
       reason: 'mandate_cancelled',
@@ -298,7 +298,7 @@ const REASONS = ['insufficient_funds', 'mandate_cancelled', 'account_closed', 't
 describe('the chip counts of the open-dunning report', () => {
   it('counts each status and each reason over all of open dunning when nothing is chosen', () => {
     const all = openChargesWithFacets();
-    const result = reports.openDunning(scopeFor(), { limit: 8 });
+    const result = paymentsRepo.openDunning(scopeFor(), { limit: 8 });
     expect(result.statusCounts).toEqual(tally(all.map((row) => row.status), STATUSES));
     expect(result.reasonCounts).toEqual(tally(all.map((row) => row.failureCode), REASONS));
   });
@@ -308,7 +308,7 @@ describe('the chip counts of the open-dunning report', () => {
     const site = all.find((row) => row.status === 'abandoned' && row.failureCode === 'account_closed')?.siteId;
     if (site === undefined) throw new Error('need an abandoned charge with a closed account');
     const atSite = all.filter((row) => row.siteId === site);
-    const result = reports.openDunning(scopeFor(), { status: 'abandoned', reason: 'account_closed', site });
+    const result = paymentsRepo.openDunning(scopeFor(), { status: 'abandoned', reason: 'account_closed', site });
     // Status chips: the site and the reason, any status.
     expect(result.statusCounts).toEqual(
       tally(atSite.filter((row) => row.failureCode === 'account_closed').map((row) => row.status), STATUSES),
@@ -325,13 +325,13 @@ describe('the chip counts of the open-dunning report', () => {
     const target = openChargesWithFacets().at(-1);
     if (target === undefined) throw new Error('need open dunning');
     const theirs = openChargesWithFacets().filter((row) => row.memberId === target.memberId);
-    const result = reports.openDunning(scopeFor(), { q: target.email });
+    const result = paymentsRepo.openDunning(scopeFor(), { q: target.email });
     expect(result.statusCounts).toEqual(tally(theirs.map((row) => row.status), STATUSES));
     expect(result.reasonCounts).toEqual(tally(theirs.map((row) => row.failureCode), REASONS));
   });
 
   it('counts 0 for a reason that ends retries when Retrying is chosen', () => {
-    const result = reports.openDunning(scopeFor(), { status: 'retrying' });
+    const result = paymentsRepo.openDunning(scopeFor(), { status: 'retrying' });
     expect(result.chargeCount).toBeGreaterThan(0);
     expect(result.reasonCounts.account_closed).toBe(0);
     expect(result.reasonCounts.mandate_cancelled).toBe(0);
@@ -340,17 +340,17 @@ describe('the chip counts of the open-dunning report', () => {
 
 describe('unknown filter values in the open-dunning report', () => {
   it('ignores a status, reason or site it does not know, and says which filter it applied', () => {
-    const unfiltered = reports.openDunning(scopeFor(), { limit: 8 });
+    const unfiltered = paymentsRepo.openDunning(scopeFor(), { limit: 8 });
     for (const filter of [{ status: 'given_up' }, { reason: 'stolen_card' }, { site: 'sit_nowhere' }, { status: '' }]) {
-      const result = reports.openDunning(scopeFor(), { ...filter, limit: 8 });
+      const result = paymentsRepo.openDunning(scopeFor(), { ...filter, limit: 8 });
       expect(result).toEqual(unfiltered);
       expect(result.filter).toEqual({});
     }
   });
 
   it('keeps the filters it knows when another value is unknown', () => {
-    const result = reports.openDunning(scopeFor(), { q: '  a ', status: 'abandoned', reason: 'stolen_card', limit: 8 });
-    expect(result).toEqual(reports.openDunning(scopeFor(), { q: 'a', status: 'abandoned', limit: 8 }));
+    const result = paymentsRepo.openDunning(scopeFor(), { q: '  a ', status: 'abandoned', reason: 'stolen_card', limit: 8 });
+    expect(result).toEqual(paymentsRepo.openDunning(scopeFor(), { q: 'a', status: 'abandoned', limit: 8 }));
     expect(result.filter).toEqual({ q: 'a', status: 'abandoned' });
   });
 
@@ -358,7 +358,7 @@ describe('unknown filter values in the open-dunning report', () => {
     const other = tenantId('Puls Träning');
     const nordicSite = openChargesWithFacets().at(0)?.siteId;
     if (nordicSite === undefined) throw new Error('need open dunning');
-    const result = reports.openDunning(scopeFor(other), { site: nordicSite, limit: 1000 });
+    const result = paymentsRepo.openDunning(scopeFor(other), { site: nordicSite, limit: 1000 });
     const theirs = openChargesWithFacets(other);
     expect(result.filter).toEqual({});
     expect(result.rows.map((row) => row.chargeId)).toEqual(theirs.map((row) => row.chargeId));
@@ -371,8 +371,8 @@ describe('paging through the open-dunning report', () => {
   it('returns the next matching charges in order when skipping beyond the first page, with the same counts', () => {
     const expected = openChargesWithFacets().filter((row) => row.status === 'abandoned');
     expect(expected.length).toBeGreaterThan(50);
-    const first = reports.openDunning(scopeFor(), { status: 'abandoned', limit: 50 });
-    const second = reports.openDunning(scopeFor(), { status: 'abandoned', limit: 50, offset: 50 });
+    const first = paymentsRepo.openDunning(scopeFor(), { status: 'abandoned', limit: 50 });
+    const second = paymentsRepo.openDunning(scopeFor(), { status: 'abandoned', limit: 50, offset: 50 });
     expect(first.rows.map((row) => row.chargeId)).toEqual(expected.slice(0, 50).map((row) => row.chargeId));
     expect(second.rows.map((row) => row.chargeId)).toEqual(expected.slice(50, 100).map((row) => row.chargeId));
     expect(second.chargeCount).toBe(expected.length);
@@ -381,8 +381,30 @@ describe('paging through the open-dunning report', () => {
 
   it('returns no rows past the last match, but still counts every match', () => {
     const expected = openChargesWithFacets().filter((row) => row.status === 'abandoned');
-    const result = reports.openDunning(scopeFor(), { status: 'abandoned', limit: 50, offset: expected.length });
+    const result = paymentsRepo.openDunning(scopeFor(), { status: 'abandoned', limit: 50, offset: expected.length });
     expect(result.rows).toEqual([]);
     expect(result.chargeCount).toBe(expected.length);
+  });
+});
+
+describe('tenant isolation of open dunning', () => {
+  it("never lists or counts a second tenant's charges", () => {
+    const other = tenantId('Puls Träning');
+    const theirs = openChargesWithFacets(other);
+    const ours = openChargesWithFacets();
+    expect(theirs.length).toBeGreaterThan(0);
+    const oursIds = new Set(ours.map((row) => row.chargeId));
+
+    const rows = paymentsRepo.listOpenDunning(scopeFor(other), { limit: 100_000 });
+    expect(rows.map((row) => row.chargeId)).toEqual(theirs.map((row) => row.chargeId));
+    expect(rows.every((row) => row.tenantId === other && !oursIds.has(row.chargeId))).toBe(true);
+
+    const counts = paymentsRepo.openDunningCounts(scopeFor(other));
+    expect(counts).toEqual({
+      chargeCount: theirs.length,
+      memberCount: distinctMembers(theirs),
+      statusCounts: tally(theirs.map((row) => row.status), STATUSES),
+      reasonCounts: tally(theirs.map((row) => row.failureCode), REASONS),
+    });
   });
 });

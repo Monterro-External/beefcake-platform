@@ -7,7 +7,7 @@
  * filter it applied; links are built from that applied filter.
  */
 
-import type { AppliedDunningFilter, DunningFilter } from '@/export/reports';
+import type { AppliedDunningFilter, DunningFilter } from '@/db/repositories/payments';
 import type { Locale } from '@/lib/format';
 import { integer } from '@/lib/format';
 

@@ -82,7 +82,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   // figure. The chips need their counts either way. Unfiltered, one query gives
   // the card and the figure their 8 rows.
   const openDunning = seesDunning
-    ? reports.openDunning(scope, { ...requestedDunning, limit: isFiltered(requestedDunning) ? 50 : 8 })
+    ? paymentsRepo.openDunning(scope, { ...requestedDunning, limit: isFiltered(requestedDunning) ? 50 : 8 })
     : null;
   const dunningFilter = openDunning?.filter ?? {};
   const dunningFiltered = isFiltered(dunningFilter);
@@ -91,7 +91,7 @@ export default async function Overview({ searchParams }: { searchParams: Promise
     openDunning !== null && !dunningFiltered
       ? openDunning.rows.slice(0, 8)
       : seesPayments
-        ? reports.openDunning(scope, 8)
+        ? paymentsRepo.listOpenDunning(scope, { limit: 8 })
         : [];
   const dunning = matchingDunning?.rows ?? newestDunning;
   const dunningSites = seesDunning ? siteOptions(tenantsRepo.listSites(scope)) : [];

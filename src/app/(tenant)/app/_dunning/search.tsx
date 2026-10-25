@@ -10,7 +10,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Input, Select } from '@/components/ui';
-import type { AppliedDunningFilter } from '@/export/reports';
+import type { AppliedDunningFilter } from '@/db/repositories/payments';
 import { type SiteOption, dunningHref } from './filter';
 
 export function DunningSearch({ basePath, filter }: { basePath: string; filter: AppliedDunningFilter }) {
