@@ -75,8 +75,10 @@ example to copy. The evidence and the reasoning behind every rule are in
 ## Time, ids and data, everywhere in `src/`
 
 - Code below server actions is synchronous.
-- Read now and today from `clock()` in `src/lib/clock.ts`, CLIs and the job runner
-  included. `job_runs.finished_at` alone records the real wall clock.
+- Take request time in actions and pages from `clock()` in `src/lib/clock.ts`, and
+  the CLIs and the job runner take their default `now` from it too. A job reads
+  `now` from its context, so `--now` replays; a domain function takes the instant
+  as an argument. `job_runs.finished_at` alone records the real wall clock.
 - Write an instant with `.toISOString()`. Parse with `fromIso()` any string that
   did not come from one of our own `_at` columns.
 - Check a plain date from a user, a URL or a file with `assertPlainDate()`.

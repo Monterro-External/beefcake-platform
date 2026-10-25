@@ -83,8 +83,9 @@ someone expressed: `pending`, `active`, `cancelling`, `cancelled`. Whether a
 subscription is **frozen** is a fact about the `freezes` table, and whether it has
 **ended** is a fact about `ends_on` and today's date. Both are computed, never
 stored. `effectiveStatus()` in `src/domain/subscriptions.ts` is the function that
-combines them, and it is what the UI shows. `cancelling` means notice is given
-and `ends_on` is still ahead; the UI shows it as *Notice given*.
+combines them, and it is what the UI shows. A stored `cancelling` records that
+notice was given, and stays after the subscription ends. The effective status is
+*Notice given* up to and including `ends_on`, and ended from the day after.
 
 **Binding period** (`binding_until`) is the date until which the member committed
 to stay. It blocks a **downgrade** and never blocks an **upgrade**. A freeze

@@ -381,7 +381,7 @@ const COMPETING = [
     ],
     recency: 'clock.ts is the oldest (2026-03-24); signals.ts the newest (2026-10-09).',
     reco: 'A is the standard for request code; CLIs and the runner call the same function. Merging the copies is a cleanup ticket, not part of this decision.',
-    decision: 'A is the standard (25 Oct 2026). clock() from src/lib/clock.ts is the only source of now and today, CLIs and the job runner included. Exception: job_runs.finished_at is stamped with the real wall clock, because it records when the process actually finished. Merging defaultNow and seededToday into clock() is a cleanup ticket.',
+    decision: 'A is the standard (25 Oct 2026). clock() from src/lib/clock.ts is the only source of request time in actions and pages, and of the default now in the CLIs and the job runner. Jobs keep reading now from their context so --now replays, and domain functions take the instant as an argument. Exception: job_runs.finished_at is stamped with the real wall clock, because it records when the process actually finished. Merging defaultNow and seededToday into clock() is a cleanup ticket.',
   },
   {
     id: 'C6', blast: 'med', title: 'How a domain function says "not allowed"',
