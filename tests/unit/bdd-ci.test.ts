@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 const require = createRequire(import.meta.url);
 const {
   MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, specGrep, renderReport, upsertComment,
-  findLinkedSpecs, publish,
+  withRetry, findLinkedSpecs, publish,
 } = require('../../.github/scripts/bdd-pr-comment.cjs');
 const { chaptersFromTrace, timestamp, renderTimeline, createTimeline, timelineFailure } = require('../../.github/scripts/bdd-timeline.cjs');
 
@@ -153,6 +153,55 @@ describe('choosing which scenarios to record', () => {
       await findLinkedSpecs({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } }, core, fetchImpl, selection: selectionPath() });
       expect(outputs.specs).toBe('BCPLA-142');
       expect(new RegExp(outputs.grep!).test('x @acceptance @BCPLA-142')).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('retries a failing call with growing waits and gives up after three tries', async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const flaky = vi.fn().mockRejectedValueOnce(new Error('502')).mockResolvedValue('ok');
+    expect(await withRetry(flaky, { wait })).toBe('ok');
+    const down = vi.fn().mockRejectedValue(new Error('502'));
+    await expect(withRetry(down, { wait })).rejects.toThrow('502');
+    expect(down).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls.map(([ms]) => ms)).toEqual([1000, 1000, 2000]);
+  });
+
+  it('survives a transient GitHub error when reading the PR', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { issue: ticket('BCPLA-143', 'AS-1') } }) });
+      const pr = prFor('Registration');
+      const get = vi.fn().mockRejectedValueOnce(new Error('502')).mockResolvedValue({ data: pr });
+      const { outputs, core } = outputsOf();
+      await findLinkedSpecs({ github: { rest: { pulls: { get } } }, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } },
+        core, fetchImpl, wait: async () => {}, selection: selectionPath() });
+      expect(outputs.specs).toBe('BCPLA-142');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('fails the check when the PR links a ticket but Linear cannot be reached', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const selection = selectionPath();
+      const fetchImpl = vi.fn().mockRejectedValue(new Error('fetch failed'));
+      const pr = prFor('Registration');
+      const github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: pr }) } } };
+      const context = { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr }, serverUrl: 'https://github.com', runId: 1, sha: 'merge-sha' };
+      const { outputs, core } = outputsOf();
+      const find = { ...core, setFailed: vi.fn() };
+      await findLinkedSpecs({ github, context, core: find, fetchImpl, wait: async () => {}, selection });
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      expect(outputs).toEqual({ specs: '', grep: '' });
+      expect(find.setFailed).toHaveBeenCalledWith(expect.stringMatching(/BCPLA-143 could not be read from Linear/));
+
+      const summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn() };
+      const publishCore = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary };
+      await publish({ github, context, core: publishCore, fetchImpl, selection });
+      expect(publishCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/BCPLA-143 could not be read from Linear/));
     } finally {
       vi.unstubAllEnvs();
     }
