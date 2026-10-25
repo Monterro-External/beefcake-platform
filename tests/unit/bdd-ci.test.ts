@@ -86,6 +86,13 @@ describe('finding the Spec a PR comes from', () => {
     expect(init.headers.Authorization).toBe('key');
     expect(JSON.parse(init.body).query).toContain('parent { identifier title description url }');
   });
+
+  it('gives up on a Linear call that never answers', async () => {
+    const hung = (_url: string, init: { signal: AbortSignal }) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(init.signal.reason));
+    });
+    await expect(fetchIssue('BCPLA-142', 'key', hung, 10)).rejects.toThrow(/timed out|abort/i);
+  });
 });
 
 describe('choosing which scenarios to record', () => {

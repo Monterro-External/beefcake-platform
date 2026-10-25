@@ -72,9 +72,11 @@ const ISSUE_QUERY = `query Issue($id: String!) {
   issue(id: $id) { identifier title description url parent { identifier title description url } }
 }`;
 
-async function fetchIssue(id, apiKey, fetchImpl = fetch) {
+// A hung call rejects after timeoutMs, so withRetry can try again.
+async function fetchIssue(id, apiKey, fetchImpl = fetch, timeoutMs = 15_000) {
   const response = await fetchImpl('https://api.linear.app/graphql', {
     method: 'POST',
+    signal: AbortSignal.timeout(timeoutMs),
     headers: { 'Content-Type': 'application/json', Authorization: apiKey },
     body: JSON.stringify({ query: ISSUE_QUERY, variables: { id } }),
   });
