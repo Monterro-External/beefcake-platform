@@ -52,6 +52,7 @@ export interface PaymentRunSummary {
   receiptsIssued: number;
   totalMinor: number;
   partialRunsDiscarded: number;
+  chargesDiscarded: number;
   [key: string]: number | string | boolean | null;
 }
 
@@ -84,6 +85,7 @@ export const paymentRunJob: Job<PaymentRunSummary> = {
       receiptsIssued: 0,
       totalMinor: 0,
       partialRunsDiscarded: 0,
+      chargesDiscarded: 0,
     };
 
     const period = periodForRunDay(context.today);
@@ -95,10 +97,20 @@ export const paymentRunJob: Job<PaymentRunSummary> = {
     // than to leave the month half charged. See
     // docs/runbooks/payment-run-failed.md.
     if (existing !== null && existing.status === 'running') {
-      const discarded = discardPartialRun(context, existing.id);
-      context.log(
-        `  ${context.tenant.name}: run ${period} was left running, discarded ${discarded} charge(s) and starting again`,
-      );
+      // The runbook says to try --dry-run first, so a dry run only counts.
+      if (context.dryRun) {
+        const doomed = partialRunCharges(context, existing.id).length;
+        context.log(
+          `  ${context.tenant.name}: run ${period} was left running, would discard ${doomed} charge(s) and start again`,
+        );
+        summary.chargesDiscarded += doomed;
+      } else {
+        const discarded = discardPartialRun(context, existing.id);
+        context.log(
+          `  ${context.tenant.name}: run ${period} was left running, discarded ${discarded} charge(s) and starting again`,
+        );
+        summary.chargesDiscarded += discarded;
+      }
       summary.partialRunsDiscarded += 1;
     }
 
@@ -115,17 +127,22 @@ export const paymentRunJob: Job<PaymentRunSummary> = {
   },
 };
 
+function partialRunCharges(context: TenantJobContext, runId: string): { id: string }[] {
+  const { scope, tenant } = context;
+  return scope.db
+    .select({ id: charges.id })
+    .from(charges)
+    .where(and(eq(charges.tenantId, tenant.id), eq(charges.paymentRunId, runId)))
+    .all();
+}
+
 /**
  * Throw away everything a half-finished run wrote, so it can be re-run cleanly.
  * Receipts go first because they reference the charges.
  */
 function discardPartialRun(context: TenantJobContext, runId: string): number {
   const { scope, tenant } = context;
-  const doomed = scope.db
-    .select({ id: charges.id, tenantId: charges.tenantId })
-    .from(charges)
-    .where(and(eq(charges.tenantId, tenant.id), eq(charges.paymentRunId, runId)))
-    .all();
+  const doomed = partialRunCharges(context, runId);
 
   scope.db.transaction(() => {
     if (doomed.length > 0) {
