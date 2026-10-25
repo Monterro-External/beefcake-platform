@@ -17,7 +17,9 @@ import { runMigrations } from '@/db/migrate';
 import { seedDatabase } from '@/db/seed';
 import { SCALES } from '@/db/seed/blueprint';
 import { PINNED_TODAY } from '@/db/seed/options';
-import { bookings, charges, classes, paymentRuns, accessSyncState } from '@/db/schema';
+import { bookings, charges, classes, paymentRuns, receipts, accessSyncState } from '@/db/schema';
+import * as paymentsRepo from '@/db/repositories/payments';
+import { tenantScope } from '@/db/repositories/scope';
 import { runJob } from '@/jobs/runner';
 import { paymentRunJob, periodForRunDay, runDayFor } from '@/jobs/payment-run';
 import { accessSyncJob } from '@/jobs/access-sync';
@@ -46,8 +48,69 @@ function run(job: Parameters<typeof runJob>[0], now: Date, options: { dryRun?: b
   return runJob(job, { now, quiet: true, db: connection.db, dryRun: options.dryRun ?? false });
 }
 
-const countRows = (table: 'charges' | 'payment_runs' | 'bookings'): number =>
+const countRows = (table: 'charges' | 'payment_runs' | 'bookings' | 'receipts'): number =>
   (connection.sqlite.prepare(`select count(*) as n from ${table}`).get() as { n: number }).n;
+
+/**
+ * Simulate a killed process: a run row for 2026-09 still marked running, with
+ * one of its charges and that charge's receipt written. `nth` picks the tenant.
+ */
+function leaveRunHalfFinished(nth = 0): { tenantId: string; runId: string } {
+  const tenant = connection.sqlite
+    .prepare('select id, currency from tenants order by id limit 1 offset ?')
+    .get(nth) as { id: string; currency: 'SEK' };
+  const suffix = nth === 0 ? '' : `_${nth}`;
+  connection.db
+    .insert(paymentRuns)
+    .values({
+      id: `run_partial${suffix}`,
+      tenantId: tenant.id,
+      period: '2026-09',
+      startedAt: '2026-09-25T03:00:00.000Z',
+      finishedAt: null,
+      status: 'running',
+      currency: tenant.currency,
+      chargesAttempted: 3,
+      chargesFailed: 0,
+      totalMinor: 1,
+      triggeredBy: 'schedule',
+    })
+    .run();
+  const victim = connection.sqlite
+    .prepare('select id, member_id as memberId, subscription_id as subscriptionId from charges where tenant_id = ? limit 1')
+    .get(tenant.id) as { id: string; memberId: string; subscriptionId: string };
+  connection.db
+    .insert(charges)
+    .values({
+      id: `chg_partial${suffix}`,
+      tenantId: tenant.id,
+      paymentRunId: `run_partial${suffix}`,
+      memberId: victim.memberId,
+      subscriptionId: victim.subscriptionId,
+      amountMinor: 1,
+      currency: tenant.currency,
+      status: 'succeeded',
+      method: 'autogiro',
+      attempt: 1,
+      attemptedAt: '2026-09-25T03:00:00.000Z',
+    })
+    .run();
+  connection.db
+    .insert(receipts)
+    .values({
+      id: `rcp_partial${suffix}`,
+      tenantId: tenant.id,
+      chargeId: `chg_partial${suffix}`,
+      memberId: victim.memberId,
+      number: `202609-99999${nth}`,
+      issuedAt: '2026-09-25T03:00:00.000Z',
+      currency: tenant.currency,
+      totalMinor: 1,
+      linesJson: '[]',
+    })
+    .run();
+  return { tenantId: tenant.id, runId: `run_partial${suffix}` };
+}
 
 describe('which period a run bills', () => {
   it('bills the current month once the run day has arrived', () => {
@@ -117,62 +180,46 @@ describe('payment run', () => {
   });
 
   it('discards and redoes a run that a previous invocation left half finished', () => {
-    // Simulate a killed process: a run row still marked running, with some of
-    // its charges written.
-    const tenant = connection.sqlite.prepare('select id, currency from tenants limit 1').get() as {
-      id: string;
-      currency: 'SEK';
-    };
-    connection.db
-      .insert(paymentRuns)
-      .values({
-        id: 'run_partial',
-        tenantId: tenant.id,
-        period: '2026-09',
-        startedAt: '2026-09-25T03:00:00.000Z',
-        finishedAt: null,
-        status: 'running',
-        currency: tenant.currency,
-        chargesAttempted: 3,
-        chargesFailed: 0,
-        totalMinor: 1,
-        triggeredBy: 'schedule',
-      })
-      .run();
-    const victim = connection.sqlite
-      .prepare('select id, member_id as memberId, subscription_id as subscriptionId from charges where tenant_id = ? limit 1')
-      .get(tenant.id) as { id: string; memberId: string; subscriptionId: string };
-    connection.db
-      .insert(charges)
-      .values({
-        id: 'chg_partial',
-        tenantId: tenant.id,
-        paymentRunId: 'run_partial',
-        memberId: victim.memberId,
-        subscriptionId: victim.subscriptionId,
-        amountMinor: 1,
-        currency: tenant.currency,
-        status: 'succeeded',
-        method: 'autogiro',
-        attempt: 1,
-        attemptedAt: '2026-09-25T03:00:00.000Z',
-      })
-      .run();
+    const { tenantId } = leaveRunHalfFinished();
 
     const result = run(paymentRunJob, NEXT_RUN);
     expect(result.summary.partialRunsDiscarded).toBe(1);
+    expect(result.summary.chargesDiscarded).toBe(1);
     expect(result.summary.runsCreated).toBe(12);
     // The partial attempt is gone, replaced by a completed run for that period.
     expect(
       connection.sqlite.prepare("select count(*) as n from charges where id = 'chg_partial'").get(),
     ).toEqual({ n: 0 });
+    expect(
+      connection.sqlite.prepare("select count(*) as n from receipts where id = 'rcp_partial'").get(),
+    ).toEqual({ n: 0 });
     const replacement = connection.db
       .select()
       .from(paymentRuns)
-      .where(and(eq(paymentRuns.tenantId, tenant.id), eq(paymentRuns.period, '2026-09')))
+      .where(and(eq(paymentRuns.tenantId, tenantId), eq(paymentRuns.period, '2026-09')))
       .get();
     expect(replacement?.status).toBe('completed');
     expect(replacement?.id).not.toBe('run_partial');
+  });
+
+  it('keeps a half-finished run on a dry run and reports what it would discard', () => {
+    leaveRunHalfFinished();
+    const before = {
+      runs: countRows('payment_runs'),
+      charges: countRows('charges'),
+      receipts: countRows('receipts'),
+    };
+
+    const result = run(paymentRunJob, NEXT_RUN, { dryRun: true });
+
+    expect(result.summary.partialRunsDiscarded).toBe(1);
+    expect(result.summary.chargesDiscarded).toBe(1);
+    expect(countRows('payment_runs')).toBe(before.runs);
+    expect(countRows('charges')).toBe(before.charges);
+    expect(countRows('receipts')).toBe(before.receipts);
+    expect(
+      connection.sqlite.prepare("select status from payment_runs where id = 'run_partial'").get(),
+    ).toEqual({ status: 'running' });
   });
 
   it('records the run in job_runs, including the summary', () => {
@@ -276,6 +323,32 @@ describe('payment run', () => {
     expect(() =>
       runJob(paymentRunJob, { now: NEXT_RUN, tenantId: 'ten_nope', quiet: true, db: connection.db }),
     ).toThrow(/No such tenant/);
+  });
+});
+
+describe('a partial run footprint', () => {
+  it("counts the charges and receipts of the run", () => {
+    const { tenantId, runId } = leaveRunHalfFinished(0);
+    leaveRunHalfFinished(1);
+
+    const footprint = paymentsRepo.partialRunFootprint(
+      tenantScope(tenantId, { db: connection.db }),
+      runId,
+    );
+
+    expect(footprint).toEqual({ charges: 1, receipts: 1 });
+  });
+
+  it("counts nothing for another tenant's run", () => {
+    const { tenantId } = leaveRunHalfFinished(0);
+    const other = leaveRunHalfFinished(1);
+
+    const footprint = paymentsRepo.partialRunFootprint(
+      tenantScope(tenantId, { db: connection.db }),
+      other.runId,
+    );
+
+    expect(footprint).toEqual({ charges: 0, receipts: 0 });
   });
 });
 
