@@ -14,7 +14,7 @@ const UTC_DAY = {
 };
 
 // Value lists are string-literal unions or `as const` arrays declared once in
-// src/domain, so the schema can import them (docs/agents/conventions.md).
+// src/domain, so the schema can import them (docs/coding-standards/domain.md).
 const NO_ENUM = {
   selector: 'TSEnumDeclaration',
   message: 'Use a string-literal union or an as-const array in src/domain instead of enum.',

@@ -14,8 +14,8 @@ of ARR, so size every report, export and job against Nordic Fitness Group
 (15 sites, ~22,000 members).
 
 Read `docs/agents/rules.md` before the first change: it holds the rules that
-have caused incidents and the files to leave alone. Before writing in a layer,
-read its section of `docs/agents/conventions.md`. This file is the map.
+have caused incidents and the files to leave alone. Before changing an area, read
+its file in `docs/coding-standards/` (index in `README.md`). This file is the map.
 
 ## Stack
 
@@ -131,8 +131,7 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 ## Docs
 
 - `docs/agents/rules.md`: shared engineering rules and files requiring discussion.
-- `docs/agents/conventions.md`: house style per layer (actions, pages, repositories, export, domain, tests), each rule with an example to copy.
-- `docs/conventions/report.html`: the convention scan behind `conventions.md`, with evidence, decisions and open questions.
+- `docs/coding-standards/README.md`: coding standards per area, each rule with an example to copy; `decisions.md` logs why, `sessions/` holds the scan evidence.
 - `docs/gitflow.md`: branches, pull requests, releases, hotfixes and CI.
 - `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `GLOSSARY.md`.
 - `docs/adr/0001-tenant-id-on-every-table.md`: isolation via `tenant_id` everywhere plus a repository layer.

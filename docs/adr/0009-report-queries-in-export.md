@@ -39,5 +39,6 @@ report.
 
 At the time of this decision several existing queries in `reports.ts` filter
 only one side of a join (lines 74, 103, 144, 262, 387 and 424 at 831d102).
-They are tracked as drift in `docs/conventions/report.html` and are brought in
-line before new report queries copy them.
+They are tracked as drift in
+`docs/coding-standards/sessions/2026-10-25/report.html` and are brought in line
+before new report queries copy them.
