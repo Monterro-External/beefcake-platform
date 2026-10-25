@@ -33,3 +33,11 @@ There are two places to look for a read, and the rule above decides which.
 
 `guard()` cannot catch a missing filter in an aggregate. Review is the check: a
 report query is approved only when every table in it is filtered on the tenant.
+Plain id foreign keys do not enforce that both sides share a tenant, so the
+filter on the joined side is what keeps one tenant's rows out of another's
+report.
+
+At the time of this decision several existing queries in `reports.ts` filter
+only one side of a join (lines 74, 103, 144, 262, 387 and 424 at 831d102).
+They are tracked as drift in `docs/conventions/report.html` and are brought in
+line before new report queries copy them.

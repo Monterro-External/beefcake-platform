@@ -41,6 +41,11 @@ const config = [
     rules: { 'no-restricted-syntax': ['error', UTC_DAY, NO_ENUM] },
   },
   {
+    // dates.ts is exempt from UTC_DAY above, not from the enum ban.
+    files: ['src/domain/dates.ts'],
+    rules: { 'no-restricted-syntax': ['error', NO_ENUM] },
+  },
+  {
     // Failures go to the errors table through recordError(); CLIs write to
     // process.stdout and process.stderr. The OpenTelemetry bridge wraps console
     // itself, so it is the one file allowed to touch it.

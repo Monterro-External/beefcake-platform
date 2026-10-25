@@ -592,6 +592,7 @@ const DRIFT = [
   ['high', '--dry-run writes nothing (jobs/cli.ts:40)', 'src/jobs/payment-run.ts:97 calls discardPartialRun, which deletes charges, receipts and the run, before any dryRun check', 'A dry run can delete a half-finished run'],
   ['high', 'Never query a tenant-scoped table outside src/db/repositories (rules.md, ADR-0001)', '~80 builder calls: export 29, jobs 24, pages 16 in 7 files, actions 8+, lib 10. e.g. actions/subscriptions.ts:131,146; payments/[runId]/page.tsx:69', 'Repository guards are bypassed'],
   ['high', 'Every tenant query filters on tenant_id', 'src/jobs/payment-run.ts:583 periodOfRun selects payment_runs by id only', 'Isolation relies on id uniqueness'],
+  ['high', 'A report query filters every joined table on the tenant (ADR-0009)', 'src/export/reports.ts:74 (charges), :103 (payment_runs), :144 and :262 (members), :387 (sites), :424 (access_sync_state) filter only one side of the join', 'Id foreign keys do not enforce a shared tenant, so inconsistent data could leak across tenants'],
   ['med', 'Reads pass rows through guard() (ADR-0001)', 'src/db/repositories/observability.ts:109,125,186 (listEvents, listErrors, listOutbox); unguarded .get() in actions/subscriptions.ts:196,480,490', 'Isolation check skipped'],
   ['med', 'Fakes write everything they would have sent to outbox (rules.md Integrations)', 'src/integrations/email/fake-sender.ts writes nothing (its header says it does); callers write outbox by hand; payment and access channels are never written', '"Did the job notify the member" is not checkable for payments and access'],
   ['med', "Calendar decisions use the site's timezone (rules.md Dates)", 'src/jobs/runner.ts:151 and ~18 pages use timezoneForCountry(tenant.country); admin/errors/page.tsx:29 hardcodes SE', 'Wrong day for a site whose zone differs from its country default'],
@@ -651,6 +652,7 @@ const ABSENCE_DECISIONS = [
 
 const FOLLOWUP = [
   ['C1', 'Delete the unused repository copies payments.revenueByPeriod and access.allSyncLag.'],
+  ['C1', 'Filter both sides of every join in src/export/reports.ts on the tenant (lines 74, 103, 144, 262, 387, 424), as ADR-0009 requires.'],
   ['C2', 'Make user-caused failures return instead of throw: the self-service flag (subscriptions.ts:82), assertPlainDate on input, the context() "No tenant selected" check.'],
   ['C3', 'Add a non-throwing permission check; replace assertMayChange, assertMayActFor and isBeefcakeStaff checks; use self.book and self.subscription; add checks to statusOf and cancelBooking.'],
   ['C4', 'Narrow with impersonate() in the admin pages and actions/admin.ts; remove the no-op adminScope at admin.ts:50.'],

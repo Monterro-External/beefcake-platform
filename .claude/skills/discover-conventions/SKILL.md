@@ -20,6 +20,12 @@ If `setup-matt-pocock-skills` has not been run in this repo, say so and offer to
 
 Everything this skill produces lives in one folder, `docs/coding-standards/`. If the repo already has a coding standards document or folder, use that location instead and keep its structure. Ask before creating a new one.
 
+Resolve the location once, in Phase 0, and use it in every phase: wherever this file says `docs/coding-standards/`, read the resolved location. In this repository that is:
+
+- Rules: `docs/agents/conventions.md`, one section per layer, linked from AGENTS.md
+- Sessions: `docs/conventions/`. The first run (25 Oct 2026) left `docs/conventions/report.html` and no `findings.json`; read its decisions, drift and open questions from that report.
+- Large decisions: ADRs in `docs/adr/`, terms in `docs/domain-glossary.md`
+
 ```
 docs/coding-standards/
   README.md            Index of what applies, one line per area with a link
@@ -72,7 +78,7 @@ Before scanning, read:
 - The domain docs configured by `setup-matt-pocock-skills` (glossary, ADRs)
 - The repo's coding standards document if one exists (the one `code-review` checks against)
 - Linter, formatter and analyzer config (eslint, prettier, .editorconfig, ruff, Roslyn analyzers, etc.)
-- `docs/coding-standards/decisions.md`, `open-questions.md` and the latest `sessions/*/findings.json` if they exist
+- The decision log, open questions and the latest session's `findings.json` (or, where a session has no `findings.json`, its `report.html`) at the resolved location
 
 Anything already decided is out of scope. Do not ask about it again. Findings with outcome `rejected` or `neither` are not proposed again unless the evidence has changed significantly (say so if it has). Parked items are offered again only if the developer wants to revisit them. If the code contradicts an existing decision, report it as drift, not as a new question.
 
