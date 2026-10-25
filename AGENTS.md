@@ -14,7 +14,8 @@ of ARR, so size every report, export and job against Nordic Fitness Group
 (15 sites, ~22,000 members).
 
 Read `docs/agents/rules.md` before the first change: it holds the rules that
-have caused incidents and the files to leave alone. This file is the map.
+have caused incidents and the files to leave alone. Before changing an area, read
+its file in `docs/coding-standards/` (index in `README.md`). This file is the map.
 
 ## Stack
 
@@ -30,7 +31,7 @@ have caused incidents and the files to leave alone. This file is the map.
 | Concept | Where | Symbols |
 |---|---|---|
 | Tenant isolation | `src/db/repositories/scope.ts` | `TenantScope`, `AdminScope`, `guard()`, `impersonate()` |
-| Data access | `src/db/repositories/` | `membersRepo`, `paymentsRepo`, ... via `index.ts` |
+| Data access | `src/db/repositories/` | `import * as membersRepo from '@/db/repositories/members'`; reports in `src/export/reports.ts` (ADR-0009) |
 | Money | `src/domain/money.ts` | `Money`, `Currency`, `Rounding`, `allocate()`, `prorate()` |
 | Calendar time | `src/domain/dates.ts` | `PlainDate`, `localDay()`, `addMonths()`, `BillingPeriod` |
 | Subscription state | `src/domain/subscriptions.ts` | `effectiveStatus()`, `isBillableIn()`, `canChangePlan()` |
@@ -130,6 +131,7 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 ## Docs
 
 - `docs/agents/rules.md`: shared engineering rules and files requiring discussion.
+- `docs/coding-standards/README.md`: coding standards per area, each rule with an example to copy; `decisions.md` logs why, `sessions/` holds the scan evidence.
 - `docs/gitflow.md`: branches, pull requests, releases, hotfixes and CI.
 - `docs/domain-glossary.md`: canonical vocabulary with edge cases; the three layers, segments, plans, money, classes, access, signals. No root `GLOSSARY.md`.
 - `docs/adr/0001-tenant-id-on-every-table.md`: isolation via `tenant_id` everywhere plus a repository layer.
@@ -140,6 +142,7 @@ Implementing a screen from a Figma URL follows `docs/agents/design-system.md`.
 - `docs/adr/0006-job-runner-without-a-queue.md`: jobs are idempotent scripts a scheduler runs.
 - `docs/adr/0007-sqlite-for-now.md`: one SQLite file, and the conditions for leaving it.
 - `docs/adr/0008-three-surfaces-one-application.md`: tenant, member and admin in one Next.js app.
+- `docs/adr/0009-report-queries-in-export.md`: cross-entity report queries live in `src/export/reports.ts`.
 - `docs/runbooks/payment-run-failed.md`: 07:00 and the run has not finished, or a double charge.
 - `docs/runbooks/access-sync-stuck.md`: a door on a stale allow-list, or the sync-lag alert.
 - `docs/runbooks/tenant-onboarding.md`: signed contract to a gym that charges and opens its door.

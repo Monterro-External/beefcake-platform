@@ -19,6 +19,9 @@ one gym's members to another. That is the one bug we cannot ship. See ADR-0001.
 - `tenant_id` is on every tenant-scoped table, even where a join could derive it.
 - Every read and write goes through a repository in `src/db/repositories/`.
   Never a raw `db.select()` against a tenant-scoped table outside that directory.
+  The one exception is a read-only, cross-entity report query in
+  `src/export/reports.ts`, which filters every joined table on the tenant
+  (ADR-0009).
 - Every repository function takes a `TenantScope` first and filters on it.
 - Reads pass their rows through `guard()`, which throws if anything from another
   tenant came back. Keep it. It has caught real mistakes during refactors.

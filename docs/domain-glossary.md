@@ -28,6 +28,11 @@ vocabulary check.
 
 **Member** is the operator's customer, the person who trains. A member belongs to
 exactly one tenant and has one home site. Members never see the word tenant.
+A member who has left is **former**, shown as *Archived*; their history stays.
+
+A member signs in to the member app as a **user** with role `member`, linked to
+exactly one member. The user is the sign-in; the member is the customer record.
+Say member for the person, user only for the sign-in.
 
 The distinction matters when something goes wrong, because the pain travels
 upwards: a bug hurts a member, the site manager hears about it at the desk, the
@@ -40,6 +45,12 @@ owner calls our support, and repeated pain churns the tenant.
 | `long_tail` | ~250 | One site, 300 to 900 members | Low ARR each, quick to raise a ticket, quick to leave |
 | `mid` | ~80 | 2 to 5 sites, 1,000 to 3,500 members | Cares about multi-site reporting |
 | `key_account` | 10 | 6 to 15 sites, up to 22,000 members | ~35% of ARR, has a finance team that checks our numbers |
+
+**Plan tier** (`starter`, `growth`, `enterprise`) is what a tenant pays Beefcake.
+It is ours, not something the tenant sells: say plan tier, never just plan, which
+is the tenant's product.
+
+A tenant that has left us is **churned**.
 
 ## Sites and hardware
 
@@ -63,15 +74,18 @@ access sync job pushes that list.
 months, site scope. Plans belong to a tenant and are never shared between them,
 so "the Bas plan" is ambiguous without saying whose.
 
-**Site scope** is either `home_site` (this plan only opens the member's own gym)
-or `all_sites` (any of the tenant's gyms). This is the single most common upsell.
+**Site scope** (column `sites_scope`) is either `home_site` (this plan only opens
+the member's own gym) or `all_sites` (any of the tenant's gyms). This is the
+single most common upsell.
 
 **Subscription** is a member on a plan. The `status` column holds the *intent*
 someone expressed: `pending`, `active`, `cancelling`, `cancelled`. Whether a
 subscription is **frozen** is a fact about the `freezes` table, and whether it has
 **ended** is a fact about `ends_on` and today's date. Both are computed, never
 stored. `effectiveStatus()` in `src/domain/subscriptions.ts` is the function that
-combines them, and it is what the UI shows.
+combines them, and it is what the UI shows. A stored `cancelling` records that
+notice was given, and stays after the subscription ends. The effective status is
+*Notice given* up to and including `ends_on`, and ended from the day after.
 
 **Binding period** (`binding_until`) is the date until which the member committed
 to stay. It blocks a **downgrade** and never blocks an **upgrade**. A freeze
@@ -174,8 +188,9 @@ currency is the tenant's currency, always, regardless of who is reading it.
 
 ## Classes
 
-**Class** is one instance of a session at a site: name, instructor, start, end,
-capacity. Not a template; the weekly timetable produces class rows.
+**Class** is one scheduled occurrence at a site: name, instructor, start, end,
+capacity. Not a template; the weekly timetable produces class rows. Say class;
+*session* in code means the signed-in user's session.
 
 **Cancelled class** is a class the tenant has called off. It stays on the
 timetable, and its bookings no longer give a place in a class that runs. Not to
@@ -266,3 +281,17 @@ failed payment rate, 90-day churn, class fill, error rate, access sync lag and
 member app adoption. Its job is to sort 340 tenants so a CSM knows who to call,
 not to be a model. Support ticket volume and NPS live in other systems and are
 joined in downstream, so they must never be folded into this number.
+
+## Words on screen
+
+Code, tickets and staff screens use the terms above. The member app speaks the
+member's language, so a few words change there and nowhere else:
+
+| Term | Member app | Staff screens |
+|---|---|---|
+| Subscription | membership | subscription |
+| Site | gym | site |
+| Access event | visit | check-in when granted, denied when refused |
+
+An access event is never called an *event* on screen: an Event is a row in
+`events`.
