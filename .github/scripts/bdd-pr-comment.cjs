@@ -1,4 +1,6 @@
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { collectSpecs, timestamp } = require('./bdd-timeline.cjs');
 
 const MARKER = '<!-- beefcake-bdd-evidence -->';
@@ -70,9 +72,11 @@ const ISSUE_QUERY = `query Issue($id: String!) {
   issue(id: $id) { identifier title description url parent { identifier title description url } }
 }`;
 
-async function fetchIssue(id, apiKey, fetchImpl = fetch) {
+// A hung call rejects after timeoutMs, so withRetry can try again.
+async function fetchIssue(id, apiKey, fetchImpl = fetch, timeoutMs = 15_000) {
   const response = await fetchImpl('https://api.linear.app/graphql', {
     method: 'POST',
+    signal: AbortSignal.timeout(timeoutMs),
     headers: { 'Content-Type': 'application/json', Authorization: apiKey },
     body: JSON.stringify({ query: ISSUE_QUERY, variables: { id } }),
   });
@@ -239,15 +243,37 @@ async function upsertComment({ github, context, body }) {
   return 'created';
 }
 
-async function publish({ github, context, core, fetchImpl = fetch }) {
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
+/** Calls fn up to `tries` times, waiting 1 s, then 2 s, ... between tries. */
+async function withRetry(fn, { tries = 3, wait = sleep } = {}) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (attempt >= tries) throw error;
+      await wait(1000 * 2 ** (attempt - 1));
+    }
+  }
+}
+
+/**
+ * The tickets this PR links, read from Linear: PR → linked BCPLA tickets, each
+ * with the parent Spec that holds their Gherkin.
+ */
+async function readLinkedIssues({ github, context, core, fetchImpl = fetch, wait = sleep }) {
   const pr = context.payload.pull_request;
   // Read the PR as it is now: editing the description does not start a run, but a
   // re-run should still see a ticket added since.
-  const live = pr ? (await github.rest.pulls.get({ ...context.repo, pull_number: pr.number })).data : undefined;
+  const live = pr
+    ? (await withRetry(() => github.rest.pulls.get({ ...context.repo, pull_number: pr.number }), { wait })).data
+    : undefined;
   const linkedIds = linkedIssueIds({ headRef: pr?.head.ref, title: live?.title ?? pr?.title, body: live?.body ?? pr?.body ?? '' });
   const apiKey = process.env.LINEAR_API_KEY;
   const issues = [];
   const notes = [];
+  // Tickets Linear failed to answer for, as opposed to tickets it does not have.
+  const unread = [];
   if (linkedIds.length && !apiKey) {
     notes.push('Linear is not configured for this run (no `LINEAR_API_KEY`), so the linked tickets could not be read.');
     core.warning('LINEAR_API_KEY is not set; scenarios were not read from Linear.');
@@ -255,14 +281,62 @@ async function publish({ github, context, core, fetchImpl = fetch }) {
   if (apiKey) {
     for (const id of linkedIds) {
       try {
-        const issue = await fetchIssue(id, apiKey, fetchImpl);
+        const issue = await withRetry(() => fetchIssue(id, apiKey, fetchImpl), { wait });
         if (issue) issues.push(issue); else notes.push(`${id} was not found in Linear.`);
       } catch (error) {
         notes.push(`${id} could not be read from Linear: ${error.message}`);
+        unread.push(id);
         core.warning(error.message);
       }
     }
   }
+  return { linkedIds, notes, issues, unread };
+}
+
+// A Linear outage must not pass as a PR with nothing to record.
+function unreadProblem(unread = []) {
+  return unread.length
+    ? `${unread.join(', ')} could not be read from Linear, so ${unread.length === 1 ? 'its' : 'their'} scenarios were not recorded; re-run the job once Linear answers`
+    : undefined;
+}
+
+// The find step saves what it read, so publication checks the Specs the tests ran
+// for even if the PR or a ticket changes during the run. Outside test-results/,
+// which Playwright empties when it starts.
+function selectionFile() {
+  return path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'bdd-linked-specs.json');
+}
+
+/**
+ * A Playwright --grep for the @acceptance tests of these Specs, or '' when there
+ * are none. The lookahead stops @BCPLA-1 from matching @BCPLA-10.
+ */
+function specGrep(specs) {
+  if (specs.length === 0) return '';
+  return `(?=.*@acceptance)(?=.*@(${specs.map((spec) => spec.id).join('|')})(?![0-9]))`;
+}
+
+/** Sets the `grep` and `specs` outputs the acceptance job runs its tests with. */
+async function findLinkedSpecs({ github, context, core, fetchImpl = fetch, wait = sleep, selection = selectionFile() }) {
+  const linked = await readLinkedIssues({ github, context, core, fetchImpl, wait });
+  fs.writeFileSync(selection, JSON.stringify(linked));
+  const { notes } = linked;
+  const resolved = resolveSpecs(linked.issues);
+  for (const note of [...notes, ...resolved.notes]) core.info(note);
+  const ids = resolved.specs.map((spec) => spec.id);
+  core.info(ids.length ? `Running the @acceptance scenarios of ${ids.join(', ')}.` : 'No linked Spec: no @acceptance scenarios to record.');
+  core.setOutput('specs', ids.join(' '));
+  core.setOutput('grep', specGrep(resolved.specs));
+  const unread = unreadProblem(linked.unread);
+  if (unread) core.setFailed(unread);
+}
+
+async function publish({ github, context, core, fetchImpl = fetch, wait = sleep, selection = selectionFile() }) {
+  const pr = context.payload.pull_request;
+  // Without a saved selection the find step did not finish, and the tests did not run.
+  const { linkedIds, notes, issues, unread } = fs.existsSync(selection)
+    ? JSON.parse(fs.readFileSync(selection, 'utf8'))
+    : await readLinkedIssues({ github, context, core, fetchImpl, wait });
   const resolved = resolveSpecs(issues);
   const reportPath = 'test-results/bdd-results.json';
   const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : undefined;
@@ -277,7 +351,7 @@ async function publish({ github, context, core, fetchImpl = fetch }) {
     runUrl: `${repoUrl}/actions/runs/${context.runId}`,
   });
   const body = rendered.body + (resolved.errors.length ? `\n\n### Spec validation errors\n\n${resolved.errors.map((error) => `- ${error}`).join('\n')}` : '');
-  const problems = [...rendered.problems, ...resolved.errors];
+  const problems = [...rendered.problems, ...resolved.errors, unreadProblem(unread)].filter(Boolean);
   await core.summary.addRaw(body).write();
   const published = await upsertComment({ github, context, body });
   core.info(`BDD PR comment: ${published}`);
@@ -285,5 +359,6 @@ async function publish({ github, context, core, fetchImpl = fetch }) {
 }
 
 module.exports = {
-  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, renderReport, upsertComment, publish,
+  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, specGrep, renderReport, upsertComment,
+  withRetry, findLinkedSpecs, publish,
 };

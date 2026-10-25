@@ -60,9 +60,11 @@ ${scenarios.map((scenario, index) => `<section><h2>${escapeHtml(scenario.title)}
 function createTimeline(report, outputDir = 'test-results/bdd-evidence') {
   const scenarios = [];
   const errors = [];
+  let tested = 0;
   fs.mkdirSync(path.join(outputDir, 'videos'), { recursive: true });
   for (const spec of collectSpecs(report.suites)) {
     for (const test of spec.tests.filter((item) => item.projectName === 'chromium')) {
+      tested += 1;
       const result = test.results.at(-1);
       const videos = result?.attachments?.filter((item) => item.contentType === 'video/webm' && item.path) ?? [];
       const video = videos.length === 1 ? videos[0].path : undefined;
@@ -89,19 +91,31 @@ function createTimeline(report, outputDir = 'test-results/bdd-evidence') {
   }
   fs.writeFileSync(path.join(outputDir, 'chapters.json'), JSON.stringify(scenarios, null, 2));
   fs.writeFileSync(path.join(outputDir, 'index.html'), renderTimeline(scenarios));
-  return { scenarios, errors };
+  return { tested, scenarios, errors };
+}
+
+// A linked Spec whose tests are not built yet, or are all @wip, runs nothing and
+// passes the browser step, so there is nothing to record and nothing to fail on.
+// Every test that did run must leave a recording.
+function timelineFailure({ tested, scenarios, errors }) {
+  if (errors.length) return errors.join('\n');
+  if (tested > 0 && scenarios.length === 0) return 'No scenarios recorded';
+  return null;
 }
 
 if (require.main === module) {
   try {
     const report = JSON.parse(fs.readFileSync('test-results/bdd-results.json', 'utf8'));
-    const { scenarios, errors } = createTimeline(report);
-    console.log(`Created video timelines for ${scenarios.length} scenarios.`);
-    if (scenarios.length === 0 || errors.length) throw new Error(errors.join('\n') || 'No scenarios recorded');
+    const timeline = createTimeline(report);
+    console.log(timeline.tested === 0
+      ? 'No acceptance tests ran, so there are no scenarios to record.'
+      : `Created video timelines for ${timeline.scenarios.length} scenarios.`);
+    const failure = timelineFailure(timeline);
+    if (failure) throw new Error(failure);
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
   }
 }
 
-module.exports = { collectSpecs, timestamp, chaptersFromTrace, renderTimeline, createTimeline };
+module.exports = { collectSpecs, timestamp, chaptersFromTrace, renderTimeline, createTimeline, timelineFailure };

@@ -28,15 +28,18 @@ their plan. The requirements themselves live in Linear.
 specs/<feature>.md                          Playwright test plan and Spec line
 tests/e2e/seed.spec.ts                      starting point for the planner and generator
 tests/e2e/<feature>/<scenario-name>.spec.ts one generated test per scenario
-tests/e2e/evidence.ts                       recordEvidence: video and trace on every run
+tests/e2e/evidence.ts                       recordEvidence: video and trace, unless BDD_RECORDING=off
 ```
 
 ## The PR comment
 
-A PR runs the job when it is opened or reopened and on every push. It runs every
-`@acceptance` test in Chromium, recording video and trace, and creates or updates
-one bot comment. Editing the title or description does not start a run; re-run
-the job instead, and it reads the PR as it is then.
+A PR runs the job when it is opened or reopened and on every push. It runs the
+`@acceptance` tests of the Specs the PR links (step 2 below) in Chromium,
+recording video and trace, and creates or updates one bot comment. A PR that
+links no Spec records nothing. Every Spec's `@acceptance` tests also run,
+unrecorded, in the end-to-end job (`BDD_RECORDING=off`), so a PR still cannot
+break another Spec unnoticed. Editing the title or description does not start a
+run; re-run the job instead, and it reads the PR as it is then.
 
 1. **Find the tickets.** CI reads every `BCPLA-<n>` in the branch name, the PR
    title and the PR description. Linear's own branch names (`per/bcpla-143-…`) work.

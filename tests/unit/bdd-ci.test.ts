@@ -1,12 +1,15 @@
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
 const {
-  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, renderReport, upsertComment,
+  MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, specGrep, renderReport, upsertComment,
+  withRetry, findLinkedSpecs, publish,
 } = require('../../.github/scripts/bdd-pr-comment.cjs');
-const { chaptersFromTrace, timestamp, renderTimeline } = require('../../.github/scripts/bdd-timeline.cjs');
+const { chaptersFromTrace, timestamp, renderTimeline, createTimeline, timelineFailure } = require('../../.github/scripts/bdd-timeline.cjs');
 
 // A copy of the registration Spec's Gherkin stands in for a Spec issue's description.
 const gherkin = readFileSync(new URL('./fixtures/registration-spec.md', import.meta.url), 'utf8');
@@ -82,6 +85,156 @@ describe('finding the Spec a PR comes from', () => {
     expect(url).toBe('https://api.linear.app/graphql');
     expect(init.headers.Authorization).toBe('key');
     expect(JSON.parse(init.body).query).toContain('parent { identifier title description url }');
+  });
+
+  it('gives up on a Linear call that never answers', async () => {
+    const hung = (_url: string, init: { signal: AbortSignal }) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(init.signal.reason));
+    });
+    await expect(fetchIssue('BCPLA-142', 'key', hung, 10)).rejects.toThrow(/timed out|abort/i);
+  });
+});
+
+describe('choosing which scenarios to record', () => {
+  const tagged = (...tags: string[]) => `Some scenario ${tags.join(' ')}`;
+
+  it('records only the @acceptance tests of the linked Specs', () => {
+    const grep = new RegExp(specGrep(resolveSpecs([ticket('BCPLA-143', 'AS-1')]).specs));
+    expect(grep.test(tagged('@acceptance', '@registration', '@BCPLA-142'))).toBe(true);
+    expect(grep.test(tagged('@acceptance', '@booking', '@BCPLA-10'))).toBe(false);
+    expect(grep.test(tagged('@registration', '@BCPLA-142'))).toBe(false);
+  });
+
+  it('does not take a longer Spec id for a linked one', () => {
+    const grep = new RegExp(specGrep([{ id: 'BCPLA-1' }]));
+    expect(grep.test(tagged('@acceptance', '@BCPLA-1'))).toBe(true);
+    expect(grep.test(tagged('@acceptance', '@BCPLA-10'))).toBe(false);
+  });
+
+  it('records several linked Specs in one run', () => {
+    const grep = new RegExp(specGrep([{ id: 'BCPLA-10' }, { id: 'BCPLA-36' }]));
+    expect(grep.test(tagged('@acceptance', '@BCPLA-10'))).toBe(true);
+    expect(grep.test(tagged('@acceptance', '@BCPLA-36'))).toBe(true);
+  });
+
+  // findLinkedSpecs saves what it read from Linear for the publish step.
+  const selectionPath = () => join(mkdtempSync(join(tmpdir(), 'bdd-selection-')), 'linked.json');
+  const outputsOf = () => {
+    const outputs: Record<string, string> = {};
+    const core = { info: vi.fn(), warning: vi.fn(), setOutput: (key: string, value: string) => { outputs[key] = value; } };
+    return { outputs, core };
+  };
+  const prFor = (title: string) => ({ number: 7, head: { ref: 'per/bcpla-143-registration', sha: 'head-sha', repo: { full_name: 'contributor/fork' } }, title, body: '' });
+
+  it('records nothing when the PR links no Spec', async () => {
+    expect(specGrep([])).toBe('');
+    const { outputs, core } = outputsOf();
+    const context = { repo: { owner: 'o', repo: 'r' }, payload: {} };
+    await findLinkedSpecs({ github: {}, context, core, selection: selectionPath() });
+    expect(outputs).toEqual({ specs: '', grep: '' });
+  });
+
+  it('records nothing and warns when the PR links a ticket but Linear is not configured', async () => {
+    vi.stubEnv('LINEAR_API_KEY', undefined);
+    try {
+      const pr = prFor('Registration');
+      const github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: pr }) } } };
+      const fetchImpl = vi.fn();
+      const { outputs, core } = outputsOf();
+      await findLinkedSpecs({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } }, core, fetchImpl, selection: selectionPath() });
+      expect(outputs).toEqual({ specs: '', grep: '' });
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('LINEAR_API_KEY'));
+      expect(fetchImpl).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('reads the linked Specs from Linear for the PR it runs on', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { issue: ticket('BCPLA-143', 'AS-1') } }) });
+      const pr = prFor('Registration');
+      const github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: pr }) } } };
+      const { outputs, core } = outputsOf();
+      await findLinkedSpecs({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } }, core, fetchImpl, selection: selectionPath() });
+      expect(outputs.specs).toBe('BCPLA-142');
+      expect(new RegExp(outputs.grep!).test('x @acceptance @BCPLA-142')).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('retries a failing call with growing waits and gives up after three tries', async () => {
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const flaky = vi.fn().mockRejectedValueOnce(new Error('502')).mockResolvedValue('ok');
+    expect(await withRetry(flaky, { wait })).toBe('ok');
+    const down = vi.fn().mockRejectedValue(new Error('502'));
+    await expect(withRetry(down, { wait })).rejects.toThrow('502');
+    expect(down).toHaveBeenCalledTimes(3);
+    expect(wait.mock.calls.map(([ms]) => ms)).toEqual([1000, 1000, 2000]);
+  });
+
+  it('survives a transient GitHub error when reading the PR', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { issue: ticket('BCPLA-143', 'AS-1') } }) });
+      const pr = prFor('Registration');
+      const get = vi.fn().mockRejectedValueOnce(new Error('502')).mockResolvedValue({ data: pr });
+      const { outputs, core } = outputsOf();
+      await findLinkedSpecs({ github: { rest: { pulls: { get } } }, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } },
+        core, fetchImpl, wait: async () => {}, selection: selectionPath() });
+      expect(outputs.specs).toBe('BCPLA-142');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('fails the check when the PR links a ticket but Linear cannot be reached', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const selection = selectionPath();
+      const fetchImpl = vi.fn().mockRejectedValue(new Error('fetch failed'));
+      const pr = prFor('Registration');
+      const github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: pr }) } } };
+      const context = { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr }, serverUrl: 'https://github.com', runId: 1, sha: 'merge-sha' };
+      const { outputs, core } = outputsOf();
+      const find = { ...core, setFailed: vi.fn() };
+      await findLinkedSpecs({ github, context, core: find, fetchImpl, wait: async () => {}, selection });
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      expect(outputs).toEqual({ specs: '', grep: '' });
+      expect(find.setFailed).toHaveBeenCalledWith(expect.stringMatching(/BCPLA-143 could not be read from Linear/));
+
+      const summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn() };
+      const publishCore = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary };
+      await publish({ github, context, core: publishCore, fetchImpl, selection });
+      expect(publishCore.setFailed).toHaveBeenCalledWith(expect.stringMatching(/BCPLA-143 could not be read from Linear/));
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('publishes the Specs the tests ran for even if the PR changes during the run', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const selection = selectionPath();
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { issue: ticket('BCPLA-143', 'AS-1') } }) });
+      const pr = prFor('Registration');
+      const get = vi.fn().mockResolvedValue({ data: pr });
+      const context = { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr }, serverUrl: 'https://github.com', runId: 1, sha: 'merge-sha' };
+      await findLinkedSpecs({ github: { rest: { pulls: { get } } }, context, core: outputsOf().core, fetchImpl, selection });
+
+      // The ticket is unlinked mid-run: a fresh read would find no Spec.
+      get.mockResolvedValue({ data: { ...pr, head: { ...pr.head, ref: 'per/other' } } });
+      fetchImpl.mockClear();
+      const summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn() };
+      const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary };
+      await publish({ github: { rest: { pulls: { get } } }, context, core, fetchImpl, selection });
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(summary.addRaw.mock.calls[0]![0]).toContain('BCPLA-142');
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 
@@ -268,5 +421,29 @@ describe('video timestamps', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('data-time="6.7"');
     expect(html).toContain('video.currentTime=Number(button.dataset.time)');
+  });
+
+  it('passes with nothing to record when the linked Spec has no runnable tests yet', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bdd-timeline-'));
+    try {
+      const timeline = createTimeline({ suites: [] }, dir);
+      expect(timeline).toEqual({ tested: 0, scenarios: [], errors: [] });
+      expect(timelineFailure(timeline)).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when a test that ran left no recording', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bdd-timeline-'));
+    try {
+      const timeline = createTimeline({ suites: [{ specs: [{ id: 'a1', title: 'Registers a member',
+        tests: [{ projectName: 'chromium', results: [{ status: 'passed', attachments: [] }] }] }] }] }, dir);
+      expect(timeline.tested).toBe(1);
+      expect(timelineFailure(timeline)).toMatch(/expected one video and one trace/);
+      expect(timelineFailure({ tested: 1, scenarios: [], errors: [] })).toBe('No scenarios recorded');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
