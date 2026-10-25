@@ -1,0 +1,1934 @@
+{
+  "session": "2026-10-25",
+  "commit": "831d102",
+  "decided_by": "Per Hassle",
+  "report": "report.html",
+  "follow_up": [
+    {
+      "ref": "C1",
+      "text": "Delete the unused repository copies payments.revenueByPeriod and access.allSyncLag."
+    },
+    {
+      "ref": "C1",
+      "text": "Filter both sides of every join in src/export/reports.ts on the tenant (lines 74, 103, 144, 262, 387, 424), as ADR-0009 requires."
+    },
+    {
+      "ref": "C2",
+      "text": "Make user-caused failures return instead of throw: the self-service flag (subscriptions.ts:82), assertPlainDate on input, the context() \"No tenant selected\" check."
+    },
+    {
+      "ref": "C3",
+      "text": "Add a non-throwing permission check; replace assertMayChange, assertMayActFor and isBeefcakeStaff checks; use self.book and self.subscription; add checks to statusOf and cancelBooking."
+    },
+    {
+      "ref": "C4",
+      "text": "Narrow with impersonate() in the admin pages and actions/admin.ts; remove the no-op adminScope at admin.ts:50."
+    },
+    {
+      "ref": "C5",
+      "text": "Fold defaultNow and seededToday into clock(); replace new Date() in actions/session.ts:70 and export/signals.ts:288."
+    },
+    {
+      "ref": "C6",
+      "text": "Return an ok union from canChangePlan (subscriptions.ts:70)."
+    },
+    {
+      "ref": "C7",
+      "text": "Throw CurrencyMismatchError at proration.ts:91."
+    },
+    {
+      "ref": "C8",
+      "text": "Add a ChargeStatus type; make schema.ts import its value lists from src/domain."
+    },
+    {
+      "ref": "C9",
+      "text": "Move PlainDate casts out of pages into repository mappers."
+    },
+    {
+      "ref": "C10",
+      "text": "Retire toIso; parse with fromIso in src/lib/format.ts."
+    },
+    {
+      "ref": "C11",
+      "text": "Delete the unused barrels src/db/repositories/index.ts and src/domain/index.ts."
+    },
+    {
+      "ref": "C13",
+      "text": "Give createTestDb() an optional seed; move jobs, export and seed tests onto it."
+    },
+    {
+      "ref": "C14",
+      "text": "Remove rows created by the first-time-visitor tests."
+    },
+    {
+      "ref": "C16",
+      "text": "Use getByLabel in site-smoke/front-desk-opens-member-form.spec.ts."
+    },
+    {
+      "ref": "Terms",
+      "text": "Rename \"Recent events\" on the tenant access page to check-ins."
+    },
+    {
+      "ref": "A3",
+      "text": "Let runJob take integrations."
+    },
+    {
+      "ref": "A5 + A8",
+      "text": "Add a site-timezone resolver outside src/jobs, then a no-restricted-imports rule for layer boundaries."
+    },
+    {
+      "ref": "A6",
+      "text": "Validate every action input at runtime; adopt zod or remove the dependency."
+    },
+    {
+      "ref": "A7",
+      "text": "Add error.tsx and global-error.tsx."
+    },
+    {
+      "ref": "A10",
+      "text": "Pass the stack to recordError."
+    },
+    {
+      "ref": "A11",
+      "text": "Unit tests for server actions and src/lib (can(), clock, format)."
+    }
+  ],
+  "open_questions": [
+    "Formatter: should the repo adopt Prettier (or another formatter), or keep .editorconfig only? A team decision, not one developer's."
+  ],
+  "findings": [
+    {
+      "id": "data-access-report-queries",
+      "report_ref": "C1",
+      "bucket": "competing",
+      "title": "Where report and aggregate queries live",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Repository function",
+          "count": 4,
+          "examples": [
+            "src/db/repositories/payments.ts:94",
+            "src/db/repositories/access.ts:33",
+            "src/db/repositories/classes.ts:272"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "src/export/reports.ts as read model",
+          "count": 19,
+          "examples": [
+            "src/export/reports.ts:63",
+            "src/export/reports.ts:411",
+            "src/app/(tenant)/app/page.tsx:55"
+          ]
+        }
+      ],
+      "recency": "B is newer: reports.ts was last changed 2026-10-09, payments.ts 2026-03-03.",
+      "recommendation": "Both, with a rule: per-entity reads and writes live in repositories; cross-entity report queries live in src/export/reports.ts, take TenantScope first and guard full rows. This makes the existing read model an explicit exception to the rule in rules.md.",
+      "outcome": "both",
+      "decision": "Both, with a rule (25 Oct 2026). Per-entity reads and writes live in src/db/repositories. Cross-entity report queries live in src/export/reports.ts, take TenantScope first and pass full rows through guard(). rules.md names this exception. Removing the dead duplicates (payments.revenueByPeriod, access.allSyncLag) is an optional cleanup ticket.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/data-access.md#reports"
+    },
+    {
+      "id": "actions-expected-failure",
+      "report_ref": "C2",
+      "bucket": "competing",
+      "title": "How a server action reports an expected failure",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Return { ok: false, message }",
+          "count": 40,
+          "examples": [
+            "src/app/actions/subscriptions.ts:102",
+            "src/app/actions/bookings.ts:57",
+            "src/app/actions/settings.ts:41"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Throw",
+          "count": 9,
+          "examples": [
+            "src/lib/session.ts:106",
+            "src/app/actions/subscriptions.ts:79",
+            "src/app/actions/bookings.ts:45"
+          ]
+        }
+      ],
+      "recency": "Mixed. Return-style actions date 2026-04 to 2026-08; the throwing session helpers 2026-09-05.",
+      "recommendation": "A is the standard: return { ok: false, message } for anything a user can cause, including a missing permission. Throw only for states that indicate a programming error.",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). A server action returns { ok: false, message } for anything a user can cause, including a missing permission or a disabled feature. It throws only for states that mean a bug.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/server-actions.md"
+    },
+    {
+      "id": "actions-permission-check",
+      "report_ref": "C3",
+      "bucket": "competing",
+      "title": "How a server action checks who may do it",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "requirePermission(session, key)",
+          "count": 11,
+          "examples": [
+            "src/app/actions/settings.ts",
+            "src/app/actions/payments.ts",
+            "src/app/actions/bookings.ts (markAttendance)"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Hand-written assertMay*",
+          "count": 2,
+          "examples": [
+            "src/app/actions/subscriptions.ts:69",
+            "src/app/actions/bookings.ts:42"
+          ]
+        },
+        {
+          "name": "C",
+          "summary": "session.isBeefcakeStaff",
+          "count": 2,
+          "examples": [
+            "src/app/actions/admin.ts:28",
+            "src/lib/session.ts:52",
+            "admin pages"
+          ]
+        }
+      ],
+      "recency": "No clear direction; all three were touched between 2026-08 and 2026-10.",
+      "recommendation": "A is the standard: every action calls can() or requirePermission with a PERMISSIONS key, including member self-service and staff-only actions. Combine with the C2 answer for whether it returns or throws.",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). Every server action checks a PERMISSIONS key, including member self-service (self.book, self.subscription) and staff-only actions, and returns { ok: false, message } when the check fails (per C2). Adding a non-throwing check beside requirePermission and replacing assertMay* and isBeefcakeStaff checks are cleanup tickets.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/server-actions.md"
+    },
+    {
+      "id": "scope-staff-narrowing",
+      "report_ref": "C4",
+      "bucket": "competing",
+      "title": "How Beefcake staff narrow to one tenant",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "impersonate(admin, tenantId)",
+          "count": 1,
+          "examples": [
+            "src/lib/session.ts:186"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Fresh tenantScope(id, { db })",
+          "count": 7,
+          "examples": [
+            "src/app/(admin)/admin/page.tsx:32",
+            "src/app/actions/admin.ts:40",
+            "src/export/signals.ts:272"
+          ]
+        }
+      ],
+      "recency": "B is newer (admin pages 2026-10-09; session.ts 2026-09-05).",
+      "recommendation": "A is the standard. scope.ts is a talk-first file, so this decision only says which existing function to call.",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). Staff narrow to one tenant with impersonate(admin, tenantId), so the scope keeps the staff actor. Exception: the batch signal export in src/export/signals.ts has no person behind it, so it builds per-tenant scopes the way jobs do, with tenantScope(id, { db, actorRole: 'system' }). The exception covers batch CLIs only, never a page or an action.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/pages.md"
+    },
+    {
+      "id": "time-now-source",
+      "report_ref": "C5",
+      "bucket": "competing",
+      "title": "Where \"now\" comes from",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "clock() from src/lib/clock.ts",
+          "count": 27,
+          "examples": [
+            "src/lib/clock.ts:22",
+            "src/app/actions/subscriptions.ts",
+            "src/app/(member)/me/page.tsx"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "defaultNow(db) in jobs/runner.ts",
+          "count": 2,
+          "examples": [
+            "src/jobs/runner.ts:82",
+            "src/jobs/cli.ts:90",
+            "src/export/cli.ts:100"
+          ]
+        },
+        {
+          "name": "C",
+          "summary": "seededToday(db) or new Date()",
+          "count": 5,
+          "examples": [
+            "src/export/signals.ts:496",
+            "src/app/actions/session.ts:70",
+            "src/jobs/runner.ts:166"
+          ]
+        }
+      ],
+      "recency": "clock.ts is the oldest (2026-03-24); signals.ts the newest (2026-10-09).",
+      "recommendation": "A is the standard for request code; CLIs and the runner call the same function. Merging the copies is a cleanup ticket, not part of this decision.",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). clock() from src/lib/clock.ts is the only source of request time in actions and pages, and of the default now in the CLIs and the job runner. Jobs keep reading now from their context so --now replays, and domain functions take the instant as an argument. Exception: job_runs.finished_at is stamped with the real wall clock, because it records when the process actually finished. Merging defaultNow and seededToday into clock() is a cleanup ticket.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/time-and-data.md"
+    },
+    {
+      "id": "domain-decision-result",
+      "report_ref": "C6",
+      "bucket": "competing",
+      "title": "How a domain function says \"not allowed\"",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Union on ok",
+          "count": 1,
+          "examples": [
+            "src/domain/freezes.ts:117"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "{ allowed: boolean; reason? }",
+          "count": 1,
+          "examples": [
+            "src/domain/subscriptions.ts:70"
+          ]
+        },
+        {
+          "name": "C",
+          "summary": "Own discriminant per function",
+          "count": 3,
+          "examples": [
+            "src/domain/retry-policy.ts:65",
+            "src/domain/billing.ts:102",
+            "src/domain/access-rules.ts:39"
+          ]
+        }
+      ],
+      "recency": "A and C are 2026-08; B is the oldest (2025-10-30).",
+      "recommendation": "A for a yes/no decision with reasons (a discriminated union on ok). Keep a domain word as the discriminant where it carries meaning (granted/denied for access). B stops being used for new code.",
+      "outcome": "both",
+      "decision": "Both A and C, with a rule (25 Oct 2026). A yes/no domain decision with reasons returns a discriminated union on ok. A domain word may be the discriminant where it carries meaning (granted/denied for access). { allowed, reason? } is not used in new code.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/domain.md"
+    },
+    {
+      "id": "errors-invariant-type",
+      "report_ref": "C7",
+      "bucket": "competing",
+      "title": "Which error type a broken invariant throws",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Built-in TypeError / RangeError",
+          "count": 12,
+          "examples": [
+            "src/domain/dates.ts:43",
+            "src/domain/money.ts:44",
+            "src/domain/freezes.ts:47"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Named subclass",
+          "count": 3,
+          "examples": [
+            "src/domain/money.ts:31",
+            "src/db/repositories/scope.ts:25",
+            "src/export/reports.ts:200"
+          ]
+        },
+        {
+          "name": "C",
+          "summary": "Plain Error",
+          "count": 1,
+          "examples": [
+            "src/domain/proration.ts:91"
+          ]
+        }
+      ],
+      "recency": "B is used for the newest case (ReportTimeoutError, 2026-10-09).",
+      "recommendation": "Both A and B, with a rule: built-in errors for a bad argument; a named subclass for anything a caller is expected to catch. C is not used.",
+      "outcome": "both",
+      "decision": "Both A and B, with a rule (25 Oct 2026). Throw a built-in TypeError or RangeError for a bad argument, and a named Error subclass for anything a caller is expected to catch. A plain Error is not used. Moving proration.ts:91 to CurrencyMismatchError is a cleanup ticket.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/domain.md"
+    },
+    {
+      "id": "data-value-lists",
+      "report_ref": "C8",
+      "bucket": "competing",
+      "title": "Where status and enum value lists are defined",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Inline in schema.ts",
+          "count": 14,
+          "examples": [
+            "src/db/schema.ts:27 (currency ×5)",
+            "src/db/schema.ts:223",
+            "src/db/schema.ts:147"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Domain const or union",
+          "count": 8,
+          "examples": [
+            "src/domain/money.ts:13",
+            "src/domain/dates.ts:21",
+            "src/domain/waitlist.ts:16"
+          ]
+        }
+      ],
+      "recency": "Schema 2025-10-07; domain lists 2026-08 to 2026-10.",
+      "recommendation": "B is the source: the domain declares an as-const list, and schema.ts imports it for its enum. This changes schema.ts without a migration, but confirm with whoever owns the schema.",
+      "outcome": "B",
+      "decision": "B is the source (25 Oct 2026). A value list is declared once in src/domain as an as-const array or union, and src/db/schema.ts imports it for its enum. No migration is needed, because the column type does not change. Adding a ChargeStatus type and switching schema.ts over are cleanup tickets.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/domain.md"
+    },
+    {
+      "id": "dates-plaindate-from-db",
+      "report_ref": "C9",
+      "bucket": "competing",
+      "title": "Turning a database string into a PlainDate",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "as PlainDate cast",
+          "count": 58,
+          "examples": [
+            "src/app/(tenant)/app/members/[memberId]/page.tsx",
+            "src/app/(member)/me/subscription/page.tsx",
+            "src/db/repositories/subscriptions.ts"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "assertPlainDate() / isPlainDate()",
+          "count": 10,
+          "examples": [
+            "src/app/(tenant)/app/classes/page.tsx:59",
+            "src/app/actions/subscriptions.ts:113",
+            "src/lib/clock.ts:25"
+          ]
+        }
+      ],
+      "recency": "Both in use through 2026-10.",
+      "recommendation": "Both, with a rule: cast only in a repository mapper, for a column the schema already constrains; assert anything from a user, a URL or a file. Pages stop casting.",
+      "outcome": "both",
+      "decision": "Both, with a rule (25 Oct 2026). Cast as PlainDate only inside a repository mapper, for a column the schema constrains. Use assertPlainDate() for anything from a user, a URL or a file. Pages do not cast.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/data-access.md#repositories"
+    },
+    {
+      "id": "dates-instant-strings",
+      "report_ref": "C10",
+      "bucket": "competing",
+      "title": "Converting instants to and from strings",
+      "variants": [
+        {
+          "name": "A",
+          "summary": ".toISOString() / new Date(str)",
+          "count": 100,
+          "examples": [
+            "src/jobs/payment-run.ts:527",
+            "src/lib/format.ts:77",
+            "src/lib/format.ts:85"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "toIso() / fromIso() from dates.ts",
+          "count": 2,
+          "examples": [
+            "src/domain/dates.ts"
+          ]
+        }
+      ],
+      "recency": "A dominates everywhere.",
+      "recommendation": "A for writing (.toISOString()); fromIso for parsing strings that did not come from our own columns. toIso can be retired.",
+      "outcome": "both",
+      "decision": "Both, with a rule (25 Oct 2026). Write instants with .toISOString(). Parse with fromIso() any string that did not come from one of our own _at columns. toIso is retired (cleanup ticket).",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/time-and-data.md"
+    },
+    {
+      "id": "imports-repositories",
+      "report_ref": "C11",
+      "bucket": "competing",
+      "title": "Importing repositories and integrations",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "import * as xRepo from '@/db/repositories/x'",
+          "count": 47,
+          "examples": [
+            "src/app/actions/bookings.ts",
+            "src/jobs/waitlist-promote.ts",
+            "src/app/(member)/me/card/page.tsx"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Barrel (@/db/repositories, @/domain)",
+          "count": 0,
+          "examples": [
+            "src/db/repositories/index.ts (0 importers)",
+            "src/domain/index.ts (0 importers)"
+          ]
+        }
+      ],
+      "recency": "A is the only one in use. Exception: observability is imported by name (15 times).",
+      "recommendation": "A is the standard; observability's named imports are fine. The AGENTS.md wording should change to match, and the unused barrels can go in a cleanup ticket.",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). Import repositories as import * as xRepo from '@/db/repositories/x'; named imports from observability are allowed. AGENTS.md is corrected to match. Deleting the unused barrels is a cleanup ticket.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/data-access.md#repositories"
+    },
+    {
+      "id": "config-db-path",
+      "report_ref": "C12",
+      "bucket": "competing",
+      "title": "Resolving the database path",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "databasePath() / DEFAULT_DB_PATH",
+          "count": 2,
+          "examples": [
+            "src/db/client.ts:15"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "process.env.BEEFCAKE_DB ?? 'data/beefcake.db'",
+          "count": 6,
+          "examples": [
+            "drizzle.config.ts:8",
+            "playwright.config.ts:38",
+            "tests/e2e/helpers.ts:20"
+          ]
+        }
+      ],
+      "recency": "B is in the newest e2e helpers (2026-10).",
+      "recommendation": "Both, with a rule: src and scripts call databasePath(); tests/e2e and config files may retype it, because e2e deliberately imports nothing from src.",
+      "outcome": "both",
+      "decision": "Both, with a rule (25 Oct 2026). src and scripts call databasePath(). tests/e2e and root config files may spell out the env var and default, because e2e imports nothing from src.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/time-and-data.md"
+    },
+    {
+      "id": "unit-test-db-setup",
+      "report_ref": "C13",
+      "bucket": "competing",
+      "title": "Setting up a database in a unit test",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "createTestDb()",
+          "count": 2,
+          "examples": [
+            "tests/helpers/test-db.ts",
+            "tests/unit/class-fill.test.ts:25",
+            "tests/unit/tenant-isolation.test.ts:26"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "mkdtemp + migrate + seed by hand",
+          "count": 3,
+          "examples": [
+            "tests/unit/jobs.test.ts:33",
+            "tests/unit/export.test.ts:32",
+            "tests/unit/seed.test.ts:31"
+          ]
+        }
+      ],
+      "recency": "Both dated 2026-10-07 to 2026-10-09.",
+      "recommendation": "A is the standard, once createTestDb() takes an optional seed. Until then B is allowed for seeded tests.",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). Unit tests get a database from createTestDb(). Until it takes an optional seed (small ticket), hand-rolled setup is allowed for seeded tests only.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/unit-tests.md"
+    },
+    {
+      "id": "e2e-test-data",
+      "report_ref": "C14",
+      "bucket": "competing",
+      "title": "Where an e2e test gets its data",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Find suitable rows in the seed",
+          "count": 2,
+          "examples": [
+            "tests/e2e/calendar-file/calendar-file.ts:40",
+            "tests/e2e/member-registration/registration.ts:69"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Fixture inserts and removes its own rows",
+          "count": 1,
+          "examples": [
+            "tests/e2e/class-fill/hornstull.ts:170"
+          ]
+        },
+        {
+          "name": "C",
+          "summary": "Create through the UI, no cleanup",
+          "count": 3,
+          "examples": [
+            "tests/e2e/first-time-visitor/signup-after-switcher.spec.ts:10",
+            "tests/e2e/first-time-visitor/member-signup.spec.ts:14",
+            "tests/e2e/first-time-visitor/signup-form-validation.spec.ts:37"
+          ]
+        }
+      ],
+      "recency": "B and C are newest (2026-10-09); A is 2026-10-04 to 2026-10-07.",
+      "recommendation": "B for anything that needs a precise state; A is fine for read-only checks. C only when the test is about creating the row, and then it removes it.",
+      "outcome": "both",
+      "decision": "All three, with a rule (25 Oct 2026). A test that needs a precise state uses a fixture that inserts its own rows and removes them. Read-only checks may find rows in the seed. A test creates rows through the UI only when creating them is what it tests, and then it removes them.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/e2e-tests.md"
+    },
+    {
+      "id": "e2e-file-generations",
+      "report_ref": "C15",
+      "bucket": "competing",
+      "title": "Three generations of e2e files",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Acceptance folders",
+          "count": 18,
+          "examples": [
+            "tests/e2e/calendar-file/",
+            "tests/e2e/class-fill/",
+            "tests/e2e/member-registration/"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Planner-generated folders",
+          "count": 13,
+          "examples": [
+            "tests/e2e/first-time-visitor/",
+            "tests/e2e/site-smoke/"
+          ]
+        },
+        {
+          "name": "C",
+          "summary": "Legacy root files",
+          "count": 6,
+          "examples": [
+            "tests/e2e/booking.spec.ts",
+            "tests/e2e/smoke.spec.ts",
+            "tests/e2e/payments.spec.ts"
+          ]
+        }
+      ],
+      "recency": "A and B are 2026-10; C is 2026-07 to 2026-09.",
+      "recommendation": "A for anything tied to a BCPLA Spec, B for plan-driven tests with no ticket, and both import expect from ../evidence. C stays as it is and is not copied.",
+      "outcome": "both",
+      "decision": "A and B, with a rule (25 Oct 2026). Tests tied to a BCPLA Spec use the acceptance template. Plan-driven tests with no ticket use the planner layout. Both import expect from ../evidence. The legacy root files stay as they are and are never copied.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/e2e-tests.md"
+    },
+    {
+      "id": "e2e-form-locators",
+      "report_ref": "C16",
+      "bucket": "competing",
+      "title": "Locating form fields in e2e tests",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "getByLabel('Email')",
+          "count": 3,
+          "examples": [
+            "tests/e2e/first-time-visitor/signup-after-switcher.spec.ts:20",
+            "tests/e2e/first-time-visitor/signup-form-validation.spec.ts",
+            "tests/e2e/first-time-visitor/member-signup.spec.ts"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "CSS input[name=…]",
+          "count": 1,
+          "examples": [
+            "tests/e2e/site-smoke/front-desk-opens-member-form.spec.ts:23"
+          ]
+        }
+      ],
+      "recency": "Both 2026-10. Row targeting with tr[data-class-id] is a deliberate shared exception.",
+      "recommendation": "A is the standard; data-* attributes only for table rows.",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). Form fields are located with getByLabel. data-* attributes are used only to target table rows.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/e2e-tests.md"
+    },
+    {
+      "id": "unit-test-titles",
+      "report_ref": "C17",
+      "bucket": "competing",
+      "title": "How a unit test title reads",
+      "variants": [
+        {
+          "name": "A",
+          "summary": "Predicate that completes the describe",
+          "count": 380,
+          "examples": [
+            "tests/unit/subscriptions.test.ts:28",
+            "tests/unit/waitlist.test.ts:73",
+            "tests/unit/tenant-isolation.test.ts:179"
+          ]
+        },
+        {
+          "name": "B",
+          "summary": "Standalone sentence with its own subject",
+          "count": 57,
+          "examples": [
+            "tests/unit/calendar-file.test.ts:36",
+            "tests/unit/freezes.test.ts:14",
+            "tests/unit/proration.test.ts:164"
+          ]
+        }
+      ],
+      "recency": "B is in the newest file (calendar-file, 2026-10-07).",
+      "recommendation": "A is the standard. Both already satisfy \"named as a sentence about behaviour\".",
+      "outcome": "A",
+      "decision": "A is the standard (25 Oct 2026). An it() title is a predicate that completes its describe(). Existing standalone titles stay as they are.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/unit-tests.md"
+    },
+    {
+      "id": "term-tenant",
+      "bucket": "drift",
+      "title": "Tenant",
+      "variants": [
+        {
+          "summary": "tenant 733 · operator 51 · club 1 · chain 2",
+          "examples": [
+            "src/app/(admin)/admin/page.tsx:55",
+            "settings-form.tsx:56",
+            "src/lib/receipt.ts"
+          ]
+        }
+      ],
+      "outcome": "drift",
+      "decision": "Decided: code and tickets say tenant; operator is the commercial register.",
+      "decided_by": null,
+      "rule_ref": null
+    },
+    {
+      "id": "term-abandoned",
+      "bucket": "drift",
+      "title": "Abandoned",
+      "variants": [
+        {
+          "summary": "abandoned 39 · Given up 10",
+          "examples": [
+            "src/lib/format.ts:126 (shown everywhere)",
+            "payments/page.tsx:114"
+          ]
+        }
+      ],
+      "outcome": "drift",
+      "decision": "Decided: say abandoned, never \"given up\".",
+      "decided_by": null,
+      "rule_ref": null
+    },
+    {
+      "id": "term-freeze",
+      "bucket": "drift",
+      "title": "Freeze",
+      "variants": [
+        {
+          "summary": "freeze 168 · suspended 2 · pause 1",
+          "examples": [
+            "members/[memberId]/page.tsx:178",
+            "src/jobs/payment-run.ts:533"
+          ]
+        }
+      ],
+      "outcome": "drift",
+      "decision": "Decided: say freeze. \"Suspended\" is not a state.",
+      "decided_by": null,
+      "rule_ref": null
+    },
+    {
+      "id": "term-involuntary-churn",
+      "bucket": "drift",
+      "title": "Involuntary churn",
+      "variants": [
+        {
+          "summary": "0 uses · paymentDriven, voluntary",
+          "examples": [
+            "src/export/reports.ts:160-171",
+            "reports/page.tsx:159"
+          ]
+        }
+      ],
+      "outcome": "drift",
+      "decision": "Decided: a member lost after dunning is involuntary churn, not a cancellation.",
+      "decided_by": null,
+      "rule_ref": null
+    },
+    {
+      "id": "term-subscription-member-facing",
+      "bucket": "terminology",
+      "title": "Subscription (member-facing)",
+      "variants": [
+        {
+          "summary": "subscription 337 · membership 60",
+          "examples": [
+            "src/app/(member)/me/layout.tsx:16",
+            "src/lib/format.ts:148"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: code and staff UI say subscription; the member UI may say membership. Glossary gets a member-facing words section.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-site-member-facing",
+      "bucket": "terminology",
+      "title": "Site (member-facing)",
+      "variants": [
+        {
+          "summary": "site 518 · gym 30",
+          "examples": [
+            "src/app/(member)/me/card/page.tsx:115,186"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: site in code and the tenant UI; the member UI may say gym. Same glossary section.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-access-event",
+      "bucket": "terminology",
+      "title": "Access event",
+      "variants": [
+        {
+          "summary": "accessEvents · check-in 7 · swipe 4 · visit 5 · event",
+          "examples": [
+            "src/app/(member)/me/card/page.tsx:178",
+            "src/app/(tenant)/app/access/page.tsx:221"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: access event in code and glossary; the member UI says visit; the staff UI says check-in (granted) or denied, never \"event\". Renaming the tenant heading is a small ticket.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-event",
+      "bucket": "terminology",
+      "title": "event",
+      "variants": [
+        {
+          "summary": "events row · access event · ICS entry",
+          "examples": [
+            "src/app/(tenant)/app/access/page.tsx:262",
+            "src/domain/calendar-file.ts"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided with the access-event row: event means a row in events; UI never calls a swipe an event.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-plan",
+      "bucket": "terminology",
+      "title": "plan",
+      "variants": [
+        {
+          "summary": "tenant's Plan · tenants.plan_tier",
+          "examples": [
+            "src/db/schema.ts:30"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: new glossary entry Plan tier, Beefcake's pricing tier for a tenant, never just \"plan\". No rename.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-session",
+      "bucket": "terminology",
+      "title": "session",
+      "variants": [
+        {
+          "summary": "auth/persona session (247) · class in glossary",
+          "examples": [
+            "src/lib/session.ts",
+            "docs/domain-glossary.md:177"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: the glossary Class definition stops using \"session\"; session in code means the signed-in user's session only.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-member",
+      "bucket": "terminology",
+      "title": "member",
+      "variants": [
+        {
+          "summary": "members table · users.role = 'member'",
+          "examples": [
+            "src/db/schema.ts:79"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: glossary line that a user with role member is a sign-in persona linked to one members row.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-statuses-not-in-glossary",
+      "bucket": "terminology",
+      "title": "Statuses not in glossary",
+      "variants": [
+        {
+          "summary": "member former → 'Archived' · tenant churned · cancelling → 'Notice given'",
+          "examples": [
+            "src/lib/format.ts:136,140",
+            "src/db/schema.ts:31"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: glossary entries for former (\"Archived\" in the UI), churned, and the cancelling label \"Notice given\".",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "term-site-scope",
+      "bucket": "terminology",
+      "title": "Site scope",
+      "variants": [
+        {
+          "summary": "site scope (glossary) · sites_scope / sitesScope (61)",
+          "examples": [
+            "src/db/schema.ts:127"
+          ]
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Decided: no rename; the glossary Site scope entry notes the column sites_scope.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/domain-glossary.md"
+    },
+    {
+      "id": "consistent-everything-below-server-actions-is-synchronous-n",
+      "report_ref": "K1",
+      "bucket": "consistent",
+      "title": "Everything below server actions is synchronous; no async in domain, repositories, jobs, integrations or export",
+      "variants": [
+        {
+          "count": "0 async",
+          "examples": [
+            "src/integrations/types.ts:46"
+          ],
+          "scope": "src/**"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-server-actions-take-typed-positional-arguments-n",
+      "report_ref": "K2",
+      "bucket": "consistent",
+      "title": "Server actions take typed positional arguments (never FormData) and return Promise<ActionResult> { ok, message }",
+      "variants": [
+        {
+          "count": "21 of 21",
+          "examples": [
+            "src/app/actions/subscriptions.ts:40"
+          ],
+          "scope": "src/app/actions"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-action-messages-are-full-user-facing-sentences-t",
+      "report_ref": "K3",
+      "bucket": "consistent",
+      "title": "Action messages are full user-facing sentences that state the consequence (\"Frozen from X to Y. Back on Z.\")",
+      "variants": [
+        {
+          "count": "~40",
+          "examples": [
+            "src/app/actions/subscriptions.ts"
+          ],
+          "scope": "src/app/actions"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-clients-call-actions-with-usetransition-local-us",
+      "report_ref": "K4",
+      "bucket": "consistent",
+      "title": "Clients call actions with useTransition + local useState and show the result in a Callout; no useActionState or <form action>",
+      "variants": [
+        {
+          "count": "12 of 12",
+          "examples": [
+            "src/app/(tenant)/app/members/new/form.tsx"
+          ],
+          "scope": "src/app/**"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-after-a-write-an-action-calls-revalidatepath-sur",
+      "report_ref": "K5",
+      "bucket": "consistent",
+      "title": "After a write, an action calls revalidatePath(surface, 'layout')",
+      "variants": [
+        {
+          "count": "22",
+          "examples": [
+            "src/app/actions/settings.ts"
+          ],
+          "scope": "src/app/actions"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-pages-read-through-repositories-directly-server-",
+      "report_ref": "K6",
+      "bucket": "consistent",
+      "title": "Pages read through repositories directly; server actions are for mutations only",
+      "variants": [
+        {
+          "count": "19 of 20 pages",
+          "examples": [
+            "src/app/(member)/me/card/page.tsx:71"
+          ],
+          "scope": "src/app"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-get-a-scope-with-tenantscopefor-await-getsession",
+      "report_ref": "K7",
+      "bucket": "consistent",
+      "title": "Get a scope with tenantScopeFor(await getSession())",
+      "variants": [
+        {
+          "count": "20 files",
+          "examples": [
+            "src/lib/session.ts:199"
+          ],
+          "scope": "src/app"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-repository-functions-synchronous-named-functions",
+      "report_ref": "K8",
+      "bucket": "consistent",
+      "title": "Repository functions: synchronous named functions, TenantScope first, optional filter last, a default limit",
+      "variants": [
+        {
+          "count": "all",
+          "examples": [
+            "src/db/repositories/members.ts:35"
+          ],
+          "scope": "src/db/repositories"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-cross-tenant-repository-functions-take-adminscop",
+      "report_ref": "K9",
+      "bucket": "consistent",
+      "title": "Cross-tenant repository functions take AdminScope and are prefixed all*",
+      "variants": [
+        {
+          "count": "4",
+          "examples": [
+            "src/db/repositories/payments.ts:119"
+          ],
+          "scope": "src/db/repositories"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-row-to-domain-mappers-live-in-the-repository-tor",
+      "report_ref": "K10",
+      "bucket": "consistent",
+      "title": "Row-to-domain mappers live in the repository (toRecord, toClassSnapshot)",
+      "variants": [
+        {
+          "count": "3+",
+          "examples": [
+            "src/db/repositories/subscriptions.ts:146"
+          ],
+          "scope": "src/db/repositories"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-transactions-are-opened-by-the-caller-never-insi",
+      "report_ref": "K11",
+      "bucket": "consistent",
+      "title": "Transactions are opened by the caller, never inside a repository; events and outbox are written after the transaction",
+      "variants": [
+        {
+          "count": "7 of 7",
+          "examples": [
+            "src/jobs/waitlist-promote.ts:132"
+          ],
+          "scope": "actions, jobs"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-drizzle-query-builder-only-raw-sql-strings-only-",
+      "report_ref": "K12",
+      "bucket": "consistent",
+      "title": "Drizzle query builder only; raw SQL strings only in the seed writer",
+      "variants": [
+        {
+          "count": "0 outside seed",
+          "examples": [
+            "src/db/seed/writer.ts:41"
+          ],
+          "scope": "src"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-pagination-filter-limit-offset-pages-read-page-d",
+      "report_ref": "K13",
+      "bucket": "consistent",
+      "title": "Pagination: filter { limit?, offset? }; pages read ?page defensively",
+      "variants": [
+        {
+          "count": "5+",
+          "examples": [
+            "src/app/(tenant)/app/members/page.tsx:63"
+          ],
+          "scope": "repos, pages"
+        }
+      ],
+      "outcome": "rejected",
+      "decision": "True, but not recorded: agents copy it from neighbouring code.",
+      "decided_by": "Per Hassle",
+      "rule_ref": null
+    },
+    {
+      "id": "consistent-integrations-come-from-createintegrations-seed-a",
+      "report_ref": "K14",
+      "bucket": "consistent",
+      "title": "Integrations come from createIntegrations(); seed and unit tests import fakes directly",
+      "variants": [
+        {
+          "count": "3",
+          "examples": [
+            "src/jobs/runner.ts:104"
+          ],
+          "scope": "app, jobs"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-ts-objects-are-camelcase-event-payloads-outbox-p",
+      "report_ref": "K15",
+      "bucket": "consistent",
+      "title": "TS objects are camelCase; event payloads, outbox payloads, error context and CSV headers are snake_case",
+      "variants": [
+        {
+          "count": "no counter-example",
+          "examples": [
+            "src/app/actions/bookings.ts:97"
+          ],
+          "scope": "boundaries"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-failures-are-logged-with-recorderror-to-the-erro",
+      "report_ref": "K16",
+      "bucket": "consistent",
+      "title": "Failures are logged with recordError() to the errors table; no console.* in src; CLIs write to stdout/stderr",
+      "variants": [
+        {
+          "count": "6 / 0",
+          "examples": [
+            "src/jobs/payment-run.ts:220"
+          ],
+          "scope": "src"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-route-handlers-return-nextresponse-json-error-hi",
+      "report_ref": "K17",
+      "bucket": "consistent",
+      "title": "Route handlers return NextResponse.json({ error, hint? }, { status }); file responses send cache-control: no-store",
+      "variants": [
+        {
+          "count": "2 of 2",
+          "examples": [
+            "src/app/(tenant)/app/reports/export/[report]/route.ts"
+          ],
+          "scope": "route.ts"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-money-and-dates-are-displayed-only-through-src-l",
+      "report_ref": "K18",
+      "bucket": "consistent",
+      "title": "Money and dates are displayed only through src/lib/format with tenant.locale passed in",
+      "variants": [
+        {
+          "count": "20 pages",
+          "examples": [
+            "src/lib/format.ts"
+          ],
+          "scope": "src/app"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-ids-come-only-from-newid-kind-at-runtime-and-seq",
+      "report_ref": "K19",
+      "bucket": "consistent",
+      "title": "Ids come only from newId(kind) at runtime and sequentialId(kind, n) in the seed",
+      "variants": [
+        {
+          "count": "40",
+          "examples": [
+            "src/db/ids.ts"
+          ],
+          "scope": "src"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-string-literal-unions-for-domain-enums-no-enum-k",
+      "report_ref": "K20",
+      "bucket": "consistent",
+      "title": "String-literal unions for domain enums; no enum keyword; as const arrays only when iterated",
+      "variants": [
+        {
+          "count": "26 / 0",
+          "examples": [
+            "src/domain/subscriptions.ts:15"
+          ],
+          "scope": "src"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-file-names-are-kebab-case",
+      "report_ref": "K21",
+      "bucket": "consistent",
+      "title": "File names are kebab-case",
+      "variants": [
+        {
+          "count": "188 of 188",
+          "examples": [
+            "src/domain/retry-policy.ts"
+          ],
+          "scope": "src, tests"
+        }
+      ],
+      "outcome": "rejected",
+      "decision": "True, but not recorded: agents copy it from neighbouring code.",
+      "decided_by": "Per Hassle",
+      "rule_ref": null
+    },
+    {
+      "id": "consistent-named-export-function-declarations-export-defaul",
+      "report_ref": "K22",
+      "bucket": "consistent",
+      "title": "Named export function declarations; export default only where Next requires it; no exported arrow consts",
+      "variants": [
+        {
+          "count": "339 / 24 / 0",
+          "examples": [
+            "src/domain/freezes.ts"
+          ],
+          "scope": "src"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-object-shapes-are-interfaces-with-readonly-field",
+      "report_ref": "K23",
+      "bucket": "consistent",
+      "title": "Object shapes are interfaces with readonly fields",
+      "variants": [
+        {
+          "count": "155 vs 1",
+          "examples": [
+            "src/domain/subscriptions.ts"
+          ],
+          "scope": "src"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-boolean-fields-are-bare-adjectives-granted-dryru",
+      "report_ref": "K24",
+      "bucket": "consistent",
+      "title": "Boolean fields are bare adjectives (granted, dryRun); predicate functions start is/has/can",
+      "variants": [
+        {
+          "count": "19 / 18",
+          "examples": [
+            "src/jobs/runner.ts"
+          ],
+          "scope": "src"
+        }
+      ],
+      "outcome": "rejected",
+      "decision": "True, but not recorded: agents copy it from neighbouring code.",
+      "decided_by": "Per Hassle",
+      "rule_ref": null
+    },
+    {
+      "id": "consistent-unit-tests-use-describe-it-with-explicit-vitest-",
+      "report_ref": "K25",
+      "bucket": "consistent",
+      "title": "Unit tests use describe + it with explicit vitest imports, one file per module in tests/unit",
+      "variants": [
+        {
+          "count": "24 of 24",
+          "examples": [
+            "tests/unit/freezes.test.ts"
+          ],
+          "scope": "tests/unit"
+        }
+      ],
+      "outcome": "rejected",
+      "decision": "True, but not recorded: agents copy it from neighbouring code.",
+      "decided_by": "Per Hassle",
+      "rule_ref": null
+    },
+    {
+      "id": "consistent-unit-tests-build-inputs-with-a-local-over-partia",
+      "report_ref": "K26",
+      "bucket": "consistent",
+      "title": "Unit tests build inputs with a local over: Partial<T> builder; no shared factory directory",
+      "variants": [
+        {
+          "count": "6+",
+          "examples": [
+            "tests/unit/subscriptions.test.ts:11"
+          ],
+          "scope": "tests/unit"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-unit-tests-pass-time-in-no-fake-timers-no-vi-moc",
+      "report_ref": "K27",
+      "bucket": "consistent",
+      "title": "Unit tests pass time in; no fake timers, no vi.mock, integrations tested through their fakes; no snapshots",
+      "variants": [
+        {
+          "count": "0 / 0 / 0",
+          "examples": [
+            "tests/unit/jobs.test.ts:45"
+          ],
+          "scope": "tests/unit"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-e2e-signs-in-with-a-persona-cookie-signin-the-ui",
+      "report_ref": "K28",
+      "bucket": "consistent",
+      "title": "E2E signs in with a persona cookie (signIn); the UI switcher only where it is under test",
+      "variants": [
+        {
+          "count": "16 / 6",
+          "examples": [
+            "tests/e2e/helpers.ts"
+          ],
+          "scope": "tests/e2e"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "consistent-e2e-is-black-box-no-imports-from-src-no-waitfort",
+      "report_ref": "K29",
+      "bucket": "consistent",
+      "title": "E2E is black box: no imports from src, no waitForTimeout, no getByTestId",
+      "variants": [
+        {
+          "count": "0 / 0 / 0",
+          "examples": [
+            "tests/e2e/class-fill/"
+          ],
+          "scope": "tests/e2e"
+        }
+      ],
+      "outcome": "confirmed",
+      "decision": "Recorded as a rule.",
+      "decided_by": "Per Hassle",
+      "rule_ref": "docs/coding-standards/"
+    },
+    {
+      "id": "absence-no-service-or-application-layer",
+      "report_ref": "A1",
+      "bucket": "absence",
+      "title": "No service or application layer.",
+      "evidence": "Orchestration lives in server actions and jobs: actions/subscriptions.ts is 590 lines, jobs/payment-run.ts 714.",
+      "outcome": "confirmed",
+      "decision": "Deliberate. Recorded as one line: orchestration lives in server actions and jobs; do not add a service layer.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-di-container",
+      "report_ref": "A2",
+      "bucket": "absence",
+      "title": "No DI container.",
+      "evidence": "Dependencies travel on context objects (JobContext, TenantScope.db). No inversify, tsyringe or awilix.",
+      "outcome": "confirmed",
+      "decision": "Deliberate. Recorded as one line: dependencies travel on context objects; no DI container.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-way-to-hand-integrations-into-runjob",
+      "report_ref": "A3",
+      "bucket": "absence",
+      "title": "No way to hand integrations into runJob.",
+      "evidence": "RunOptions accepts db but not integrations (runner.ts:58), although integrations/index.ts:2 says the factory exists so a test can.",
+      "outcome": "neither",
+      "decision": "Gap. Cleanup ticket: let runJob take integrations.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-central-config-module",
+      "report_ref": "A4",
+      "bucket": "absence",
+      "title": "No central config module.",
+      "evidence": "Two process.env reads in src: db/client.ts:18 and instrumentation.ts:5. No secrets, because there are no external services.",
+      "outcome": "confirmed",
+      "decision": "Deliberate. No line needed.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-lint-enforced-layer-boundaries",
+      "report_ref": "A5",
+      "bucket": "absence",
+      "title": "No lint-enforced layer boundaries.",
+      "evidence": "No no-restricted-imports or boundaries plugin. Layering is convention only, which is how pages came to import jobs/runner.",
+      "outcome": "neither",
+      "decision": "Gap. Proposed lint rule (no-restricted-imports for layer boundaries), added only after a yes.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-zod-is-a-dependency-with-zero-imports",
+      "report_ref": "A6",
+      "bucket": "absence",
+      "title": "zod is a dependency with zero imports.",
+      "evidence": "Validation is by hand inside each action. Several inputs are not validated at runtime: createMember birthYear and phone, freeze months, setMemberStatus status.",
+      "outcome": "confirmed",
+      "decision": "Intent recorded: every server action validates its input at runtime. A ticket chooses the tool (adopt zod or remove it).",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-error-tsx-global-error-tsx-or-not-found-tsx",
+      "report_ref": "A7",
+      "bucket": "absence",
+      "title": "No error.tsx, global-error.tsx or not-found.tsx.",
+      "evidence": "notFound() is called four times. A thrown action error has nowhere to land (see C2).",
+      "outcome": "neither",
+      "decision": "Gap. Ticket: add error.tsx and global-error.tsx for bugs that still throw (see C2).",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-site-timezone-resolver",
+      "report_ref": "A8",
+      "bucket": "absence",
+      "title": "No site-timezone resolver.",
+      "evidence": "Every page derives a timezone itself. timezoneForCountry lives in jobs/runner.ts and ~19 pages import it from there; db/seed/blueprint.ts has a second copy.",
+      "outcome": "neither",
+      "decision": "Gap. Ticket: a site-timezone resolver outside src/jobs, which also fixes the timezone drift.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-id-prefix-validation",
+      "report_ref": "A9",
+      "bucket": "absence",
+      "title": "No id-prefix validation.",
+      "evidence": "kindOf() in db/ids.ts has zero callers. Ids are validated only by a scoped lookup returning null.",
+      "outcome": "confirmed",
+      "decision": "Deliberate. No line needed: a scoped lookup returning null is the id check.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-logger-and-no-stack-traces",
+      "report_ref": "A10",
+      "bucket": "absence",
+      "title": "No logger and no stack traces.",
+      "evidence": "recordError never receives a stack; OpenTelemetry is set up only in instrumentation.node.ts. No server action records an error.",
+      "outcome": "confirmed",
+      "decision": "Deliberate, covered by K16. Passing the stack to recordError is a ticket.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-unit-tests-for-server-actions-or-src-lib",
+      "report_ref": "A11",
+      "bucket": "absence",
+      "title": "No unit tests for server actions or src/lib.",
+      "evidence": "clock, format, session (can(), PERMISSIONS) and surface have no tests. Repositories are tested only through tenant-isolation.test.ts.",
+      "outcome": "neither",
+      "decision": "Gap. Ticket: unit tests for server actions and src/lib (can(), clock, format).",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-money-objects-are-rarely-used-outside-the-domain",
+      "report_ref": "A12",
+      "bucket": "absence",
+      "title": "Money objects are rarely used outside the domain.",
+      "evidence": "Repositories and reports return amountMinor + currency pairs; Money is built only in lib/format.ts and lib/receipt.ts.",
+      "outcome": "confirmed",
+      "decision": "Deliberate. Recorded as one line: repositories return amountMinor + currency pairs; Money is built in the domain and in format.",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "absence-no-prettier-or-other-formatter",
+      "report_ref": "A13",
+      "bucket": "absence",
+      "title": "No Prettier or other formatter.",
+      "evidence": "Only .editorconfig. Formatting is not tool-enforced.",
+      "outcome": "parked",
+      "decision": "Parked. Formatting tooling is a team choice (see Open questions).",
+      "decided_by": "Per Hassle"
+    },
+    {
+      "id": "drift-receipts-take-their-currency-from-the-amount-nev",
+      "bucket": "drift",
+      "severity": "high",
+      "title": "Receipts take their currency from the amount, never the reader (rules.md Money, ADR-0002, glossary \"Receipt\")",
+      "where": "src/lib/receipt.ts:50-74 picks currency from the locale; nb-NO is missing and falls back to SEK",
+      "effect": "Norwegian receipts show SEK",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-involuntary-churn-is-not-a-cancellation-glossary",
+      "bucket": "drift",
+      "severity": "high",
+      "title": "Involuntary churn is not a cancellation (glossary)",
+      "where": "src/jobs/payment-run.ts:536 sets status cancelling, cancelReason payment_failure on abandonment; reports/page.tsx:159,216 and export/reports.ts:169 count it as a cancellation",
+      "effect": "Churn report mixes payment problems into cancellations",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-dry-run-writes-nothing-jobs-cli-ts-40",
+      "bucket": "drift",
+      "severity": "high",
+      "title": "--dry-run writes nothing (jobs/cli.ts:40)",
+      "where": "src/jobs/payment-run.ts:97 calls discardPartialRun, which deletes charges, receipts and the run, before any dryRun check",
+      "effect": "A dry run can delete a half-finished run",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-never-query-a-tenant-scoped-table-outside-src-db",
+      "bucket": "drift",
+      "severity": "high",
+      "title": "Never query a tenant-scoped table outside src/db/repositories (rules.md, ADR-0001)",
+      "where": "~80 builder calls: export 29, jobs 24, pages 16 in 7 files, actions 8+, lib 10. e.g. actions/subscriptions.ts:131,146; payments/[runId]/page.tsx:69",
+      "effect": "Repository guards are bypassed",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-every-tenant-query-filters-on-tenant-id",
+      "bucket": "drift",
+      "severity": "high",
+      "title": "Every tenant query filters on tenant_id",
+      "where": "src/jobs/payment-run.ts:583 periodOfRun selects payment_runs by id only",
+      "effect": "Isolation relies on id uniqueness",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-a-report-query-filters-every-joined-table-on-the",
+      "bucket": "drift",
+      "severity": "high",
+      "title": "A report query filters every joined table on the tenant (ADR-0009)",
+      "where": "src/export/reports.ts:74 (charges), :103 (payment_runs), :144 and :262 (members), :387 (sites), :424 (access_sync_state) filter only one side of the join",
+      "effect": "Id foreign keys do not enforce a shared tenant, so inconsistent data could leak across tenants",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-reads-pass-rows-through-guard-adr-0001",
+      "bucket": "drift",
+      "severity": "med",
+      "title": "Reads pass rows through guard() (ADR-0001)",
+      "where": "src/db/repositories/observability.ts:109,125,186 (listEvents, listErrors, listOutbox); unguarded .get() in actions/subscriptions.ts:196,480,490",
+      "effect": "Isolation check skipped",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-fakes-write-everything-they-would-have-sent-to-o",
+      "bucket": "drift",
+      "severity": "med",
+      "title": "Fakes write everything they would have sent to outbox (rules.md Integrations)",
+      "where": "src/integrations/email/fake-sender.ts writes nothing (its header says it does); callers write outbox by hand; payment and access channels are never written",
+      "effect": "\"Did the job notify the member\" is not checkable for payments and access",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-calendar-decisions-use-the-site-s-timezone-rules",
+      "bucket": "drift",
+      "severity": "med",
+      "title": "Calendar decisions use the site's timezone (rules.md Dates)",
+      "where": "src/jobs/runner.ts:151 and ~18 pages use timezoneForCountry(tenant.country); admin/errors/page.tsx:29 hardcodes SE",
+      "effect": "Wrong day for a site whose zone differs from its country default",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-instant-to-day-only-through-localday-at-tz-adr-0",
+      "bucket": "drift",
+      "severity": "med",
+      "title": "Instant to day only through localDay(at, tz) (ADR-0005)",
+      "where": "src/export/reports.ts:225,280 and admin/[tenantId]/page.tsx:77 slice(0, 10); export/signals.ts:498",
+      "effect": "UTC day, not site day; the lint rule does not catch slices",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-amounts-are-summed-per-currency-adr-0002",
+      "bucket": "drift",
+      "severity": "med",
+      "title": "Amounts are summed per currency (ADR-0002)",
+      "where": "src/export/reports.ts:100; (tenant)/app/payments/page.tsx:73; repositories/payments.ts:153",
+      "effect": "Mixed-currency totals",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-event-actions-are-a-public-contract-add-never-re",
+      "bucket": "drift",
+      "severity": "med",
+      "title": "Event actions are a public contract; add, never repurpose (observability.ts:5)",
+      "where": "actions/subscriptions.ts:216 records subscription.frozen for a freeze removal; :419 records member.created on unblock",
+      "effect": "Exported signals miscount",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-there-is-no-default-rounding-mode-adr-0002",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "There is no default rounding mode (ADR-0002)",
+      "where": "src/domain/money.ts:54 fromMajor defaults to half-up",
+      "effect": "Talk-first file",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-never-read-raw-tenant-settings-rows-adr-0003",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Never read raw tenant_settings rows (ADR-0003)",
+      "where": "settings/page.tsx:77-84; admin/[tenantId]/page.tsx:52 (presence check only, no coercion)",
+      "effect": "Mild",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-cross-tenant-reads-are-adminscope-repository-fun",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Cross-tenant reads are AdminScope repository functions (ADR-0001)",
+      "where": "src/export/signals.ts:79-80,100,142,179 pass a raw Db; the AdminScope versions (allRunSummaries) have 0 callers",
+      "effect": "Not visible in review as cross-tenant",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-ids-use-id-prefixes-via-newid",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Ids use ID_PREFIXES via newId",
+      "where": "actions/subscriptions.ts:500 card_${memberId.slice(4)}; payment-run.ts:262 mandate_${member.id}",
+      "effect": "Ids not from the generator",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-jobs-and-request-code-never-read-the-clock-direc",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Jobs and request code never read the clock directly (ADR-0006, lib/clock.ts:8)",
+      "where": "runner.ts:166,183 finishedAt; actions/session.ts:70; export/signals.ts:288",
+      "effect": "--now replays get real times",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-plain-date-columns-end-on-agents-md-rules-md",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Plain-date columns end _on (AGENTS.md, rules.md)",
+      "where": "binding_until, access_events.local_day, seed_meta.today (binding_until is also named in the glossary)",
+      "effect": "Docs disagree with each other",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-production-code-does-not-depend-on-the-seed",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Production code does not depend on the seed",
+      "where": "src/jobs/payment-run.ts:41 imports PAYMENT_RUN_DAY from db/seed/blueprint",
+      "effect": "Layering",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-repositories-are-reached-via-index-ts-agents-md",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Repositories are reached via index.ts (AGENTS.md)",
+      "where": "0 importers of the barrel (see C11)",
+      "effect": "Doc is wrong",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-glossary-vocabulary",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Glossary vocabulary",
+      "where": "operator in admin and settings UI; \"Given up\" label; \"suspended\" (see Terminology)",
+      "effect": "Words members and staff see",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-spec-tag-goes-on-the-test-docs-testing-pr-eviden",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Spec tag goes on the test (docs/testing/pr-evidence.md:94)",
+      "where": "calendar-file/as-*.spec.ts:22 (9 files) and member-registration/as-*.spec.ts:11 (3) put @BCPLA on the describe",
+      "effect": "PR evidence mapping",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-plans-carry-a-spec-line-pr-evidence-md-16",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Plans carry a **Spec:** line (pr-evidence.md:16)",
+      "where": "specs/first-time-visitor.md, specs/site-smoke-test-plan.md",
+      "effect": "No PR evidence",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-test-month-ends-in-a-leap-year-too-rules-md-agen",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Test month ends in a leap year too (rules.md, AGENTS.md)",
+      "where": "freezes, proration and billing tests cover month ends only in 2026",
+      "effect": "Coverage gap on the busiest path",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-everything-in-src-domain-has-tests",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "Everything in src/domain has tests",
+      "where": "src/domain/class-fill.ts tallyClassFill has no direct unit test",
+      "effect": "Coverage gap",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-npm-test-runs-with-tz-utc-agents-md-57",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "npm test runs with TZ=UTC (AGENTS.md:57)",
+      "where": "Only CI sets TZ; package.json and vitest.config.mts do not",
+      "effect": "Host-timezone leaks pass locally",
+      "outcome": "drift"
+    },
+    {
+      "id": "drift-smoke-is-for-two-or-three-journeys-docs-test-tag",
+      "bucket": "drift",
+      "severity": "low",
+      "title": "@smoke is for two or three journeys (docs/test-tags.md:17)",
+      "where": "5 tests tagged; smoke.spec.ts itself untagged; CI never greps @smoke",
+      "effect": "Tag means nothing",
+      "outcome": "drift"
+    },
+    {
+      "id": "discarded-use-server-at-the-top-of-every-action-file-6-of-",
+      "bucket": "discarded",
+      "title": "'use server' at the top of every action file (6 of 6): Next.js requires it."
+    },
+    {
+      "id": "discarded-awaited-params-and-searchparams-page-layout-rout",
+      "bucket": "discarded",
+      "title": "Awaited params and searchParams, page/layout/route file names, route groups, export const dynamic: Next.js App Router."
+    },
+    {
+      "id": "discarded-export-default-in-page-layout-and-route-files-24",
+      "bucket": "discarded",
+      "title": "export default in page, layout and route files (24): App Router requirement."
+    },
+    {
+      "id": "discarded-the-path-alias-tsconfig",
+      "bucket": "discarded",
+      "title": "The @/ path alias: tsconfig."
+    },
+    {
+      "id": "discarded-strict-and-nouncheckedindexedaccess-and-the-0-pa",
+      "bucket": "discarded",
+      "title": "strict and noUncheckedIndexedAccess, and the ?? 0 patterns they produce: compiler."
+    },
+    {
+      "id": "discarded-utc-midnight-template-literals-banned-by-eslint-",
+      "bucket": "discarded",
+      "title": "UTC-midnight template literals: banned by eslint UTC_DAY. The 16 BCPLA-26 disables are known, ticketed debt."
+    },
+    {
+      "id": "discarded-tailwind-arbitrary-values-raw-hex-alpha-on-colou",
+      "bucket": "discarded",
+      "title": "Tailwind arbitrary values, raw hex, alpha on colour tokens: eslint."
+    },
+    {
+      "id": "discarded-unused-variables-prefixed-eslint",
+      "bucket": "discarded",
+      "title": "Unused variables prefixed _: eslint."
+    },
+    {
+      "id": "discarded-floating-promises-in-e2e-eslint",
+      "bucket": "discarded",
+      "title": "Floating promises in e2e: eslint."
+    },
+    {
+      "id": "discarded-synchronous-all-get-run-better-sqlite3-and-drizz",
+      "bucket": "discarded",
+      "title": "Synchronous .all() / .get() / .run(): better-sqlite3 and Drizzle default."
+    },
+    {
+      "id": "discarded-transaction-callback-written-tx-void-tx-in-one-f",
+      "bucket": "discarded",
+      "title": "Transaction callback written (tx) => { void tx; … } in one file vs () => … in six: cosmetic."
+    },
+    {
+      "id": "discarded-playwright-config-workers-1-port-3100-trace-on-r",
+      "bucket": "discarded",
+      "title": "Playwright config (workers 1, port 3100, trace on retry), the // spec: header and recordEvidence contents: already decided in docs/testing/pr-evidence.md."
+    }
+  ]
+}

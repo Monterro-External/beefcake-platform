@@ -13,6 +13,13 @@ const UTC_DAY = {
     'A plain date with a UTC time is not the site-local day. Use startOfDay(day, timezone) or localDay(at, timezone) from src/domain/dates.ts.',
 };
 
+// Value lists are string-literal unions or `as const` arrays declared once in
+// src/domain, so the schema can import them (docs/coding-standards/domain.md).
+const NO_ENUM = {
+  selector: 'TSEnumDeclaration',
+  message: 'Use a string-literal union or an as-const array in src/domain instead of enum.',
+};
+
 const config = [
   {
     ignores: [
@@ -31,7 +38,20 @@ const config = [
     // a later block's no-restricted-syntax replaces this one, never adds to it.
     files: ['src/**/*.ts', 'src/**/*.tsx', 'scripts/**/*.ts'],
     ignores: ['src/domain/dates.ts'],
-    rules: { 'no-restricted-syntax': ['error', UTC_DAY] },
+    rules: { 'no-restricted-syntax': ['error', UTC_DAY, NO_ENUM] },
+  },
+  {
+    // dates.ts is exempt from UTC_DAY above, not from the enum ban.
+    files: ['src/domain/dates.ts'],
+    rules: { 'no-restricted-syntax': ['error', NO_ENUM] },
+  },
+  {
+    // Failures go to the errors table through recordError(); CLIs write to
+    // process.stdout and process.stderr. The OpenTelemetry bridge wraps console
+    // itself, so it is the one file allowed to touch it.
+    files: ['src/**/*.ts', 'src/**/*.tsx'],
+    ignores: ['src/instrumentation.node.ts'],
+    rules: { 'no-console': 'error' },
   },
   {
     // Design tokens are the only source of colour, type, spacing and radius.
@@ -61,6 +81,7 @@ const config = [
             'Alpha modifier on a colour token. Figma variables cannot alias a colour with a new alpha. Add an explicit tint token instead.',
         },
         UTC_DAY,
+        NO_ENUM,
       ],
     },
   },
