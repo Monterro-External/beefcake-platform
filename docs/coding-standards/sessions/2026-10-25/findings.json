@@ -129,7 +129,7 @@
       "outcome": "both",
       "decision": "Both, with a rule (25 Oct 2026). Per-entity reads and writes live in src/db/repositories. Cross-entity report queries live in src/export/reports.ts, take TenantScope first and pass full rows through guard(). rules.md names this exception. Removing the dead duplicates (payments.revenueByPeriod, access.allSyncLag) is an optional cleanup ticket.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/data-access.md#reports"
+      "rule_ref": "CODING_STANDARDS.md#reports"
     },
     {
       "id": "actions-expected-failure",
@@ -163,7 +163,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). A server action returns { ok: false, message } for anything a user can cause, including a missing permission or a disabled feature. It throws only for states that mean a bug.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/server-actions.md"
+      "rule_ref": "CODING_STANDARDS.md#server-actions"
     },
     {
       "id": "actions-permission-check",
@@ -206,7 +206,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). Every server action checks a PERMISSIONS key, including member self-service (self.book, self.subscription) and staff-only actions, and returns { ok: false, message } when the check fails (per C2). Adding a non-throwing check beside requirePermission and replacing assertMay* and isBeefcakeStaff checks are cleanup tickets.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/server-actions.md"
+      "rule_ref": "CODING_STANDARDS.md#server-actions"
     },
     {
       "id": "scope-staff-narrowing",
@@ -238,7 +238,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). Staff narrow to one tenant with impersonate(admin, tenantId), so the scope keeps the staff actor. Exception: the batch signal export in src/export/signals.ts has no person behind it, so it builds per-tenant scopes the way jobs do, with tenantScope(id, { db, actorRole: 'system' }). The exception covers batch CLIs only, never a page or an action.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/pages.md"
+      "rule_ref": "CODING_STANDARDS.md#pages-and-route-handlers"
     },
     {
       "id": "time-now-source",
@@ -282,7 +282,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). clock() from src/lib/clock.ts is the only source of request time in actions and pages, and of the default now in the CLIs and the job runner. Jobs keep reading now from their context so --now replays, and domain functions take the instant as an argument. Exception: job_runs.finished_at is stamped with the real wall clock, because it records when the process actually finished. Merging defaultNow and seededToday into clock() is a cleanup ticket.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/time-and-data.md"
+      "rule_ref": "CODING_STANDARDS.md#time-ids-and-data"
     },
     {
       "id": "domain-decision-result",
@@ -322,7 +322,7 @@
       "outcome": "both",
       "decision": "Both A and C, with a rule (25 Oct 2026). A yes/no domain decision with reasons returns a discriminated union on ok. A domain word may be the discriminant where it carries meaning (granted/denied for access). { allowed, reason? } is not used in new code.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/domain.md"
+      "rule_ref": "CODING_STANDARDS.md#domain"
     },
     {
       "id": "errors-invariant-type",
@@ -364,7 +364,7 @@
       "outcome": "both",
       "decision": "Both A and B, with a rule (25 Oct 2026). Throw a built-in TypeError or RangeError for a bad argument, and a named Error subclass for anything a caller is expected to catch. A plain Error is not used. Moving proration.ts:91 to CurrencyMismatchError is a cleanup ticket.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/domain.md"
+      "rule_ref": "CODING_STANDARDS.md#domain"
     },
     {
       "id": "data-value-lists",
@@ -398,7 +398,7 @@
       "outcome": "B",
       "decision": "B is the source (25 Oct 2026). A value list is declared once in src/domain as an as-const array or union, and src/db/schema.ts imports it for its enum. No migration is needed, because the column type does not change. Adding a ChargeStatus type and switching schema.ts over are cleanup tickets.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/domain.md"
+      "rule_ref": "CODING_STANDARDS.md#domain"
     },
     {
       "id": "dates-plaindate-from-db",
@@ -432,7 +432,7 @@
       "outcome": "both",
       "decision": "Both, with a rule (25 Oct 2026). Cast as PlainDate only inside a repository mapper, for a column the schema constrains. Use assertPlainDate() for anything from a user, a URL or a file. Pages do not cast.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/data-access.md#repositories"
+      "rule_ref": "CODING_STANDARDS.md#repositories"
     },
     {
       "id": "dates-instant-strings",
@@ -464,7 +464,7 @@
       "outcome": "both",
       "decision": "Both, with a rule (25 Oct 2026). Write instants with .toISOString(). Parse with fromIso() any string that did not come from one of our own _at columns. toIso is retired (cleanup ticket).",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/time-and-data.md"
+      "rule_ref": "CODING_STANDARDS.md#time-ids-and-data"
     },
     {
       "id": "imports-repositories",
@@ -497,7 +497,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). Import repositories as import * as xRepo from '@/db/repositories/x'; named imports from observability are allowed. AGENTS.md is corrected to match. Deleting the unused barrels is a cleanup ticket.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/data-access.md#repositories"
+      "rule_ref": "CODING_STANDARDS.md#repositories"
     },
     {
       "id": "config-db-path",
@@ -529,7 +529,7 @@
       "outcome": "both",
       "decision": "Both, with a rule (25 Oct 2026). src and scripts call databasePath(). tests/e2e and root config files may spell out the env var and default, because e2e imports nothing from src.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/time-and-data.md"
+      "rule_ref": "CODING_STANDARDS.md#time-ids-and-data"
     },
     {
       "id": "unit-test-db-setup",
@@ -563,7 +563,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). Unit tests get a database from createTestDb(). Until it takes an optional seed (small ticket), hand-rolled setup is allowed for seeded tests only.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/unit-tests.md"
+      "rule_ref": "CODING_STANDARDS.md#unit-tests"
     },
     {
       "id": "e2e-test-data",
@@ -604,7 +604,7 @@
       "outcome": "both",
       "decision": "All three, with a rule (25 Oct 2026). A test that needs a precise state uses a fixture that inserts its own rows and removes them. Read-only checks may find rows in the seed. A test creates rows through the UI only when creating them is what it tests, and then it removes them.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/e2e-tests.md"
+      "rule_ref": "CODING_STANDARDS.md#e2e-tests"
     },
     {
       "id": "e2e-file-generations",
@@ -647,7 +647,7 @@
       "outcome": "both",
       "decision": "A and B, with a rule (25 Oct 2026). Tests tied to a BCPLA Spec use the acceptance template. Plan-driven tests with no ticket use the planner layout. Both import expect from ../evidence. The legacy root files stay as they are and are never copied.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/e2e-tests.md"
+      "rule_ref": "CODING_STANDARDS.md#e2e-tests"
     },
     {
       "id": "e2e-form-locators",
@@ -679,7 +679,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). Form fields are located with getByLabel. data-* attributes are used only to target table rows.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/e2e-tests.md"
+      "rule_ref": "CODING_STANDARDS.md#e2e-tests"
     },
     {
       "id": "unit-test-titles",
@@ -713,7 +713,7 @@
       "outcome": "A",
       "decision": "A is the standard (25 Oct 2026). An it() title is a predicate that completes its describe(). Existing standalone titles stay as they are.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/unit-tests.md"
+      "rule_ref": "CODING_STANDARDS.md#unit-tests"
     },
     {
       "id": "term-tenant",
@@ -963,7 +963,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-server-actions-take-typed-positional-arguments-n",
@@ -982,7 +982,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-action-messages-are-full-user-facing-sentences-t",
@@ -1001,7 +1001,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-clients-call-actions-with-usetransition-local-us",
@@ -1020,7 +1020,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-after-a-write-an-action-calls-revalidatepath-sur",
@@ -1039,7 +1039,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-pages-read-through-repositories-directly-server-",
@@ -1058,7 +1058,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-get-a-scope-with-tenantscopefor-await-getsession",
@@ -1077,7 +1077,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-repository-functions-synchronous-named-functions",
@@ -1096,7 +1096,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-cross-tenant-repository-functions-take-adminscop",
@@ -1115,7 +1115,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-row-to-domain-mappers-live-in-the-repository-tor",
@@ -1134,7 +1134,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-transactions-are-opened-by-the-caller-never-insi",
@@ -1153,7 +1153,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-drizzle-query-builder-only-raw-sql-strings-only-",
@@ -1172,7 +1172,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-pagination-filter-limit-offset-pages-read-page-d",
@@ -1210,7 +1210,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-ts-objects-are-camelcase-event-payloads-outbox-p",
@@ -1229,7 +1229,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-failures-are-logged-with-recorderror-to-the-erro",
@@ -1248,7 +1248,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-route-handlers-return-nextresponse-json-error-hi",
@@ -1267,7 +1267,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-money-and-dates-are-displayed-only-through-src-l",
@@ -1286,7 +1286,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-ids-come-only-from-newid-kind-at-runtime-and-seq",
@@ -1305,7 +1305,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-string-literal-unions-for-domain-enums-no-enum-k",
@@ -1324,7 +1324,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-file-names-are-kebab-case",
@@ -1362,7 +1362,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-object-shapes-are-interfaces-with-readonly-field",
@@ -1381,7 +1381,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-boolean-fields-are-bare-adjectives-granted-dryru",
@@ -1438,7 +1438,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-unit-tests-pass-time-in-no-fake-timers-no-vi-moc",
@@ -1457,7 +1457,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-e2e-signs-in-with-a-persona-cookie-signin-the-ui",
@@ -1476,7 +1476,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "consistent-e2e-is-black-box-no-imports-from-src-no-waitfort",
@@ -1495,7 +1495,7 @@
       "outcome": "confirmed",
       "decision": "Recorded as a rule.",
       "decided_by": "Per Hassle",
-      "rule_ref": "docs/coding-standards/"
+      "rule_ref": "CODING_STANDARDS.md"
     },
     {
       "id": "absence-no-service-or-application-layer",
