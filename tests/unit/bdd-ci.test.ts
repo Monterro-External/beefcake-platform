@@ -1,5 +1,7 @@
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 const require = createRequire(import.meta.url);
@@ -7,7 +9,7 @@ const {
   MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, specGrep, renderReport, upsertComment,
   findLinkedSpecs,
 } = require('../../.github/scripts/bdd-pr-comment.cjs');
-const { chaptersFromTrace, timestamp, renderTimeline } = require('../../.github/scripts/bdd-timeline.cjs');
+const { chaptersFromTrace, timestamp, renderTimeline, createTimeline, timelineFailure } = require('../../.github/scripts/bdd-timeline.cjs');
 
 // A copy of the registration Spec's Gherkin stands in for a Spec issue's description.
 const gherkin = readFileSync(new URL('./fixtures/registration-spec.md', import.meta.url), 'utf8');
@@ -317,5 +319,29 @@ describe('video timestamps', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('data-time="6.7"');
     expect(html).toContain('video.currentTime=Number(button.dataset.time)');
+  });
+
+  it('passes with nothing to record when the linked Spec has no runnable tests yet', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bdd-timeline-'));
+    try {
+      const timeline = createTimeline({ suites: [] }, dir);
+      expect(timeline).toEqual({ tested: 0, scenarios: [], errors: [] });
+      expect(timelineFailure(timeline)).toBeNull();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails when a test that ran left no recording', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bdd-timeline-'));
+    try {
+      const timeline = createTimeline({ suites: [{ specs: [{ id: 'a1', title: 'Registers a member',
+        tests: [{ projectName: 'chromium', results: [{ status: 'passed', attachments: [] }] }] }] }] }, dir);
+      expect(timeline.tested).toBe(1);
+      expect(timelineFailure(timeline)).toMatch(/expected one video and one trace/);
+      expect(timelineFailure({ tested: 1, scenarios: [], errors: [] })).toBe('No scenarios recorded');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
