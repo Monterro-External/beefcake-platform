@@ -1,4 +1,6 @@
 const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { collectSpecs, timestamp } = require('./bdd-timeline.cjs');
 
 const MARKER = '<!-- beefcake-bdd-evidence -->';
@@ -240,11 +242,10 @@ async function upsertComment({ github, context, body }) {
 }
 
 /**
- * The Specs this PR links, read from Linear: PR → linked BCPLA tickets → the Spec
- * that holds their Gherkin. Shared by the step that picks which scenarios to run
- * and the step that publishes their evidence.
+ * The tickets this PR links, read from Linear: PR → linked BCPLA tickets, each
+ * with the parent Spec that holds their Gherkin.
  */
-async function readLinkedSpecs({ github, context, core, fetchImpl = fetch }) {
+async function readLinkedIssues({ github, context, core, fetchImpl = fetch }) {
   const pr = context.payload.pull_request;
   // Read the PR as it is now: editing the description does not start a run, but a
   // re-run should still see a ticket added since.
@@ -268,7 +269,14 @@ async function readLinkedSpecs({ github, context, core, fetchImpl = fetch }) {
       }
     }
   }
-  return { pr, linkedIds, notes, resolved: resolveSpecs(issues) };
+  return { linkedIds, notes, issues };
+}
+
+// The find step saves what it read, so publication checks the Specs the tests ran
+// for even if the PR or a ticket changes during the run. Outside test-results/,
+// which Playwright empties when it starts.
+function selectionFile() {
+  return path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'bdd-linked-specs.json');
 }
 
 /**
@@ -281,8 +289,11 @@ function specGrep(specs) {
 }
 
 /** Sets the `grep` and `specs` outputs the acceptance job runs its tests with. */
-async function findLinkedSpecs({ github, context, core, fetchImpl = fetch }) {
-  const { resolved, notes } = await readLinkedSpecs({ github, context, core, fetchImpl });
+async function findLinkedSpecs({ github, context, core, fetchImpl = fetch, selection = selectionFile() }) {
+  const linked = await readLinkedIssues({ github, context, core, fetchImpl });
+  fs.writeFileSync(selection, JSON.stringify(linked));
+  const { notes } = linked;
+  const resolved = resolveSpecs(linked.issues);
   for (const note of [...notes, ...resolved.notes]) core.info(note);
   const ids = resolved.specs.map((spec) => spec.id);
   core.info(ids.length ? `Running the @acceptance scenarios of ${ids.join(', ')}.` : 'No linked Spec: no @acceptance scenarios to record.');
@@ -290,8 +301,13 @@ async function findLinkedSpecs({ github, context, core, fetchImpl = fetch }) {
   core.setOutput('grep', specGrep(resolved.specs));
 }
 
-async function publish({ github, context, core, fetchImpl = fetch }) {
-  const { pr, linkedIds, notes, resolved } = await readLinkedSpecs({ github, context, core, fetchImpl });
+async function publish({ github, context, core, fetchImpl = fetch, selection = selectionFile() }) {
+  const pr = context.payload.pull_request;
+  // Without a saved selection the find step did not finish, and the tests did not run.
+  const { linkedIds, notes, issues } = fs.existsSync(selection)
+    ? JSON.parse(fs.readFileSync(selection, 'utf8'))
+    : await readLinkedIssues({ github, context, core, fetchImpl });
+  const resolved = resolveSpecs(issues);
   const reportPath = 'test-results/bdd-results.json';
   const report = fs.existsSync(reportPath) ? JSON.parse(fs.readFileSync(reportPath, 'utf8')) : undefined;
   const timelinePath = 'test-results/bdd-evidence/chapters.json';

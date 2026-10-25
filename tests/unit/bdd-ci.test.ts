@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest';
 const require = createRequire(import.meta.url);
 const {
   MARKER, parseGherkin, linkedIssueIds, parseCovers, fetchIssue, resolveSpecs, specGrep, renderReport, upsertComment,
-  findLinkedSpecs,
+  findLinkedSpecs, publish,
 } = require('../../.github/scripts/bdd-pr-comment.cjs');
 const { chaptersFromTrace, timestamp, renderTimeline, createTimeline, timelineFailure } = require('../../.github/scripts/bdd-timeline.cjs');
 
@@ -110,26 +110,72 @@ describe('choosing which scenarios to record', () => {
     expect(grep.test(tagged('@acceptance', '@BCPLA-36'))).toBe(true);
   });
 
-  it('records nothing when the PR links no Spec', async () => {
-    expect(specGrep([])).toBe('');
+  // findLinkedSpecs saves what it read from Linear for the publish step.
+  const selectionPath = () => join(mkdtempSync(join(tmpdir(), 'bdd-selection-')), 'linked.json');
+  const outputsOf = () => {
     const outputs: Record<string, string> = {};
     const core = { info: vi.fn(), warning: vi.fn(), setOutput: (key: string, value: string) => { outputs[key] = value; } };
+    return { outputs, core };
+  };
+  const prFor = (title: string) => ({ number: 7, head: { ref: 'per/bcpla-143-registration', sha: 'head-sha', repo: { full_name: 'contributor/fork' } }, title, body: '' });
+
+  it('records nothing when the PR links no Spec', async () => {
+    expect(specGrep([])).toBe('');
+    const { outputs, core } = outputsOf();
     const context = { repo: { owner: 'o', repo: 'r' }, payload: {} };
-    await findLinkedSpecs({ github: {}, context, core });
+    await findLinkedSpecs({ github: {}, context, core, selection: selectionPath() });
     expect(outputs).toEqual({ specs: '', grep: '' });
+  });
+
+  it('records nothing and warns when the PR links a ticket but Linear is not configured', async () => {
+    vi.stubEnv('LINEAR_API_KEY', undefined);
+    try {
+      const pr = prFor('Registration');
+      const github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: pr }) } } };
+      const fetchImpl = vi.fn();
+      const { outputs, core } = outputsOf();
+      await findLinkedSpecs({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } }, core, fetchImpl, selection: selectionPath() });
+      expect(outputs).toEqual({ specs: '', grep: '' });
+      expect(core.warning).toHaveBeenCalledWith(expect.stringContaining('LINEAR_API_KEY'));
+      expect(fetchImpl).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('reads the linked Specs from Linear for the PR it runs on', async () => {
     vi.stubEnv('LINEAR_API_KEY', 'key');
     try {
       const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { issue: ticket('BCPLA-143', 'AS-1') } }) });
-      const pr = { number: 7, head: { ref: 'per/bcpla-143-registration' }, title: 'Registration', body: '' };
+      const pr = prFor('Registration');
       const github = { rest: { pulls: { get: vi.fn().mockResolvedValue({ data: pr }) } } };
-      const outputs: Record<string, string> = {};
-      const core = { info: vi.fn(), warning: vi.fn(), setOutput: (key: string, value: string) => { outputs[key] = value; } };
-      await findLinkedSpecs({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } }, core, fetchImpl });
+      const { outputs, core } = outputsOf();
+      await findLinkedSpecs({ github, context: { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr } }, core, fetchImpl, selection: selectionPath() });
       expect(outputs.specs).toBe('BCPLA-142');
       expect(new RegExp(outputs.grep!).test('x @acceptance @BCPLA-142')).toBe(true);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('publishes the Specs the tests ran for even if the PR changes during the run', async () => {
+    vi.stubEnv('LINEAR_API_KEY', 'key');
+    try {
+      const selection = selectionPath();
+      const fetchImpl = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { issue: ticket('BCPLA-143', 'AS-1') } }) });
+      const pr = prFor('Registration');
+      const get = vi.fn().mockResolvedValue({ data: pr });
+      const context = { repo: { owner: 'o', repo: 'r' }, payload: { pull_request: pr }, serverUrl: 'https://github.com', runId: 1, sha: 'merge-sha' };
+      await findLinkedSpecs({ github: { rest: { pulls: { get } } }, context, core: outputsOf().core, fetchImpl, selection });
+
+      // The ticket is unlinked mid-run: a fresh read would find no Spec.
+      get.mockResolvedValue({ data: { ...pr, head: { ...pr.head, ref: 'per/other' } } });
+      fetchImpl.mockClear();
+      const summary = { addRaw: vi.fn().mockReturnThis(), write: vi.fn() };
+      const core = { info: vi.fn(), warning: vi.fn(), setFailed: vi.fn(), summary };
+      await publish({ github: { rest: { pulls: { get } } }, context, core, fetchImpl, selection });
+      expect(fetchImpl).not.toHaveBeenCalled();
+      expect(summary.addRaw.mock.calls[0]![0]).toContain('BCPLA-142');
     } finally {
       vi.unstubAllEnvs();
     }
