@@ -1,0 +1,761 @@
+<title>Beefcake Conventions Scan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one reading column (~68rem) of stacked sections; cards are the only boxed objects. */
+:root {
+  --ink: oklch(0.22 0.01 250);
+  --ink-muted: oklch(0.48 0.012 250);
+  --line: oklch(0.9 0.005 250);
+  --line-soft: oklch(0.945 0.003 250);
+  --surface: oklch(0.985 0.002 250);
+  --raised: oklch(1 0 0);
+  --accent: oklch(0.52 0.14 250);
+  --accent-soft: oklch(0.95 0.03 250);
+  --a: oklch(0.52 0.14 250);
+  --b: oklch(0.62 0.15 55);
+  --c: oklch(0.55 0.12 300);
+  --good: oklch(0.55 0.13 150);
+  --good-soft: oklch(0.94 0.03 150);
+  --warn: oklch(0.6 0.14 75);
+  --warn-soft: oklch(0.95 0.04 84);
+  --bad: oklch(0.55 0.18 25);
+  --bad-soft: oklch(0.94 0.03 15);
+  --code-bg: oklch(0.965 0.004 250);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: oklch(0.93 0.005 250); --ink-muted: oklch(0.7 0.01 250);
+    --line: oklch(0.33 0.01 250); --line-soft: oklch(0.27 0.01 250);
+    --surface: oklch(0.18 0.008 250); --raised: oklch(0.22 0.01 250);
+    --accent: oklch(0.72 0.12 250); --accent-soft: oklch(0.3 0.05 250);
+    --a: oklch(0.7 0.12 250); --b: oklch(0.74 0.14 60); --c: oklch(0.72 0.11 300);
+    --good: oklch(0.74 0.13 150); --good-soft: oklch(0.3 0.05 150);
+    --warn: oklch(0.8 0.13 80); --warn-soft: oklch(0.32 0.05 80);
+    --bad: oklch(0.72 0.15 25); --bad-soft: oklch(0.32 0.06 20);
+    --code-bg: oklch(0.15 0.008 250);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: oklch(0.93 0.005 250); --ink-muted: oklch(0.7 0.01 250);
+  --line: oklch(0.33 0.01 250); --line-soft: oklch(0.27 0.01 250);
+  --surface: oklch(0.18 0.008 250); --raised: oklch(0.22 0.01 250);
+  --accent: oklch(0.72 0.12 250); --accent-soft: oklch(0.3 0.05 250);
+  --a: oklch(0.7 0.12 250); --b: oklch(0.74 0.14 60); --c: oklch(0.72 0.11 300);
+  --good: oklch(0.74 0.13 150); --good-soft: oklch(0.3 0.05 150);
+  --warn: oklch(0.8 0.13 80); --warn-soft: oklch(0.32 0.05 80);
+  --bad: oklch(0.72 0.15 25); --bad-soft: oklch(0.32 0.06 20);
+  --code-bg: oklch(0.15 0.008 250);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--surface); color: var(--ink); font-family: var(--font-sans);
+  font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 32px 64px;
+}
+main { max-width: 68rem; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+h1, h2, h3 { text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: 2rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.375rem; }
+h3 { font-size: 1.0625rem; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+.eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; font-weight: 600; color: var(--ink-muted); }
+.muted { color: var(--ink-muted); }
+section { display: flex; flex-direction: column; gap: 16px; }
+section > header { display: flex; flex-direction: column; gap: 6px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
+
+/* overview */
+.meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-muted); font-size: 0.9rem; }
+.tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); background: var(--raised); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 2px; text-decoration: none; color: inherit; }
+.tile:hover, .tile:focus-visible { border-color: var(--accent); outline: none; }
+.tile b { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 0.82rem; color: var(--ink-muted); }
+.tile i { display: block; height: 4px; border-radius: 2px; margin-top: 6px; }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.diagram { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); padding: 16px; }
+.diagram pre.mermaid { margin: 0; background: transparent; min-width: 560px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.85rem; color: var(--ink-muted); }
+.legend span::before { content: ""; display: inline-block; width: 22px; height: 0; border-top: 2px solid var(--ink-muted); vertical-align: middle; margin-right: 6px; }
+.legend .dotted::before { border-top: 2px dashed oklch(0.62 0.17 45); }
+
+/* competing cards */
+.card { border: 1px solid var(--line); background: var(--raised); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.card-head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; flex-wrap: wrap; }
+.card-head h3 { flex: 1 1 320px; }
+.tag { font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.tag.high { background: var(--bad-soft); color: var(--bad); }
+.tag.med { background: var(--warn-soft); color: var(--warn); }
+.tag.low { background: var(--line-soft); color: var(--ink-muted); }
+.tag.decided { background: var(--good-soft); color: var(--good); }
+.tag.open { background: var(--accent-soft); color: var(--accent); }
+.usage { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--line-soft); }
+.usage i { display: block; height: 100%; }
+.usage-label { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.82rem; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+.variants { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.variant { border-top: 3px solid var(--a); background: var(--surface); border-radius: 4px; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.variant h4 { margin: 0; font-size: 0.92rem; display: flex; justify-content: space-between; gap: 8px; }
+.variant h4 .n { font-variant-numeric: tabular-nums; color: var(--ink-muted); font-weight: 500; white-space: nowrap; }
+.variant pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 10px; overflow-x: auto; font-size: 0.78rem; line-height: 1.45; }
+.variant ul { margin: 0; padding-left: 16px; font-size: 0.8rem; color: var(--ink-muted); }
+.variant ul code { overflow-wrap: anywhere; }
+.recency { font-size: 0.8rem; color: var(--ink-muted); }
+.why { font-size: 0.92rem; }
+.reco { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 10px 12px; border-radius: 0 4px 4px 0; font-size: 0.92rem; display: flex; flex-direction: column; gap: 2px; }
+.decision { border: 1px dashed var(--line); border-radius: 4px; padding: 10px 12px; font-size: 0.92rem; display: flex; flex-direction: column; gap: 2px; }
+.decision.set { border-style: solid; border-color: var(--good); }
+.layers { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.78rem; }
+.layers span { border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; background: var(--surface); }
+.layers span[data-v] { border-width: 2px; }
+
+/* tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--raised); }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line-soft); }
+th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-muted); font-weight: 600; background: var(--surface); }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td code { overflow-wrap: anywhere; }
+.sev { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.sev.high { background: var(--bad); } .sev.med { background: var(--warn); } .sev.low { background: var(--ink-muted); }
+
+ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; }
+ul.plain li { max-width: 80ch; }
+details { border: 1px solid var(--line); border-radius: 6px; background: var(--raised); padding: 12px 16px; }
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 10px; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.9rem; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<main>
+  <section id="overview">
+    <div class="eyebrow">Convention discovery · report</div>
+    <h1>Beefcake Conventions Scan</h1>
+    <p>Patterns found in <code>beefcake-platform</code> at commit <code>831d102</code> (develop, 21 Oct 2026), scanned 25 Oct 2026 across 194 source and test files under <code>src/</code> and <code>tests/</code> (482 tracked files in total). Rules already written in <code>AGENTS.md</code>, <code>docs/agents/rules.md</code>, the glossary, the eight ADRs, <code>eslint.config.mjs</code> and <code>docs/testing/</code> were treated as decided. Where code contradicts them, it is listed as drift, not asked again.</p>
+    <div class="meta"><span>Nothing in this report is a rule yet.</span><span>Each item becomes one only after an explicit yes.</span></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="toc"><a href="#competing">Competing patterns</a><a href="#terms">Terminology</a><a href="#consistent">Consistent</a><a href="#absences">Absences</a><a href="#drift">Drift</a><a href="#discarded">Discarded</a><a href="#written">Where decisions went</a><a href="#followup">Follow-up work</a><a href="#open">Open questions</a></div>
+    <h2 style="margin-top:12px">How the code is layered today</h2>
+    <p class="muted">Arrows point from importer to imported module, labelled with import counts. Dashed orange edges are where the code competes with itself or with a documented rule.</p>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart TD
+  components["components"]
+  pages["pages and layouts<br/>src/app"]
+  actions["server actions<br/>src/app/actions"]
+  export["reports and signals<br/>src/export"]
+  jobs["jobs<br/>src/jobs"]
+  lib["lib<br/>session, clock, format"]
+  repos["repositories<br/>src/db/repositories"]
+  integrations["integrations and fakes"]
+  seed["seed"]
+  db[("schema and client<br/>src/db")]
+  domain["domain (pure leaf)<br/>src/domain"]
+  pages -->|50| repos
+  pages -->|26| domain
+  pages -->|68| lib
+  pages -->|14| actions
+  pages -.->|"11 read model"| export
+  pages -.->|"~19 timezoneForCountry"| jobs
+  pages -.->|"16 inline queries"| db
+  components -->|2| actions
+  actions -->|14| repos
+  actions -.->|"8+ inline writes"| db
+  actions -->|8| domain
+  actions -->|"2 factory"| integrations
+  jobs -->|13| repos
+  jobs -.->|"24 inline"| db
+  jobs -->|12| domain
+  jobs -->|2| integrations
+  jobs -.->|"1 PAYMENT_RUN_DAY"| seed
+  export -.->|"29 raw Db"| db
+  export -->|5| repos
+  export -.->|"1 defaultNow"| jobs
+  repos -->|7| db
+  repos -->|"9 types"| domain
+  lib -->|6| domain
+  integrations -->|5| domain
+  seed -->|22| domain
+  linkStyle 4,5,6,9,13,16,17,19 stroke:#e0672b,stroke-width:2px
+</pre>
+    </div>
+    <div class="legend"><span>import that follows the documented layering</span><span class="dotted">bypasses a repository, or crosses a layer it should not</span></div>
+  </section>
+
+  <section id="competing">
+    <header>
+      <div class="eyebrow">Needs a decision</div>
+      <h2>Competing patterns</h2>
+      <p class="muted">Ordered by blast radius: data access and isolation first, test style last. Each card shows the variants with counts and paths, which one is newer, and a recommendation. The decision field stays empty until the interview.</p>
+    </header>
+    <div id="cards" style="display:flex;flex-direction:column;gap:20px"></div>
+  </section>
+
+  <section id="terms">
+    <header>
+      <div class="eyebrow">Words</div>
+      <h2>Terminology map</h2>
+      <p class="muted">Synonyms cluster around the concept they name. Red edges contradict the glossary. Amber edges are words the glossary does not decide yet. Grey boxes are one word used for two concepts.</p>
+    </header>
+    <div class="diagram">
+<pre class="mermaid">
+graph LR
+  T(("Tenant")) --- t1["operator · 51 in src"]
+  T --- t2["club, chain · 3"]
+  S(("Subscription")) --- s1["membership · 60, member UI"]
+  SI(("Site")) --- si1["gym · 30, member UI"]
+  AB(("Abandoned")) --- ab1["Given up · 10"]
+  F(("Freeze")) --- f1["suspended · 2, pause · 1"]
+  IC(("Involuntary churn")) --- ic1["paymentDriven · cancelling"]
+  AE(("Access event")) --- ae1["visit · 5, swipe · 4, check-in · 7"]
+  EV["event"] --> e1(("events table row"))
+  EV --> e2(("access event in tenant UI"))
+  EV --> e3(("ICS calendar entry"))
+  PL["plan"] --> p1(("tenant's Plan"))
+  PL --> p2(("tenants.plan_tier, our pricing"))
+  SE["session"] --> se1(("auth / persona session"))
+  SE --> se2(("class, in the glossary"))
+  ME["member"] --> me1(("members row"))
+  ME --> me2(("users.role = 'member'"))
+  linkStyle 0,1,4,5,6 stroke:#d64545,stroke-width:2px
+  linkStyle 2,3,7 stroke:#d69a2b,stroke-width:2px
+  classDef over fill:#8a8f96,stroke:#8a8f96,color:#fff
+  class EV,PL,SE,ME over
+</pre>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Concept</th><th>Words in use</th><th>Glossary</th><th>Example paths</th></tr></thead>
+      <tbody id="terms-body"></tbody>
+    </table></div>
+  </section>
+
+  <section id="consistent">
+    <header>
+      <div class="eyebrow">Confirm or reject</div>
+      <h2>Consistent conventions</h2>
+      <p class="muted">At least three examples and no real rival. Each was answered on 25 Oct 2026: recorded as a rule, or true but not worth a line because agents copy it from neighbouring code.</p>
+    </header>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Convention</th><th>Scope</th><th>Count</th><th>Example</th><th>Status</th></tr></thead>
+      <tbody id="consistent-body"></tbody>
+    </table></div>
+  </section>
+
+  <section id="absences">
+    <header>
+      <div class="eyebrow">Was this on purpose?</div>
+      <h2>Deliberate absences</h2>
+      <p class="muted">Things that are conspicuously missing. If an absence is intentional, it is worth one line so an agent does not add the missing piece.</p>
+    </header>
+    <ul class="plain" id="absences-list"></ul>
+  </section>
+
+  <section id="drift">
+    <header>
+      <div class="eyebrow">Report only</div>
+      <h2>Drift from documented decisions</h2>
+      <p class="muted">The code contradicts a rule that is already written down. These are not questions about the rule; they are candidates for fix tickets. Red rows change what a member, tenant or report sees.</p>
+    </header>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Documented decision</th><th>Where the code contradicts it</th><th>Effect</th></tr></thead>
+      <tbody id="drift-body"></tbody>
+    </table></div>
+  </section>
+
+  <section id="discarded">
+    <header>
+      <div class="eyebrow">Filtered out</div>
+      <h2>Discarded</h2>
+    </header>
+    <details>
+      <summary id="discarded-summary">Framework defaults and tool-enforced patterns</summary>
+      <ul class="plain" id="discarded-list"></ul>
+    </details>
+  </section>
+
+  <section id="written">
+    <header>
+      <div class="eyebrow">Outcome</div>
+      <h2>Where the decisions were written</h2>
+    </header>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Destination</th><th>What went there</th></tr></thead>
+      <tbody>
+        <tr><td><code>docs/agents/conventions.md</code> (new)</td><td>C2–C17 and the recorded K and A items, grouped by layer, each with an example to copy.</td></tr>
+        <tr><td><code>docs/adr/0009-report-queries-in-export.md</code> (new)</td><td>C1: cross-entity report queries live in src/export/reports.ts.</td></tr>
+        <tr><td><code>docs/agents/rules.md</code></td><td>The ADR-0009 exception, in the tenant-isolation section.</td></tr>
+        <tr><td><code>docs/domain-glossary.md</code></td><td>Plan tier, churned, former, the user/member split, Notice given, the Class wording, sites_scope, and a Words on screen section.</td></tr>
+        <tr><td><code>AGENTS.md</code></td><td>Pointer to conventions.md; repository import style corrected (C11); ADR-0009 and this report in the docs list.</td></tr>
+        <tr><td><code>eslint.config.mjs</code></td><td>Tool rules instead of prose: no-console in src (K16) and no TS enum (K20). Both pass today.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="followup">
+    <header>
+      <div class="eyebrow">Not part of this change</div>
+      <h2>Follow-up work</h2>
+      <p class="muted">Cleanup that brings the code in line with the decisions. Nothing here was refactored. Turn it into tickets with /to-tickets after the team has reviewed the conventions. The drift table above is the second source of tickets.</p>
+    </header>
+    <ul class="plain" id="followup-list"></ul>
+  </section>
+
+  <section id="open">
+    <header>
+      <div class="eyebrow">During and after the interview</div>
+      <h2>Open questions</h2>
+    </header>
+    <ul class="plain" id="open-list"></ul>
+  </section>
+</main>
+
+<script>
+const V = { A: 'var(--a)', B: 'var(--b)', C: 'var(--c)', D: 'var(--ink-muted)' };
+
+// Each card: decision stays null until the developer answers.
+const COMPETING = [
+  {
+    id: 'C1', blast: 'high', title: 'Where report and aggregate queries live',
+    why: 'An agent adding a report has two homes to choose from. Two queries already exist twice (revenue by period, sync lag), and the copy in the repository is the dead one.',
+    variants: [
+      { k: 'A', name: 'Repository function', n: 4, code: "// src/db/repositories/payments.ts:94\nexport function failureBreakdown(scope: TenantScope, ...)\n  return scope.db.select({...}).from(charges)...", paths: ['src/db/repositories/payments.ts:94', 'src/db/repositories/access.ts:33', 'src/db/repositories/classes.ts:272'] },
+      { k: 'B', name: 'src/export/reports.ts as read model', n: 19, code: "// src/export/reports.ts:63, 10 callers\nexport function revenueByPeriod(scope: TenantScope, ...) {\n  return scope.db.select({...}).from(charges)...", paths: ['src/export/reports.ts:63', 'src/export/reports.ts:411', 'src/app/(tenant)/app/page.tsx:55'] },
+    ],
+    layers: { A: ['repositories'], B: ['src/export', 'pages (11 imports)'] },
+    recency: 'B is newer: reports.ts was last changed 2026-10-09, payments.ts 2026-03-03.',
+    reco: 'Both, with a rule: per-entity reads and writes live in repositories; cross-entity report queries live in src/export/reports.ts, take TenantScope first and guard full rows. This makes the existing read model an explicit exception to the rule in rules.md.',
+    decision: 'Both, with a rule (25 Oct 2026). Per-entity reads and writes live in src/db/repositories. Cross-entity report queries live in src/export/reports.ts, take TenantScope first and pass full rows through guard(). rules.md names this exception. Removing the dead duplicates (payments.revenueByPeriod, access.allSyncLag) is an optional cleanup ticket.',
+  },
+  {
+    id: 'C2', blast: 'high', title: 'How a server action reports an expected failure',
+    why: 'There is no error.tsx and no client caller catches. A thrown denial or a bad date becomes an unhandled rejection instead of a message at the desk.',
+    variants: [
+      { k: 'A', name: 'Return { ok: false, message }', n: 40, code: "// src/app/actions/admin.ts:28\nif (!session.isBeefcakeStaff)\n  return { ok: false, message: 'Only Beefcake staff…' };", paths: ['src/app/actions/subscriptions.ts:102', 'src/app/actions/bookings.ts:57', 'src/app/actions/settings.ts:41'] },
+      { k: 'B', name: 'Throw', n: 9, code: "// src/lib/session.ts:106, used by 8 actions\nrequirePermission(session, 'members.edit'); // throws\n// src/app/actions/subscriptions.ts:82\nthrow new Error('Self-service is off…');", paths: ['src/lib/session.ts:106', 'src/app/actions/subscriptions.ts:79', 'src/app/actions/bookings.ts:45'] },
+    ],
+    layers: { A: ['actions (5 files)'], B: ['lib/session', 'actions (assert helpers)'] },
+    recency: 'Mixed. Return-style actions date 2026-04 to 2026-08; the throwing session helpers 2026-09-05.',
+    reco: 'A is the standard: return { ok: false, message } for anything a user can cause, including a missing permission. Throw only for states that indicate a programming error.',
+    decision: 'A is the standard (25 Oct 2026). A server action returns { ok: false, message } for anything a user can cause, including a missing permission or a disabled feature. It throws only for states that mean a bug.',
+  },
+  {
+    id: 'C3', blast: 'high', title: 'How a server action checks who may do it',
+    why: 'PERMISSIONS defines self.book and self.subscription, and nothing uses them. Member rights are enforced ad hoc, so a new action is easy to ship with no check at all (statusOf and cancelBooking already are).',
+    variants: [
+      { k: 'A', name: 'requirePermission(session, key)', n: 11, code: "requirePermission(ctx.session, 'settings.edit');", paths: ['src/app/actions/settings.ts', 'src/app/actions/payments.ts', 'src/app/actions/bookings.ts (markAttendance)'] },
+      { k: 'B', name: 'Hand-written assertMay*', n: 2, code: "// src/app/actions/subscriptions.ts:69\nfunction assertMayChange(ctx, memberId) {\n  if (ctx.session.role === 'member' && …) throw …", paths: ['src/app/actions/subscriptions.ts:69', 'src/app/actions/bookings.ts:42'] },
+      { k: 'C', name: 'session.isBeefcakeStaff', n: 2, code: "if (!session.isBeefcakeStaff) return { ok: false, … };", paths: ['src/app/actions/admin.ts:28', 'src/lib/session.ts:52', 'admin pages'] },
+    ],
+    recency: 'No clear direction; all three were touched between 2026-08 and 2026-10.',
+    reco: 'A is the standard: every action calls can() or requirePermission with a PERMISSIONS key, including member self-service and staff-only actions. Combine with the C2 answer for whether it returns or throws.',
+    decision: 'A is the standard (25 Oct 2026). Every server action checks a PERMISSIONS key, including member self-service (self.book, self.subscription) and staff-only actions, and returns { ok: false, message } when the check fails (per C2). Adding a non-throwing check beside requirePermission and replacing assertMay* and isBeefcakeStaff checks are cleanup tickets.',
+  },
+  {
+    id: 'C4', blast: 'high', title: 'How Beefcake staff narrow to one tenant',
+    why: 'scope.ts offers impersonate() so the narrowed scope keeps the staff actor. Admin pages instead build an actorless tenantScope, so anything they write is not attributable.',
+    variants: [
+      { k: 'A', name: 'impersonate(admin, tenantId)', n: 1, code: "// src/lib/session.ts:186\nreturn impersonate(admin, session.impersonating.id);", paths: ['src/lib/session.ts:186'] },
+      { k: 'B', name: 'Fresh tenantScope(id, { db })', n: 7, code: "// src/app/(admin)/admin/page.tsx:27-32\nconst admin = adminScope({ db, actorId });\nconst scope = tenantScope(tenant.id, { db });", paths: ['src/app/(admin)/admin/page.tsx:32', 'src/app/actions/admin.ts:40', 'src/export/signals.ts:272'] },
+    ],
+    layers: { A: ['lib/session'], B: ['admin pages', 'actions/admin', 'export/signals'] },
+    recency: 'B is newer (admin pages 2026-10-09; session.ts 2026-09-05).',
+    reco: 'A is the standard. scope.ts is a talk-first file, so this decision only says which existing function to call.',
+    decision: 'A is the standard (25 Oct 2026). Staff narrow to one tenant with impersonate(admin, tenantId), so the scope keeps the staff actor. Exception: the batch signal export in src/export/signals.ts has no person behind it, so it builds per-tenant scopes the way jobs do, with tenantScope(id, { db, actorRole: \'system\' }). The exception covers batch CLIs only, never a page or an action.',
+  },
+  {
+    id: 'C5', blast: 'med', title: 'Where "now" comes from',
+    why: 'Three copies of the seeded-today rule can drift apart, and one falls back to a UTC slice. A job run with --now still stamps real wall-clock finish times.',
+    variants: [
+      { k: 'A', name: 'clock() from src/lib/clock.ts', n: 27, code: "const { now } = clock();\nconst today = clock().today(timezone);", paths: ['src/lib/clock.ts:22', 'src/app/actions/subscriptions.ts', 'src/app/(member)/me/page.tsx'] },
+      { k: 'B', name: 'defaultNow(db) in jobs/runner.ts', n: 2, code: "// src/jobs/runner.ts:82, same rule as clock()\nexport function defaultNow(db) { … }", paths: ['src/jobs/runner.ts:82', 'src/jobs/cli.ts:90', 'src/export/cli.ts:100'] },
+      { k: 'C', name: 'seededToday(db) or new Date()', n: 5, code: "// src/export/signals.ts:498\nnew Date().toISOString().slice(0, 10)", paths: ['src/export/signals.ts:496', 'src/app/actions/session.ts:70', 'src/jobs/runner.ts:166'] },
+    ],
+    recency: 'clock.ts is the oldest (2026-03-24); signals.ts the newest (2026-10-09).',
+    reco: 'A is the standard for request code; CLIs and the runner call the same function. Merging the copies is a cleanup ticket, not part of this decision.',
+    decision: 'A is the standard (25 Oct 2026). clock() from src/lib/clock.ts is the only source of now and today, CLIs and the job runner included. Exception: job_runs.finished_at is stamped with the real wall clock, because it records when the process actually finished. Merging defaultNow and seededToday into clock() is a cleanup ticket.',
+  },
+  {
+    id: 'C6', blast: 'med', title: 'How a domain function says "not allowed"',
+    why: 'With an optional reason the type cannot narrow, and the caller writes guard.reason ?? \'\'. Each new decision invents its own key.',
+    variants: [
+      { k: 'A', name: 'Union on ok', n: 1, code: "// src/domain/freezes.ts:117\n| { ok: false; reason: 'too_long'; limitMonths }\n| { ok: true; period }", paths: ['src/domain/freezes.ts:117'] },
+      { k: 'B', name: '{ allowed: boolean; reason? }', n: 1, code: "// src/domain/subscriptions.ts:70\nreadonly allowed: boolean;\nreadonly reason?: 'in_binding' | …;", paths: ['src/domain/subscriptions.ts:70'] },
+      { k: 'C', name: 'Own discriminant per function', n: 3, code: "{ retry: true | false }   // retry-policy.ts:65\n{ skip: true }            // billing.ts:102\n{ result: 'granted' | 'denied' } // access-rules.ts:39", paths: ['src/domain/retry-policy.ts:65', 'src/domain/billing.ts:102', 'src/domain/access-rules.ts:39'] },
+    ],
+    recency: 'A and C are 2026-08; B is the oldest (2025-10-30).',
+    reco: 'A for a yes/no decision with reasons (a discriminated union on ok). Keep a domain word as the discriminant where it carries meaning (granted/denied for access). B stops being used for new code.',
+    decision: 'Both A and C, with a rule (25 Oct 2026). A yes/no domain decision with reasons returns a discriminated union on ok. A domain word may be the discriminant where it carries meaning (granted/denied for access). { allowed, reason? } is not used in new code.',
+  },
+  {
+    id: 'C7', blast: 'med', title: 'Which error type a broken invariant throws',
+    why: 'Callers catch with instanceof (export route, reports page). A plain Error for a currency mix slips past a catch written for CurrencyMismatchError.',
+    variants: [
+      { k: 'A', name: 'Built-in TypeError / RangeError', n: 12, code: "throw new RangeError(`Not a valid plain date: ${value}`);", paths: ['src/domain/dates.ts:43', 'src/domain/money.ts:44', 'src/domain/freezes.ts:47'] },
+      { k: 'B', name: 'Named subclass', n: 3, code: "export class CurrencyMismatchError extends Error {\n  override name = 'CurrencyMismatchError';\n}", paths: ['src/domain/money.ts:31', 'src/db/repositories/scope.ts:25', 'src/export/reports.ts:200'] },
+      { k: 'C', name: 'Plain Error', n: 1, code: "// src/domain/proration.ts:91\nthrow new Error('Cannot change plan across currencies…');", paths: ['src/domain/proration.ts:91'] },
+    ],
+    recency: 'B is used for the newest case (ReportTimeoutError, 2026-10-09).',
+    reco: 'Both A and B, with a rule: built-in errors for a bad argument; a named subclass for anything a caller is expected to catch. C is not used.',
+    decision: 'Both A and B, with a rule (25 Oct 2026). Throw a built-in TypeError or RangeError for a bad argument, and a named Error subclass for anything a caller is expected to catch. A plain Error is not used. Moving proration.ts:91 to CurrencyMismatchError is a cleanup ticket.',
+  },
+  {
+    id: 'C8', blast: 'med', title: 'Where status and enum value lists are defined',
+    why: 'The schema and the domain each declare the same list. Adding a value to one compiles fine and breaks at runtime. Charge status has no type at all.',
+    variants: [
+      { k: 'A', name: 'Inline in schema.ts', n: 14, code: "status: text('status', {\n  enum: ['booked', 'waitlisted', 'cancelled', …],\n})", paths: ['src/db/schema.ts:27 (currency ×5)', 'src/db/schema.ts:223', 'src/db/schema.ts:147'] },
+      { k: 'B', name: 'Domain const or union', n: 8, code: "// src/domain/money.ts:13\nexport const CURRENCIES = ['SEK','NOK','EUR','DKK'] as const;", paths: ['src/domain/money.ts:13', 'src/domain/dates.ts:21', 'src/domain/waitlist.ts:16'] },
+    ],
+    layers: { A: ['src/db/schema'], B: ['src/domain', 'integrations/types'] },
+    recency: 'Schema 2025-10-07; domain lists 2026-08 to 2026-10.',
+    reco: 'B is the source: the domain declares an as-const list, and schema.ts imports it for its enum. This changes schema.ts without a migration, but confirm with whoever owns the schema.',
+    decision: 'B is the source (25 Oct 2026). A value list is declared once in src/domain as an as-const array or union, and src/db/schema.ts imports it for its enum. No migration is needed, because the column type does not change. Adding a ChargeStatus type and switching schema.ts over are cleanup tickets.',
+  },
+  {
+    id: 'C9', blast: 'med', title: 'Turning a database string into a PlainDate',
+    why: "A cast lets '2026-02-30' type-check. ADR-0005 says the assert helpers are for boundaries and is silent on rows read back from the database.",
+    variants: [
+      { k: 'A', name: 'as PlainDate cast', n: 58, code: "const endsOn = row.endsOn as PlainDate;", paths: ['src/app/(tenant)/app/members/[memberId]/page.tsx', 'src/app/(member)/me/subscription/page.tsx', 'src/db/repositories/subscriptions.ts'] },
+      { k: 'B', name: 'assertPlainDate() / isPlainDate()', n: 10, code: "const day = assertPlainDate(searchParams.day);", paths: ['src/app/(tenant)/app/classes/page.tsx:59', 'src/app/actions/subscriptions.ts:113', 'src/lib/clock.ts:25'] },
+    ],
+    recency: 'Both in use through 2026-10.',
+    reco: 'Both, with a rule: cast only in a repository mapper, for a column the schema already constrains; assert anything from a user, a URL or a file. Pages stop casting.',
+    decision: 'Both, with a rule (25 Oct 2026). Cast as PlainDate only inside a repository mapper, for a column the schema constrains. Use assertPlainDate() for anything from a user, a URL or a file. Pages do not cast.',
+  },
+  {
+    id: 'C10', blast: 'low', title: 'Converting instants to and from strings',
+    why: 'fromIso validates and new Date(string) does not. An invalid string becomes Invalid Date and renders as "Invalid Date" on a page.',
+    variants: [
+      { k: 'A', name: '.toISOString() / new Date(str)', n: 100, code: "at: now.toISOString()\nnew Date(row.attemptedAt)", paths: ['src/jobs/payment-run.ts:527', 'src/lib/format.ts:77', 'src/lib/format.ts:85'] },
+      { k: 'B', name: 'toIso() / fromIso() from dates.ts', n: 2, code: "import { toIso, fromIso } from '@/domain/dates';", paths: ['src/domain/dates.ts'] },
+    ],
+    recency: 'A dominates everywhere.',
+    reco: 'A for writing (.toISOString()); fromIso for parsing strings that did not come from our own columns. toIso can be retired.',
+    decision: 'Both, with a rule (25 Oct 2026). Write instants with .toISOString(). Parse with fromIso() any string that did not come from one of our own _at columns. toIso is retired (cleanup ticket).',
+  },
+  {
+    id: 'C11', blast: 'low', title: 'Importing repositories and integrations',
+    why: 'AGENTS.md says repositories are reached "via index.ts", but nothing imports that barrel. Agents follow the doc and produce an import style no one else uses.',
+    variants: [
+      { k: 'A', name: "import * as xRepo from '@/db/repositories/x'", n: 47, code: "import * as membersRepo from '@/db/repositories/members';", paths: ['src/app/actions/bookings.ts', 'src/jobs/waitlist-promote.ts', 'src/app/(member)/me/card/page.tsx'] },
+      { k: 'B', name: 'Barrel (@/db/repositories, @/domain)', n: 0, code: "import { membersRepo } from '@/db/repositories';", paths: ['src/db/repositories/index.ts (0 importers)', 'src/domain/index.ts (0 importers)'] },
+    ],
+    recency: 'A is the only one in use. Exception: observability is imported by name (15 times).',
+    reco: 'A is the standard; observability\'s named imports are fine. The AGENTS.md wording should change to match, and the unused barrels can go in a cleanup ticket.',
+    decision: "A is the standard (25 Oct 2026). Import repositories as import * as xRepo from '@/db/repositories/x'; named imports from observability are allowed. AGENTS.md is corrected to match. Deleting the unused barrels is a cleanup ticket.",
+  },
+  {
+    id: 'C12', blast: 'low', title: 'Resolving the database path',
+    why: 'Six places retype the env var and the default path. A changed default would leave tests and tools on the old file.',
+    variants: [
+      { k: 'A', name: 'databasePath() / DEFAULT_DB_PATH', n: 2, code: "// src/db/client.ts:15\nexport function databasePath() { … }", paths: ['src/db/client.ts:15'] },
+      { k: 'B', name: "process.env.BEEFCAKE_DB ?? 'data/beefcake.db'", n: 6, code: "const path = process.env.BEEFCAKE_DB ?? 'data/beefcake.db';", paths: ['drizzle.config.ts:8', 'playwright.config.ts:38', 'tests/e2e/helpers.ts:20'] },
+    ],
+    recency: 'B is in the newest e2e helpers (2026-10).',
+    reco: 'Both, with a rule: src and scripts call databasePath(); tests/e2e and config files may retype it, because e2e deliberately imports nothing from src.',
+    decision: 'Both, with a rule (25 Oct 2026). src and scripts call databasePath(). tests/e2e and root config files may spell out the env var and default, because e2e imports nothing from src.',
+  },
+  {
+    id: 'C13', blast: 'low', title: 'Setting up a database in a unit test',
+    why: 'Hand-rolled setup copies cleanup logic and leaks temp directories when it is missed. The helper has no seeded mode, so agents fall back to hand-rolling.',
+    variants: [
+      { k: 'A', name: 'createTestDb()', n: 2, code: "testDb = createTestDb();\n… testDb.cleanup();", paths: ['tests/helpers/test-db.ts', 'tests/unit/class-fill.test.ts:25', 'tests/unit/tenant-isolation.test.ts:26'] },
+      { k: 'B', name: 'mkdtemp + migrate + seed by hand', n: 3, code: "dir = mkdtempSync(join(tmpdir(), 'beefcake-jobs-'));\nrunMigrations(path); connection = openDatabase(path);\nseedDatabase(connection, { scale: SCALES.tiny, … });", paths: ['tests/unit/jobs.test.ts:33', 'tests/unit/export.test.ts:32', 'tests/unit/seed.test.ts:31'] },
+    ],
+    recency: 'Both dated 2026-10-07 to 2026-10-09.',
+    reco: 'A is the standard, once createTestDb() takes an optional seed. Until then B is allowed for seeded tests.',
+    decision: 'A is the standard (25 Oct 2026). Unit tests get a database from createTestDb(). Until it takes an optional seed (small ticket), hand-rolled setup is allowed for seeded tests only.',
+  },
+  {
+    id: 'C14', blast: 'med', title: 'Where an e2e test gets its data',
+    why: 'workers is 1 and the database is shared. Rows created through the UI and never removed can be picked up later by helpers that search the seed.',
+    variants: [
+      { k: 'A', name: 'Find suitable rows in the seed', n: 2, code: "const member = memberNamed(db, 'Puls Träning', …);\nconst setup = findPromotionSetup(db);", paths: ['tests/e2e/calendar-file/calendar-file.ts:40', 'tests/e2e/member-registration/registration.ts:69'] },
+      { k: 'B', name: 'Fixture inserts and removes its own rows', n: 1, code: "// tests/e2e/class-fill/hornstull.ts:170\nexport const test = base.extend({ hornstull: async ({}, use) => { … } });", paths: ['tests/e2e/class-fill/hornstull.ts:170'] },
+      { k: 'C', name: 'Create through the UI, no cleanup', n: 3, code: "const email = `visitor-${Date.now()}@example.test`;", paths: ['tests/e2e/first-time-visitor/signup-after-switcher.spec.ts:10', 'tests/e2e/first-time-visitor/member-signup.spec.ts:14', 'tests/e2e/first-time-visitor/signup-form-validation.spec.ts:37'] },
+    ],
+    recency: 'B and C are newest (2026-10-09); A is 2026-10-04 to 2026-10-07.',
+    reco: 'B for anything that needs a precise state; A is fine for read-only checks. C only when the test is about creating the row, and then it removes it.',
+    decision: 'All three, with a rule (25 Oct 2026). A test that needs a precise state uses a fixture that inserts its own rows and removes them. Read-only checks may find rows in the seed. A test creates rows through the UI only when creating them is what it tests, and then it removes them.',
+  },
+  {
+    id: 'C15', blast: 'low', title: 'Three generations of e2e files',
+    why: 'A new test copied from a legacy file gets a 5-second expect, no tags and no evidence, and never shows up in a PR.',
+    variants: [
+      { k: 'A', name: 'Acceptance folders', n: 18, code: "// spec: specs/BCPLA-10-…\ntest.use(recordEvidence);\ntest('AS-1 …', { tag: ['@BCPLA-19'] }, …)", paths: ['tests/e2e/calendar-file/', 'tests/e2e/class-fill/', 'tests/e2e/member-registration/'] },
+      { k: 'B', name: 'Planner-generated folders', n: 13, code: "// spec: specs/site-smoke-test-plan.md\n// no @BCPLA tag, no recordEvidence\nawait test.step('Navigate to `/app/members`.', …)", paths: ['tests/e2e/first-time-visitor/', 'tests/e2e/site-smoke/'] },
+      { k: 'C', name: 'Legacy root files', n: 6, code: "import { test, expect } from '@playwright/test';\ntest('books a class', …)", paths: ['tests/e2e/booking.spec.ts', 'tests/e2e/smoke.spec.ts', 'tests/e2e/payments.spec.ts'] },
+    ],
+    recency: 'A and B are 2026-10; C is 2026-07 to 2026-09.',
+    reco: 'A for anything tied to a BCPLA Spec, B for plan-driven tests with no ticket, and both import expect from ../evidence. C stays as it is and is not copied.',
+    decision: 'A and B, with a rule (25 Oct 2026). Tests tied to a BCPLA Spec use the acceptance template. Plan-driven tests with no ticket use the planner layout. Both import expect from ../evidence. The legacy root files stay as they are and are never copied.',
+  },
+  {
+    id: 'C16', blast: 'low', title: 'Locating form fields in e2e tests',
+    why: 'A CSS locator passes even when the label is not wired to the input, so an accessibility regression goes unnoticed.',
+    variants: [
+      { k: 'A', name: "getByLabel('Email')", n: 3, code: "await page.getByLabel('Email').fill(email);", paths: ['tests/e2e/first-time-visitor/signup-after-switcher.spec.ts:20', 'tests/e2e/first-time-visitor/signup-form-validation.spec.ts', 'tests/e2e/first-time-visitor/member-signup.spec.ts'] },
+      { k: 'B', name: 'CSS input[name=…]', n: 1, code: "await page.locator('input[name=\"email\"]').fill(email);", paths: ['tests/e2e/site-smoke/front-desk-opens-member-form.spec.ts:23'] },
+    ],
+    recency: 'Both 2026-10. Row targeting with tr[data-class-id] is a deliberate shared exception.',
+    reco: 'A is the standard; data-* attributes only for table rows.',
+    decision: 'A is the standard (25 Oct 2026). Form fields are located with getByLabel. data-* attributes are used only to target table rows.',
+  },
+  {
+    id: 'C17', blast: 'low', title: 'How a unit test title reads',
+    why: 'Mixed titles read oddly in the reporter ("effective status a member …"). Low risk.',
+    variants: [
+      { k: 'A', name: 'Predicate that completes the describe', n: 380, code: "describe('effective status', () => {\n  it('is pending before the start date', …)", paths: ['tests/unit/subscriptions.test.ts:28', 'tests/unit/waitlist.test.ts:73', 'tests/unit/tenant-isolation.test.ts:179'] },
+      { k: 'B', name: 'Standalone sentence with its own subject', n: 57, code: "it('a booked class that has not started becomes an event …')", paths: ['tests/unit/calendar-file.test.ts:36', 'tests/unit/freezes.test.ts:14', 'tests/unit/proration.test.ts:164'] },
+    ],
+    recency: 'B is in the newest file (calendar-file, 2026-10-07).',
+    reco: 'A is the standard. Both already satisfy "named as a sentence about behaviour".',
+    decision: 'A is the standard (25 Oct 2026). An it() title is a predicate that completes its describe(). Existing standalone titles stay as they are.',
+  },
+];
+
+const TERMS = [
+  ['Tenant', 'tenant 733 · <b>operator 51</b> · club 1 · chain 2', 'drift', 'Decided: code and tickets say tenant; operator is the commercial register.', 'src/app/(admin)/admin/page.tsx:55, settings-form.tsx:56, src/lib/receipt.ts'],
+  ['Abandoned', 'abandoned 39 · <b>Given up 10</b>', 'drift', 'Decided: say abandoned, never "given up".', 'src/lib/format.ts:126 (shown everywhere), payments/page.tsx:114'],
+  ['Freeze', 'freeze 168 · <b>suspended 2</b> · pause 1', 'drift', 'Decided: say freeze. "Suspended" is not a state.', 'members/[memberId]/page.tsx:178, src/jobs/payment-run.ts:533'],
+  ['Involuntary churn', '<b>0 uses</b> · paymentDriven, voluntary', 'drift', 'Decided: a member lost after dunning is involuntary churn, not a cancellation.', 'src/export/reports.ts:160-171, reports/page.tsx:159'],
+  ['Subscription (member-facing)', 'subscription 337 · <b>membership 60</b>', 'set', 'Decided: code and staff UI say subscription; the member UI may say membership. Glossary gets a member-facing words section.', 'src/app/(member)/me/layout.tsx:16, src/lib/format.ts:148'],
+  ['Site (member-facing)', 'site 518 · <b>gym 30</b>', 'set', 'Decided: site in code and the tenant UI; the member UI may say gym. Same glossary section.', 'src/app/(member)/me/card/page.tsx:115,186'],
+  ['Access event', 'accessEvents · check-in 7 · swipe 4 · <b>visit 5</b> · event', 'set', 'Decided: access event in code and glossary; the member UI says visit; the staff UI says check-in (granted) or denied, never "event". Renaming the tenant heading is a small ticket.', 'src/app/(member)/me/card/page.tsx:178, src/app/(tenant)/app/access/page.tsx:221'],
+  ['event', 'events row · access event · ICS entry', 'set', 'Decided with the access-event row: event means a row in events; UI never calls a swipe an event.', 'src/app/(tenant)/app/access/page.tsx:262, src/domain/calendar-file.ts'],
+  ['plan', "tenant's Plan · tenants.plan_tier", 'set', "Decided: new glossary entry Plan tier, Beefcake's pricing tier for a tenant, never just \"plan\". No rename.", 'src/db/schema.ts:30'],
+  ['session', 'auth/persona session (247) · class in glossary', 'set', 'Decided: the glossary Class definition stops using "session"; session in code means the signed-in user\'s session only.', 'src/lib/session.ts, docs/domain-glossary.md:177'],
+  ['member', "members table · users.role = 'member'", 'set', 'Decided: glossary line that a user with role member is a sign-in persona linked to one members row.', 'src/db/schema.ts:79'],
+  ['Statuses not in glossary', "member former → 'Archived' · tenant churned · cancelling → 'Notice given'", 'set', 'Decided: glossary entries for former ("Archived" in the UI), churned, and the cancelling label "Notice given".', 'src/lib/format.ts:136,140, src/db/schema.ts:31'],
+  ['Site scope', 'site scope (glossary) · sites_scope / sitesScope (61)', 'set', 'Decided: no rename; the glossary Site scope entry notes the column sites_scope.', 'src/db/schema.ts:127'],
+];
+
+const CONSISTENT = [
+  ['Everything below server actions is synchronous; no async in domain, repositories, jobs, integrations or export', 'src/**', '0 async', 'src/integrations/types.ts:46'],
+  ['Server actions take typed positional arguments (never FormData) and return Promise&lt;ActionResult&gt; { ok, message }', 'src/app/actions', '21 of 21', 'src/app/actions/subscriptions.ts:40'],
+  ['Action messages are full user-facing sentences that state the consequence ("Frozen from X to Y. Back on Z.")', 'src/app/actions', '~40', 'src/app/actions/subscriptions.ts'],
+  ['Clients call actions with useTransition + local useState and show the result in a Callout; no useActionState or &lt;form action&gt;', 'src/app/**', '12 of 12', 'src/app/(tenant)/app/members/new/form.tsx'],
+  ["After a write, an action calls revalidatePath(surface, 'layout')", 'src/app/actions', '22', 'src/app/actions/settings.ts'],
+  ['Pages read through repositories directly; server actions are for mutations only', 'src/app', '19 of 20 pages', 'src/app/(member)/me/card/page.tsx:71'],
+  ['Get a scope with tenantScopeFor(await getSession())', 'src/app', '20 files', 'src/lib/session.ts:199'],
+  ['Repository functions: synchronous named functions, TenantScope first, optional filter last, a default limit', 'src/db/repositories', 'all', 'src/db/repositories/members.ts:35'],
+  ['Cross-tenant repository functions take AdminScope and are prefixed all*', 'src/db/repositories', '4', 'src/db/repositories/payments.ts:119'],
+  ['Row-to-domain mappers live in the repository (toRecord, toClassSnapshot)', 'src/db/repositories', '3+', 'src/db/repositories/subscriptions.ts:146'],
+  ['Transactions are opened by the caller, never inside a repository; events and outbox are written after the transaction', 'actions, jobs', '7 of 7', 'src/jobs/waitlist-promote.ts:132'],
+  ['Drizzle query builder only; raw SQL strings only in the seed writer', 'src', '0 outside seed', 'src/db/seed/writer.ts:41'],
+  ['Pagination: filter { limit?, offset? }; pages read ?page defensively', 'repos, pages', '5+', 'src/app/(tenant)/app/members/page.tsx:63'],
+  ['Integrations come from createIntegrations(); seed and unit tests import fakes directly', 'app, jobs', '3', 'src/jobs/runner.ts:104'],
+  ['TS objects are camelCase; event payloads, outbox payloads, error context and CSV headers are snake_case', 'boundaries', 'no counter-example', 'src/app/actions/bookings.ts:97'],
+  ['Failures are logged with recordError() to the errors table; no console.* in src; CLIs write to stdout/stderr', 'src', '6 / 0', 'src/jobs/payment-run.ts:220'],
+  ['Route handlers return NextResponse.json({ error, hint? }, { status }); file responses send cache-control: no-store', 'route.ts', '2 of 2', 'src/app/(tenant)/app/reports/export/[report]/route.ts'],
+  ['Money and dates are displayed only through src/lib/format with tenant.locale passed in', 'src/app', '20 pages', 'src/lib/format.ts'],
+  ['Ids come only from newId(kind) at runtime and sequentialId(kind, n) in the seed', 'src', '40', 'src/db/ids.ts'],
+  ['String-literal unions for domain enums; no enum keyword; as const arrays only when iterated', 'src', '26 / 0', 'src/domain/subscriptions.ts:15'],
+  ['File names are kebab-case', 'src, tests', '188 of 188', 'src/domain/retry-policy.ts'],
+  ['Named export function declarations; export default only where Next requires it; no exported arrow consts', 'src', '339 / 24 / 0', 'src/domain/freezes.ts'],
+  ['Object shapes are interfaces with readonly fields', 'src', '155 vs 1', 'src/domain/subscriptions.ts'],
+  ['Boolean fields are bare adjectives (granted, dryRun); predicate functions start is/has/can', 'src', '19 / 18', 'src/jobs/runner.ts'],
+  ['Unit tests use describe + it with explicit vitest imports, one file per module in tests/unit', 'tests/unit', '24 of 24', 'tests/unit/freezes.test.ts'],
+  ['Unit tests build inputs with a local over: Partial&lt;T&gt; builder; no shared factory directory', 'tests/unit', '6+', 'tests/unit/subscriptions.test.ts:11'],
+  ['Unit tests pass time in; no fake timers, no vi.mock, integrations tested through their fakes; no snapshots', 'tests/unit', '0 / 0 / 0', 'tests/unit/jobs.test.ts:45'],
+  ['E2E signs in with a persona cookie (signIn); the UI switcher only where it is under test', 'tests/e2e', '16 / 6', 'tests/e2e/helpers.ts'],
+  ['E2E is black box: no imports from src, no waitForTimeout, no getByTestId', 'tests/e2e', '0 / 0 / 0', 'tests/e2e/class-fill/'],
+];
+
+const ABSENCES = [
+  ['No service or application layer.', 'Orchestration lives in server actions and jobs: actions/subscriptions.ts is 590 lines, jobs/payment-run.ts 714.'],
+  ['No DI container.', 'Dependencies travel on context objects (JobContext, TenantScope.db). No inversify, tsyringe or awilix.'],
+  ['No way to hand integrations into runJob.', 'RunOptions accepts db but not integrations (runner.ts:58), although integrations/index.ts:2 says the factory exists so a test can.'],
+  ['No central config module.', 'Two process.env reads in src: db/client.ts:18 and instrumentation.ts:5. No secrets, because there are no external services.'],
+  ['No lint-enforced layer boundaries.', 'No no-restricted-imports or boundaries plugin. Layering is convention only, which is how pages came to import jobs/runner.'],
+  ['zod is a dependency with zero imports.', 'Validation is by hand inside each action. Several inputs are not validated at runtime: createMember birthYear and phone, freeze months, setMemberStatus status.'],
+  ['No error.tsx, global-error.tsx or not-found.tsx.', 'notFound() is called four times. A thrown action error has nowhere to land (see C2).'],
+  ['No site-timezone resolver.', 'Every page derives a timezone itself. timezoneForCountry lives in jobs/runner.ts and ~19 pages import it from there; db/seed/blueprint.ts has a second copy.'],
+  ['No id-prefix validation.', 'kindOf() in db/ids.ts has zero callers. Ids are validated only by a scoped lookup returning null.'],
+  ['No logger and no stack traces.', 'recordError never receives a stack; OpenTelemetry is set up only in instrumentation.node.ts. No server action records an error.'],
+  ['No unit tests for server actions or src/lib.', 'clock, format, session (can(), PERMISSIONS) and surface have no tests. Repositories are tested only through tenant-isolation.test.ts.'],
+  ['Money objects are rarely used outside the domain.', 'Repositories and reports return amountMinor + currency pairs; Money is built only in lib/format.ts and lib/receipt.ts.'],
+  ['No Prettier or other formatter.', 'Only .editorconfig. Formatting is not tool-enforced.'],
+];
+
+const DRIFT = [
+  ['high', 'Receipts take their currency from the amount, never the reader (rules.md Money, ADR-0002, glossary "Receipt")', 'src/lib/receipt.ts:50-74 picks currency from the locale; nb-NO is missing and falls back to SEK', 'Norwegian receipts show SEK'],
+  ['high', 'Involuntary churn is not a cancellation (glossary)', 'src/jobs/payment-run.ts:536 sets status cancelling, cancelReason payment_failure on abandonment; reports/page.tsx:159,216 and export/reports.ts:169 count it as a cancellation', 'Churn report mixes payment problems into cancellations'],
+  ['high', '--dry-run writes nothing (jobs/cli.ts:40)', 'src/jobs/payment-run.ts:97 calls discardPartialRun, which deletes charges, receipts and the run, before any dryRun check', 'A dry run can delete a half-finished run'],
+  ['high', 'Never query a tenant-scoped table outside src/db/repositories (rules.md, ADR-0001)', '~80 builder calls: export 29, jobs 24, pages 16 in 7 files, actions 8+, lib 10. e.g. actions/subscriptions.ts:131,146; payments/[runId]/page.tsx:69', 'Repository guards are bypassed'],
+  ['high', 'Every tenant query filters on tenant_id', 'src/jobs/payment-run.ts:583 periodOfRun selects payment_runs by id only', 'Isolation relies on id uniqueness'],
+  ['med', 'Reads pass rows through guard() (ADR-0001)', 'src/db/repositories/observability.ts:109,125,186 (listEvents, listErrors, listOutbox); unguarded .get() in actions/subscriptions.ts:196,480,490', 'Isolation check skipped'],
+  ['med', 'Fakes write everything they would have sent to outbox (rules.md Integrations)', 'src/integrations/email/fake-sender.ts writes nothing (its header says it does); callers write outbox by hand; payment and access channels are never written', '"Did the job notify the member" is not checkable for payments and access'],
+  ['med', "Calendar decisions use the site's timezone (rules.md Dates)", 'src/jobs/runner.ts:151 and ~18 pages use timezoneForCountry(tenant.country); admin/errors/page.tsx:29 hardcodes SE', 'Wrong day for a site whose zone differs from its country default'],
+  ['med', 'Instant to day only through localDay(at, tz) (ADR-0005)', 'src/export/reports.ts:225,280 and admin/[tenantId]/page.tsx:77 slice(0, 10); export/signals.ts:498', 'UTC day, not site day; the lint rule does not catch slices'],
+  ['med', 'Amounts are summed per currency (ADR-0002)', 'src/export/reports.ts:100; (tenant)/app/payments/page.tsx:73; repositories/payments.ts:153', 'Mixed-currency totals'],
+  ['med', 'Event actions are a public contract; add, never repurpose (observability.ts:5)', "actions/subscriptions.ts:216 records subscription.frozen for a freeze removal; :419 records member.created on unblock", 'Exported signals miscount'],
+  ['low', 'There is no default rounding mode (ADR-0002)', 'src/domain/money.ts:54 fromMajor defaults to half-up', 'Talk-first file'],
+  ['low', 'Never read raw tenant_settings rows (ADR-0003)', 'settings/page.tsx:77-84; admin/[tenantId]/page.tsx:52 (presence check only, no coercion)', 'Mild'],
+  ['low', 'Cross-tenant reads are AdminScope repository functions (ADR-0001)', 'src/export/signals.ts:79-80,100,142,179 pass a raw Db; the AdminScope versions (allRunSummaries) have 0 callers', 'Not visible in review as cross-tenant'],
+  ['low', 'Ids use ID_PREFIXES via newId', "actions/subscriptions.ts:500 card_${memberId.slice(4)}; payment-run.ts:262 mandate_${member.id}", 'Ids not from the generator'],
+  ['low', 'Jobs and request code never read the clock directly (ADR-0006, lib/clock.ts:8)', 'runner.ts:166,183 finishedAt; actions/session.ts:70; export/signals.ts:288', '--now replays get real times'],
+  ['low', 'Plain-date columns end _on (AGENTS.md, rules.md)', 'binding_until, access_events.local_day, seed_meta.today (binding_until is also named in the glossary)', 'Docs disagree with each other'],
+  ['low', 'Production code does not depend on the seed', 'src/jobs/payment-run.ts:41 imports PAYMENT_RUN_DAY from db/seed/blueprint', 'Layering'],
+  ['low', 'Repositories are reached via index.ts (AGENTS.md)', '0 importers of the barrel (see C11)', 'Doc is wrong'],
+  ['low', 'Glossary vocabulary', 'operator in admin and settings UI; "Given up" label; "suspended" (see Terminology)', 'Words members and staff see'],
+  ['low', 'Spec tag goes on the test (docs/testing/pr-evidence.md:94)', 'calendar-file/as-*.spec.ts:22 (9 files) and member-registration/as-*.spec.ts:11 (3) put @BCPLA on the describe', 'PR evidence mapping'],
+  ['low', 'Plans carry a **Spec:** line (pr-evidence.md:16)', 'specs/first-time-visitor.md, specs/site-smoke-test-plan.md', 'No PR evidence'],
+  ['low', 'Test month ends in a leap year too (rules.md, AGENTS.md)', 'freezes, proration and billing tests cover month ends only in 2026', 'Coverage gap on the busiest path'],
+  ['low', 'Everything in src/domain has tests', 'src/domain/class-fill.ts tallyClassFill has no direct unit test', 'Coverage gap'],
+  ['low', 'npm test runs with TZ=UTC (AGENTS.md:57)', 'Only CI sets TZ; package.json and vitest.config.mts do not', 'Host-timezone leaks pass locally'],
+  ['low', '@smoke is for two or three journeys (docs/test-tags.md:17)', '5 tests tagged; smoke.spec.ts itself untagged; CI never greps @smoke', 'Tag means nothing'],
+];
+
+const DISCARDED = [
+  "'use server' at the top of every action file (6 of 6): Next.js requires it.",
+  'Awaited params and searchParams, page/layout/route file names, route groups, export const dynamic: Next.js App Router.',
+  'export default in page, layout and route files (24): App Router requirement.',
+  'The @/ path alias: tsconfig.',
+  'strict and noUncheckedIndexedAccess, and the ?? 0 patterns they produce: compiler.',
+  'UTC-midnight template literals: banned by eslint UTC_DAY. The 16 BCPLA-26 disables are known, ticketed debt.',
+  'Tailwind arbitrary values, raw hex, alpha on colour tokens: eslint.',
+  'Unused variables prefixed _: eslint.',
+  'Floating promises in e2e: eslint.',
+  'Synchronous .all() / .get() / .run(): better-sqlite3 and Drizzle default.',
+  'Transaction callback written (tx) => { void tx; … } in one file vs () => … in six: cosmetic.',
+  'Playwright config (workers 1, port 3100, trace on retry), the // spec: header and recordEvidence contents: already decided in docs/testing/pr-evidence.md.',
+];
+
+// Decided 25 Oct 2026: K13, K21, K24, K25 are true but not recorded (agents copy them from neighbouring code).
+const SKIP = new Set([13, 21, 24, 25]);
+
+const ABSENCE_DECISIONS = [
+  'Deliberate. Recorded as one line: orchestration lives in server actions and jobs; do not add a service layer.',
+  'Deliberate. Recorded as one line: dependencies travel on context objects; no DI container.',
+  'Gap. Cleanup ticket: let runJob take integrations.',
+  'Deliberate. No line needed.',
+  'Gap. Proposed lint rule (no-restricted-imports for layer boundaries), added only after a yes.',
+  'Intent recorded: every server action validates its input at runtime. A ticket chooses the tool (adopt zod or remove it).',
+  'Gap. Ticket: add error.tsx and global-error.tsx for bugs that still throw (see C2).',
+  'Gap. Ticket: a site-timezone resolver outside src/jobs, which also fixes the timezone drift.',
+  'Deliberate. No line needed: a scoped lookup returning null is the id check.',
+  'Deliberate, covered by K16. Passing the stack to recordError is a ticket.',
+  'Gap. Ticket: unit tests for server actions and src/lib (can(), clock, format).',
+  'Deliberate. Recorded as one line: repositories return amountMinor + currency pairs; Money is built in the domain and in format.',
+  'Parked. Formatting tooling is a team choice (see Open questions).',
+];
+
+const FOLLOWUP = [
+  ['C1', 'Delete the unused repository copies payments.revenueByPeriod and access.allSyncLag.'],
+  ['C2', 'Make user-caused failures return instead of throw: the self-service flag (subscriptions.ts:82), assertPlainDate on input, the context() "No tenant selected" check.'],
+  ['C3', 'Add a non-throwing permission check; replace assertMayChange, assertMayActFor and isBeefcakeStaff checks; use self.book and self.subscription; add checks to statusOf and cancelBooking.'],
+  ['C4', 'Narrow with impersonate() in the admin pages and actions/admin.ts; remove the no-op adminScope at admin.ts:50.'],
+  ['C5', 'Fold defaultNow and seededToday into clock(); replace new Date() in actions/session.ts:70 and export/signals.ts:288.'],
+  ['C6', 'Return an ok union from canChangePlan (subscriptions.ts:70).'],
+  ['C7', 'Throw CurrencyMismatchError at proration.ts:91.'],
+  ['C8', 'Add a ChargeStatus type; make schema.ts import its value lists from src/domain.'],
+  ['C9', 'Move PlainDate casts out of pages into repository mappers.'],
+  ['C10', 'Retire toIso; parse with fromIso in src/lib/format.ts.'],
+  ['C11', 'Delete the unused barrels src/db/repositories/index.ts and src/domain/index.ts.'],
+  ['C13', 'Give createTestDb() an optional seed; move jobs, export and seed tests onto it.'],
+  ['C14', 'Remove rows created by the first-time-visitor tests.'],
+  ['C16', 'Use getByLabel in site-smoke/front-desk-opens-member-form.spec.ts.'],
+  ['Terms', 'Rename "Recent events" on the tenant access page to check-ins.'],
+  ['A3', 'Let runJob take integrations.'],
+  ['A5 + A8', 'Add a site-timezone resolver outside src/jobs, then a no-restricted-imports rule for layer boundaries.'],
+  ['A6', 'Validate every action input at runtime; adopt zod or remove the dependency.'],
+  ['A7', 'Add error.tsx and global-error.tsx.'],
+  ['A10', 'Pass the stack to recordError.'],
+  ['A11', 'Unit tests for server actions and src/lib (can(), clock, format).'],
+];
+
+const OPEN = [
+  'Formatter: should the repo adopt Prettier (or another formatter), or keep .editorconfig only? A team decision, not one developer\'s.',
+];
+
+const esc = (s) => String(s).replace(/&(?!lt;|gt;|amp;)/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const blastLabel = { high: 'Wide blast radius', med: 'Medium blast radius', low: 'Narrow blast radius' };
+
+function renderTiles() {
+  const counts = [
+    ['Competing', COMPETING.length, 'var(--b)', '#competing'],
+    ['Terminology', TERMS.length, 'var(--c)', '#terms'],
+    ['Consistent', CONSISTENT.length, 'var(--good)', '#consistent'],
+    ['Absences', ABSENCES.length, 'var(--accent)', '#absences'],
+    ['Drift', DRIFT.length, 'var(--bad)', '#drift'],
+    ['Discarded', DISCARDED.length, 'var(--ink-muted)', '#discarded'],
+  ];
+  document.getElementById('tiles').innerHTML = counts.map(([l, n, c, h]) =>
+    `<a class="tile" href="${h}"><b>${n}</b><span>${l}</span><i style="background:${c};width:${Math.max(8, Math.min(100, n * 3.4))}%"></i></a>`).join('');
+}
+
+function renderCards() {
+  document.getElementById('cards').innerHTML = COMPETING.map((c) => {
+    const total = c.variants.reduce((s, v) => s + v.n, 0) || 1;
+    const bar = c.variants.map((v) => `<i style="width:${(v.n / total) * 100}%;background:${V[v.k]}"></i>`).join('');
+    const lbl = c.variants.map((v) => `<span><span class="dot" style="background:${V[v.k]}"></span>${v.k} ${Math.round((v.n / total) * 100)}% (${v.n})</span>`).join('');
+    const variants = c.variants.map((v) => `
+      <div class="variant" style="border-top-color:${V[v.k]}">
+        <h4><span>${v.k} · ${esc(v.name)}</span><span class="n">${v.n}×</span></h4>
+        <pre><code>${esc(v.code)}</code></pre>
+        <ul>${v.paths.map((p) => `<li><code>${esc(p)}</code></li>`).join('')}</ul>
+      </div>`).join('');
+    const layers = c.layers ? `<div class="layers">${Object.entries(c.layers).flatMap(([k, ls]) => ls.map((l) => `<span data-v style="border-color:${V[k]}">${k}: ${esc(l)}</span>`)).join('')}</div>` : '';
+    const d = c.decision;
+    return `
+    <article class="card" id="${c.id}">
+      <div class="card-head"><h3>${c.id}. ${esc(c.title)}</h3>
+        <span class="tag ${c.blast}">${blastLabel[c.blast]}</span>
+        <span class="tag ${d ? 'decided' : 'open'}">${d ? 'Decided' : 'Undecided'}</span></div>
+      <div class="usage">${bar}</div>
+      <div class="usage-label">${lbl}</div>
+      <div class="variants">${variants}</div>
+      ${layers}
+      <div class="recency"><b>Recency.</b> ${esc(c.recency)}</div>
+      <p class="why"><b>Why it matters for agents.</b> ${esc(c.why)}</p>
+      <div class="reco"><span class="eyebrow">Agent recommendation, not a decision</span><span>${esc(c.reco)}</span></div>
+      <div class="decision ${d ? 'set' : ''}"><span class="eyebrow">Decision</span><span>${d ? esc(d) : '<span class="muted">Not decided yet.</span>'}</span></div>
+    </article>`;
+  }).join('');
+}
+
+function renderTables() {
+  const tagFor = { drift: '<span class="tag high">Contradicts glossary</span>', open: '<span class="tag med">Undecided</span>', over: '<span class="tag low">Overloaded</span>', set: '<span class="tag decided">Decided 25 Oct</span>' };
+  document.getElementById('terms-body').innerHTML = TERMS.map(([c, w, k, g, p]) =>
+    `<tr><td><b>${esc(c)}</b></td><td>${w}</td><td>${tagFor[k]}<div class="muted" style="margin-top:4px">${esc(g)}</div></td><td><code>${esc(p)}</code></td></tr>`).join('');
+  document.getElementById('consistent-body').innerHTML = CONSISTENT.map(([c, s, n, e], i) =>
+    `<tr><td class="num">K${i + 1}</td><td>${c}</td><td><code>${esc(s)}</code></td><td class="num">${esc(n)}</td><td><code>${esc(e)}</code></td><td>${SKIP.has(i + 1) ? '<span class="tag low">True, not recorded</span>' : '<span class="tag decided">Record</span>'}</td></tr>`).join('');
+  document.getElementById('absences-list').innerHTML = ABSENCES.map(([a, e], i) => `<li><b>${esc(a)}</b> <span class="muted">${esc(e)}</span><br><span class="tag ${ABSENCE_DECISIONS[i].startsWith('Gap') ? 'med' : ABSENCE_DECISIONS[i].startsWith('Parked') ? 'open' : 'decided'}">${esc(ABSENCE_DECISIONS[i].split('.')[0])}</span> ${esc(ABSENCE_DECISIONS[i].split('. ').slice(1).join('. '))}</li>`).join('');
+  document.getElementById('drift-body').innerHTML = DRIFT.map(([s, d, w, e]) =>
+    `<tr><td><span class="sev ${s}"></span>${esc(d)}</td><td><code>${esc(w)}</code></td><td>${esc(e)}</td></tr>`).join('');
+  document.getElementById('discarded-summary').textContent = `${DISCARDED.length} framework defaults and tool-enforced patterns`;
+  document.getElementById('discarded-list').innerHTML = DISCARDED.map((d) => `<li>${esc(d)}</li>`).join('');
+  document.getElementById('followup-list').innerHTML = FOLLOWUP.map(([k, t]) => `<li><b>${esc(k)}</b> ${esc(t)}</li>`).join('');
+  document.getElementById('open-list').innerHTML = OPEN.length ? OPEN.map((o) => `<li>${esc(o)}</li>`).join('') : '<li class="muted">Nothing parked yet. Items move here when the developer is unsure or the decision belongs to someone else.</li>';
+}
+
+renderTiles();
+renderCards();
+renderTables();
+
+// Artifact viewers render pre.mermaid themselves. Opened as a local file, load Mermaid once.
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    const raw = [...document.querySelectorAll('pre.mermaid')].filter((p) => !p.querySelector('svg'));
+    if (!raw.length || window.mermaid) return;
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js';
+    s.onload = () => {
+      const dark = document.documentElement.dataset.theme === 'dark' ||
+        (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+      window.mermaid.initialize({ startOnLoad: false, theme: dark ? 'dark' : 'neutral' });
+      window.mermaid.run({ nodes: raw });
+    };
+    document.head.appendChild(s);
+  }, 800);
+});
+</script>
