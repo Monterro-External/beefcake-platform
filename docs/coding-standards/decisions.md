@@ -4,6 +4,23 @@ Newest first. One entry per decision, with the variants weighed and why. Rejecte
 and "neither" outcomes are recorded too, so a later scan does not propose them
 again. The evidence for each entry is in the linked session report.
 
+## 2026-10-25: rules from the BCPLA-36 retro
+
+Decided by Per Hassle. The BCPLA-36 retro (PR #19, commit a3d58b0) wrote six
+review rules to a root `CODING_STANDARDS.md`. They moved here unchanged in
+meaning, so the repo has one place for standards, and the root file was
+removed:
+
+- Escape `LIKE` search terms; a list and its count share conditions; a paged
+  order is total: [data-access.md](data-access.md#queries).
+- A filter narrows the list, not the page's other figures; rows are keyed by
+  their own id: [pages.md](pages.md#screens).
+- Substring-prone link and button lookups use `exact: true`:
+  [e2e-tests.md](e2e-tests.md).
+
+`README.md` now says that a skill naming `CODING_STANDARDS.md` means this
+folder, so the next retro adds here instead of recreating the root file.
+
 ## 2026-10-25: first convention scan (commit 831d102)
 
 Decided by Per Hassle. Evidence: [sessions/2026-10-25/report.html](sessions/2026-10-25/report.html).

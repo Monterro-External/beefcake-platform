@@ -13,6 +13,9 @@ Scope: `tests/e2e/`. Spec headers, tags and recorded evidence are in
   the test, and remove them afterwards.
 - Locate form fields with `getByLabel`; use `data-*` attributes only to target a
   table row.
+- Pass `exact: true` to a link or button lookup whose name can be a substring of
+  another: `getByRole('link', { name: 'Payments' })` also matches "See all on
+  Payments" and "All payments".
 - Sign in with `signIn` and a persona cookie; drive the switcher only when it is
   under test.
 - Test as a black box: through the browser and SQL, importing nothing from `src`.

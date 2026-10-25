@@ -13,3 +13,13 @@ Scope: `page.tsx`, `layout.tsx` and `route.ts` under `src/app/`.
 - Return route-handler errors as `NextResponse.json({ error, hint? }, { status })`
   and send files with `cache-control: no-store`. Example:
   `src/app/(tenant)/app/reports/export/[report]/route.ts`.
+
+## Screens
+
+Pages and the components they render.
+
+- When a list gains search or filters, narrow the list only. Every other figure
+  on the page that read the same rows (tiles, callouts, the "In dunning" total)
+  keeps its unfiltered meaning unless the Spec says otherwise.
+- Key a rendered row by its own id, never by display fields such as member and
+  timestamp, which can repeat.

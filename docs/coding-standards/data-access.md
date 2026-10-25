@@ -25,3 +25,14 @@ Scope: `src/db/repositories/` and `src/export/`. Tenant isolation itself is in
 - Put a cross-entity report query in `src/export/reports.ts`: `TenantScope` first,
   every table in the query filtered on the tenant (joined ones included), full
   rows through `guard()`. A per-entity read stays in its repository. See ADR-0009.
+
+## Queries
+
+- Escape a search term from the address or a form for `\`, `%` and `_`, and
+  compare with `escape '\'`; otherwise `?q=_` matches every row. Reuse
+  `memberSearchCondition()` in `src/db/repositories/members.ts` for member
+  searches.
+- Build a list and its count ("12 matching charges") from the same conditions
+  or subquery, so they never disagree.
+- Make a paged or capped order total: add the row id after the sort column, or
+  rows with equal timestamps swap between pages and reloads.

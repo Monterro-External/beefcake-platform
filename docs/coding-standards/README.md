@@ -18,6 +18,10 @@ These sit beside, not above, the documents that already decide things:
 | Unit tests | `tests/unit/` | [unit-tests.md](unit-tests.md) |
 | E2E tests | `tests/e2e/` | [e2e-tests.md](e2e-tests.md) |
 
+This folder is the repo's `CODING_STANDARDS.md`: when a skill (`retro`,
+`code-review`) names that file, add to or read the area file here instead. A
+mechanical rule becomes a lint rule; only judgement calls are written down.
+
 [decisions.md](decisions.md) records why each rule exists and what was
 rejected. [open-questions.md](open-questions.md) holds what is not decided.
 `sessions/` holds the evidence from each convention scan.

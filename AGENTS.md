@@ -15,7 +15,8 @@ of ARR, so size every report, export and job against Nordic Fitness Group
 
 Read `docs/agents/rules.md` before the first change: it holds the rules that
 have caused incidents and the files to leave alone. Before changing an area, read
-its file in `docs/coding-standards/` (index in `README.md`). This file is the map.
+its file in `docs/coding-standards/` (index in `README.md`); it is what skills
+mean by `CODING_STANDARDS.md`. This file is the map.
 
 ## Stack
 
