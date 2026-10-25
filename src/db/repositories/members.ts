@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, like, or, sql } from 'drizzle-orm';
+import { type SQL, and, asc, count, desc, eq, or, sql } from 'drizzle-orm';
 import { type Member, members, sites, subscriptions } from '../schema';
 import { type TenantScope, guard, guardOne } from './scope';
 
@@ -19,17 +19,30 @@ function memberConditions(scope: TenantScope, filter: MemberFilter) {
   const conditions = [eq(members.tenantId, scope.tenantId)];
   if (filter.siteId !== undefined) conditions.push(eq(members.homeSiteId, filter.siteId));
   if (filter.status !== undefined) conditions.push(eq(members.status, filter.status));
-  if (filter.search !== undefined && filter.search.trim().length > 0) {
-    const term = `%${filter.search.trim().toLowerCase()}%`;
-    const match = or(
-      like(sql`lower(${members.name})`, term),
-      like(sql`lower(${members.email})`, term),
-      like(members.phone, term),
-      like(sql`lower(coalesce(${members.cardId}, ''))`, term),
-    );
-    if (match !== undefined) conditions.push(match);
-  }
+  const match = memberSearchCondition(filter.search);
+  if (match !== undefined) conditions.push(match);
   return conditions;
+}
+
+/**
+ * The member search rule: a case-insensitive substring of the name, email,
+ * phone or card number. The term is trimmed; a term of only spaces is no
+ * search and gives `undefined`. Shared by the member list and the open-dunning
+ * report so "found" means the same on both screens. Case is folded with
+ * `fold_case()` (see `openDatabase()`), not SQLite's ASCII-only `lower()`, so
+ * Å, Ä, Ö, Ø and Æ match in either case.
+ */
+export function memberSearchCondition(search: string | undefined): SQL | undefined {
+  if (search === undefined || search.trim().length === 0) return undefined;
+  // `%`, `_` and `\` are matched as themselves, never as LIKE wildcards.
+  const term = `%${search.trim().toLowerCase().replace(/[\\%_]/g, '\\$&')}%`;
+  const contains = (value: SQL | typeof members.phone) => sql`${value} like ${term} escape '\\'`;
+  return or(
+    contains(sql`fold_case(${members.name})`),
+    contains(sql`fold_case(${members.email})`),
+    contains(members.phone),
+    contains(sql`fold_case(coalesce(${members.cardId}, ''))`),
+  );
 }
 
 export function listMembers(scope: TenantScope, filter: MemberFilter = {}): Member[] {

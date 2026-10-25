@@ -79,6 +79,8 @@ export const PERMISSIONS = {
   'subscriptions.write': ['owner', 'site_manager', 'front_desk'],
   'classes.write': ['owner', 'site_manager'],
   'payments.read': ['owner', 'site_manager'],
+  // Who is in open dunning, with the same columns as Payments: front desk checks it at the desk.
+  'dunning.read': ['owner', 'site_manager', 'front_desk'],
   'payments.run': ['owner'],
   'reports.read': ['owner', 'site_manager'],
   'reports.export': ['owner', 'site_manager'],

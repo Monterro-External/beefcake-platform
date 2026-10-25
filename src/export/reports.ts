@@ -113,43 +113,6 @@ export function failedPaymentsByCode(scope: TenantScope, sincePeriod: BillingPer
     .all() as FailedPaymentRow[];
 }
 
-export interface DunningRow {
-  readonly memberId: string;
-  readonly memberName: string;
-  readonly amountMinor: number;
-  readonly currency: Currency;
-  readonly failureCode: string | null;
-  readonly attempt: number;
-  readonly attemptedAt: string;
-  readonly nextAttemptAt: string | null;
-  readonly status: string;
-}
-
-/** The list a front desk works through: who is behind, and what happens next. */
-export function openDunning(scope: TenantScope, limit = 200): DunningRow[] {
-  const rows = scope.db
-    .select({
-      tenantId: charges.tenantId,
-      memberId: charges.memberId,
-      memberName: members.name,
-      amountMinor: charges.amountMinor,
-      currency: charges.currency,
-      failureCode: charges.failureCode,
-      attempt: charges.attempt,
-      attemptedAt: charges.attemptedAt,
-      nextAttemptAt: charges.nextAttemptAt,
-      status: charges.status,
-    })
-    .from(charges)
-    .innerJoin(members, eq(members.id, charges.memberId))
-    .where(and(eq(charges.tenantId, scope.tenantId), inArray(charges.status, ['retrying', 'abandoned'])))
-    .orderBy(desc(charges.attemptedAt))
-    .limit(limit)
-    .all();
-  guard(scope, 'charges', rows);
-  return rows as DunningRow[];
-}
-
 // ---------------------------------------------------------------------------
 // Churn
 // ---------------------------------------------------------------------------

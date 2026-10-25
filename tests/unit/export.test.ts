@@ -17,6 +17,7 @@ import { seedDatabase } from '@/db/seed';
 import { SCALES } from '@/db/seed/blueprint';
 import { PINNED_TODAY } from '@/db/seed/options';
 import { adminScope, tenantScope } from '@/db/repositories/scope';
+import * as paymentsRepo from '@/db/repositories/payments';
 import * as reports from '@/export/reports';
 import { EXPORTED_ACTIONS, csvCell, exportSignals, isoWeek } from '@/export/signals';
 import { plainDate } from '@/domain/dates';
@@ -126,7 +127,7 @@ describe('failed payments', () => {
   });
 
   it('lists open dunning with the next attempt attached', () => {
-    const rows = reports.openDunning(scopeFor());
+    const rows = paymentsRepo.listOpenDunning(scopeFor());
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
       expect(['retrying', 'abandoned']).toContain(row.status);
