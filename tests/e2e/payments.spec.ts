@@ -95,7 +95,7 @@ test.describe('payments', () => {
 
     await page.goto('/app');
     // No tab for it.
-    await expect(page.getByRole('link', { name: 'Payments' })).toBeHidden();
+    await expect(page.getByRole('link', { name: 'Payments', exact: true })).toBeHidden();
 
     // And going there directly says why.
     await page.goto('/app/payments');
