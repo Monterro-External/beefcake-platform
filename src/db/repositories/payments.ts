@@ -106,6 +106,28 @@ export function failureBreakdown(scope: TenantScope, runId: string): FailureBrea
     .all();
 }
 
+export interface PartialRunFootprint {
+  readonly charges: number;
+  readonly receipts: number;
+}
+
+/** What discarding a half-finished run would delete. The payment run's dry run reports it. */
+export function partialRunFootprint(scope: TenantScope, runId: string): PartialRunFootprint {
+  const ofRun = and(eq(charges.tenantId, scope.tenantId), eq(charges.paymentRunId, runId));
+  const chargeCount = scope.db.select({ n: count() }).from(charges).where(ofRun).get();
+  const receiptCount = scope.db
+    .select({ n: count() })
+    .from(receipts)
+    .where(
+      and(
+        eq(receipts.tenantId, scope.tenantId),
+        inArray(receipts.chargeId, scope.db.select({ id: charges.id }).from(charges).where(ofRun)),
+      ),
+    )
+    .get();
+  return { charges: chargeCount?.n ?? 0, receipts: receiptCount?.n ?? 0 };
+}
+
 export interface RunSummary {
   readonly tenantId: string;
   readonly period: string;
