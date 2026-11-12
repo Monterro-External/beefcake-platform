@@ -1,0 +1,30 @@
+/*
+ * The stylesheet shipped to Claude Design. globals.css carries the @theme
+ * tokens and the base styles; Tailwind scans the repo (src/ plus the authored
+ * previews) for the classes the kit and the app actually use.
+ *
+ * The inline sources below add the layout vocabulary a design agent reaches
+ * for when composing screens, so its own glue classes resolve. Keep them to
+ * the repo's tokens and Tailwind's default scale: nothing new is invented here.
+ */
+@import '../src/app/globals.css';
+
+/* Dot-directories are not auto-detected; the previews are composition the
+   agent imitates, so their classes must resolve too. */
+@source './previews';
+
+@source inline('{flex,inline-flex,grid,block,inline-block,hidden,contents,flex-col,flex-row,flex-wrap,flex-1,shrink-0,grow}');
+@source inline('{items,self}-{start,center,end,baseline,stretch}');
+@source inline('justify-{start,center,end,between}');
+@source inline('{gap,gap-x,gap-y,space-x,space-y}-{0,0.5,1,1.5,2,2.5,3,4,5,6,8,10,12}');
+@source inline('{p,px,py,pt,pb,pl,pr,m,mx,my,mt,mb,ml,mr}-{0,0.5,1,1.5,2,2.5,3,4,5,6,8,10,12,16}');
+@source inline('{mx-auto,ml-auto,mr-auto}');
+@source inline('{grid-cols,col-span}-{1,2,3,4,5,6,12}');
+@source inline('{sm:,md:,lg:,xl:}grid-cols-{1,2,3,4,5,6}');
+@source inline('{w,h}-{full,auto,screen}');
+@source inline('{min-h-screen,max-w-shell,max-w-xs,max-w-sm,max-w-md,max-w-lg,max-w-xl,max-w-2xl,truncate,whitespace-nowrap,tabular-nums,overflow-hidden,overflow-x-auto}');
+@source inline('{text,bg,border}-{ink,ink-muted,line,line-soft,surface,surface-raised,accent,accent-soft,on-accent,good,warn,bad,good-soft,warn-soft,bad-soft,good-subtle,warn-subtle,bad-subtle,good-line,warn-line,bad-line,accent-line}');
+@source inline('text-{2xs,xs,sm,base,lg,xl,2xl}');
+@source inline('font-{normal,medium,semibold,mono,sans}');
+@source inline('{uppercase,tracking-wide,tracking-tight,text-left,text-right,text-center}');
+@source inline('{rounded,rounded-full,border,border-t,border-b,border-l,border-r}');

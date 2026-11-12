@@ -1,0 +1,35 @@
+{
+  "projectId": "91c83873-8e0e-4912-b3af-f3954d09ba14",
+  "shape": "package",
+  "pkg": "beefcake-ui",
+  "globalName": "BeefcakeUI",
+  "buildCmd": "node .design-sync/build-dist.mjs",
+  "entry": ".design-sync/.cache/pkg/index.js",
+  "cssEntry": "styles.css",
+  "componentSrcMap": {
+    "TR": "../../../src/components/ui/index.tsx",
+    "TH": "../../../src/components/ui/index.tsx",
+    "TD": "../../../src/components/ui/index.tsx"
+  },
+  "docsMap": {
+    "PageHeader": "../../groups/page-furniture.md",
+    "Card": "../../groups/page-furniture.md",
+    "EmptyState": "../../groups/page-furniture.md",
+    "Callout": "../../groups/page-furniture.md",
+    "Table": "../../groups/tables.md",
+    "THead": "../../groups/tables.md",
+    "Badge": "../../groups/values.md",
+    "StatTile": "../../groups/values.md",
+    "DefinitionList": "../../groups/values.md",
+    "Meter": "../../groups/values.md",
+    "BarSeries": "../../groups/values.md",
+    "Button": "../../groups/controls.md",
+    "LinkButton": "../../groups/controls.md",
+    "Input": "../../groups/controls.md",
+    "Select": "../../groups/controls.md",
+    "Field": "../../groups/controls.md",
+    "Tabs": "../../groups/controls.md",
+    "Pagination": "../../groups/controls.md"
+  },
+  "readmeHeader": ".design-sync/conventions.md"
+}

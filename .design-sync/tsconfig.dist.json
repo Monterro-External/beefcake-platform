@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "incremental": false,
+    "jsx": "react-jsx",
+    "rootDir": "../src",
+    "outDir": "./.cache/pkg/types",
+    "plugins": []
+  },
+  "files": ["../src/components/ui/index.tsx"],
+  "include": []
+}
