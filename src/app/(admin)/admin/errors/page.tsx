@@ -9,7 +9,11 @@ import Link from 'next/link';
 import { Badge, Card, EmptyState, PageHeader, StatTile, TD, TH, THead, TR, Table } from '@/components/ui';
 import { getDb } from '@/db/client';
 import { adminScope } from '@/db/repositories/scope';
-import { errorRollup } from '@/db/repositories/observability';
+import { errorInstantsPrototype, errorRollup, firstErrorAtPrototype } from '@/db/repositories/observability';
+import { Suspense } from 'react';
+import { PrototypeSwitcher } from '@/components/prototype-switcher';
+import { ErrorsTimeseriesPrototype } from './prototype-variants';
+import { FLEET_TZ, RANGES, type Range, buildSeries } from './prototype-timeseries';
 import * as tenantsRepo from '@/db/repositories/tenants';
 import { clock } from '@/lib/clock';
 import { ago, integer } from '@/lib/format';
@@ -19,7 +23,13 @@ import { timezoneForCountry } from '@/jobs/runner';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FleetErrors() {
+// PROTOTYPE (BCPLA-50): three variants of the timeseries on this route, ?variant=A|B|C.
+export default async function FleetErrors({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
+  const sp = await searchParams;
   const session = await getSession();
   if (!session.isBeefcakeStaff) return null;
 
@@ -42,6 +52,50 @@ export default async function FleetErrors() {
   const total = rollup.reduce((acc, row) => acc + row.n, 0);
   const modules = [...byModule].sort(([, a], [, b]) => b.count - a.count);
 
+  const variant = sp.variant === 'B' || sp.variant === 'C' ? sp.variant : 'A';
+  const group = sp.group === 'tenant' ? 'tenant' : 'module';
+  const range: Range = (RANGES as readonly string[]).includes(sp.range ?? '') ? (sp.range as Range) : '1w';
+  const tenantFilter = sp.tenant ?? null;
+  const moduleFilter = sp.module ?? null;
+  const today = time.today(FLEET_TZ);
+  const yearBack = addDays(today, -380);
+  const instants = errorInstantsPrototype(admin, `${yearBack}T00:00:00.000Z`);
+  const built = buildSeries(instants, {
+    group,
+    tenant: tenantFilter,
+    module: moduleFilter,
+    range,
+    now: time.now,
+    today,
+    tenantName: (id) => tenantNames.get(id) ?? id,
+  });
+  const firstAt = firstErrorAtPrototype(admin);
+  const historyFrom = sp.historyFrom ?? (firstAt === null ? null : firstAt.slice(0, 10));
+  const historyStart = historyFrom === null ? null : new Date(`${historyFrom}T00:00:00Z`);
+  let historyIndex: number | null = null;
+  if (historyStart !== null && historyStart > built.from) {
+    const i = built.buckets.findIndex((b, k) => {
+      const next = built.buckets[k + 1];
+      return next === undefined || next.start > historyStart;
+    });
+    historyIndex = i;
+  }
+  const protoProps = {
+    variant,
+    group,
+    tenant: tenantFilter,
+    module: moduleFilter,
+    range,
+    bucketLabels: built.buckets.map((b) => b.label),
+    series: built.series.map((s) => ({ ...s, lastSeen: ago(s.lastAt, time.now) })),
+    other: built.other,
+    historyIndex,
+    historyFrom,
+    tenants: [...tenantNames].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
+    modules: [...new Set(instants.map((r) => r.where))].sort(),
+    unitLabel: range === '1d' ? 'hour' : range === '1w' || range === '1m' ? 'day' : 'week',
+  } as const;
+
   return (
     <>
       <PageHeader title="Errors" subtitle={`Since ${since}`} />
@@ -56,80 +110,16 @@ export default async function FleetErrors() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="By module">
-          {modules.length === 0 ? (
-            <EmptyState title="Nothing logged" />
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Module</TH>
-                  <TH align="right">Errors</TH>
-                  <TH align="right">Tenants affected</TH>
-                  <TH>Shape</TH>
-                </TR>
-              </THead>
-              <tbody>
-                {modules.map(([module, entry]) => (
-                  <TR key={module}>
-                    <TD mono>{module}</TD>
-                    <TD align="right">{integer(entry.count)}</TD>
-                    <TD align="right">{integer(entry.tenants.size)}</TD>
-                    <TD>
-                      {entry.tenants.size === 1 ? (
-                        <Badge tone="warn">One operator</Badge>
-                      ) : entry.tenants.size >= 5 ? (
-                        <Badge tone="bad">Fleet wide</Badge>
-                      ) : (
-                        <Badge tone="info">Several</Badge>
-                      )}
-                    </TD>
-                  </TR>
-                ))}
-              </tbody>
-            </Table>
-          )}
-          <p className="mt-3 text-ink-muted">
-            One operator means their configuration or their hardware. Fleet wide means ours.
-          </p>
-        </Card>
-
-        <Card title="By tenant and module">
-          {rollup.length === 0 ? (
-            <EmptyState title="Nothing logged" />
-          ) : (
-            <Table>
-              <THead>
-                <TR>
-                  <TH>Operator</TH>
-                  <TH>Module</TH>
-                  <TH align="right">Errors</TH>
-                  <TH>Last seen</TH>
-                </TR>
-              </THead>
-              <tbody>
-                {rollup.slice(0, 40).map((row) => (
-                  <TR key={`${row.tenantId}-${row.where}`}>
-                    <TD>
-                      {row.tenantId === null ? (
-                        <span className="text-ink-muted">Platform</span>
-                      ) : (
-                        <Link href={`/admin/${row.tenantId}`} className="text-accent">
-                          {tenantNames.get(row.tenantId) ?? row.tenantId}
-                        </Link>
-                      )}
-                    </TD>
-                    <TD mono>{row.where}</TD>
-                    <TD align="right">{integer(row.n)}</TD>
-                    <TD className="whitespace-nowrap text-ink-muted">{ago(row.lastAt, time.now)}</TD>
-                  </TR>
-                ))}
-              </tbody>
-            </Table>
-          )}
-        </Card>
-      </div>
+      <Suspense>
+        <ErrorsTimeseriesPrototype {...protoProps} />
+        <PrototypeSwitcher
+          variants={[
+            { key: 'A', name: 'Linear, click to focus' },
+            { key: 'B', name: 'Log scale' },
+            { key: 'C', name: 'Sparkline per row' },
+          ]}
+        />
+      </Suspense>
     </>
   );
 }

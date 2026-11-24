@@ -207,3 +207,19 @@ export function eventCounts(scope: TenantScope, since: string) {
     .orderBy(asc(events.action))
     .all();
 }
+
+// PROTOTYPE (BCPLA-50), throwaway: every error instant since `since`, for the
+// timeseries prototype on /admin/errors. Not for main.
+export function errorInstantsPrototype(scope: AdminScope, since: string) {
+  return scope.db
+    .select({ tenantId: errors.tenantId, where: errors.where, at: errors.at })
+    .from(errors)
+    .where(gte(errors.at, since))
+    .all();
+}
+
+// PROTOTYPE (BCPLA-50): the earliest error on record, fleet wide.
+export function firstErrorAtPrototype(scope: AdminScope): string | null {
+  const row = scope.db.select({ first: sql<string | null>`min(${errors.at})` }).from(errors).get();
+  return row?.first ?? null;
+}
